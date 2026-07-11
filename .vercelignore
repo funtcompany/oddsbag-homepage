@@ -1,0 +1,14 @@
+# macOS 외장/네트워크 볼륨 잡파일 (업로드 제외)
+._*
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 로컬 빌드/캐시
+.next
+node_modules
+.git
+.vercel
+
+# 로컬 환경파일
+.env*.local
