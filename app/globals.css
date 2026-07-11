@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* ===== 오즈백 브랜드 컬러 ===== */
+:root {
+  --background: #ffffff;
+  --foreground: #1a1a2e;
+
+  /* 브랜드 팔레트 (브랜드 기획서 기준) */
+  --oddsbag-purple: #5b2d8e;
+  --oddsbag-purple-light: #7b4fb5;
+  --oddsbag-purple-dark: #4c1d95;
+  --oddsbag-yellow: #ffe600;
+  --oddsbag-dark: #1a1a2e;
+  --oddsbag-gray: #6b7280;
+  --oddsbag-light-gray: #f3f4f6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-oddsbag-purple: var(--oddsbag-purple);
+  --color-oddsbag-purple-light: var(--oddsbag-purple-light);
+  --color-oddsbag-purple-dark: var(--oddsbag-purple-dark);
+  --color-oddsbag-yellow: var(--oddsbag-yellow);
+  --color-oddsbag-dark: var(--oddsbag-dark);
+  --color-oddsbag-gray: var(--oddsbag-gray);
+  --color-oddsbag-light-gray: var(--oddsbag-light-gray);
+
+  --font-sans: var(--font-noto-kr);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-noto-kr), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 부드러운 스크롤 */
+html {
+  scroll-behavior: smooth;
+}
