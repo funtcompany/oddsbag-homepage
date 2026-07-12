@@ -26,7 +26,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
 }
 
 // ---- 다크 팔레트 ----
-const BG = "#100c19"; // 페이지 배경
+const BG = "#1c1530"; // 페이지 배경 (카드와 동일 → 액자 테두리 없음)
 const CARD = "#1c1530"; // 카드
 const LINE = "#2c2445"; // 구분선
 const INK = "#f3eefc"; // 본문 텍스트
@@ -36,12 +36,12 @@ const YELLOW = "#ffe600";
 const PURPLE = "#7b4fb5";
 
 const CAT_COLOR: Record<string, string> = {
-  사회: "#8b95a8",
-  경제: "#2dd4a7",
-  스포츠: "#5b9dff",
-  "IT·테크": "#b98cff",
-  "문화·연예": "#ff7eb6",
-  트렌드: "#ffa64d",
+  사회: "#5c6b80",
+  경제: "#0f8f70",
+  스포츠: "#2f6fd0",
+  "IT·테크": "#7b4fb5",
+  "문화·연예": "#c04a80",
+  트렌드: "#c9702a",
 };
 
 // 지메일 다크모드는 background-color를 지우지만 background-image(그라디언트)는 유지한다.
@@ -52,7 +52,7 @@ const F = `-apple-system,'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif`
 
 function chip(cat: string): string {
   const c = CAT_COLOR[cat] ?? PURPLE;
-  return `<span style="display:inline-block;${bg(c)}color:#0f0a18;font-size:11px;font-weight:800;letter-spacing:.5px;padding:5px 11px;border-radius:999px">${cat}</span>`;
+  return `<span style="display:inline-block;${bg(c)}color:#ffffff;font-size:11px;font-weight:800;letter-spacing:.5px;padding:5px 11px;border-radius:999px">${cat}</span>`;
 }
 
 function thumb(p: Post, w: number, h: number): string {
@@ -72,7 +72,7 @@ function shell(inner: string, preheader: string): string {
 </head>
 <body style="margin:0;padding:0;${bg(BG)}">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${preheader}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BG}" style="${bg(BG)}padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BG}" style="${bg(BG)}padding:0">
  <tr><td align="center">
   <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;font-family:${F};color:${INK}">
    ${inner}
@@ -94,10 +94,10 @@ function shell(inner: string, preheader: string): string {
 }
 
 function hero(title: string, sub: string, date?: string): string {
-  return `<tr><td bgcolor="#3a1a63" style="background:#3a1a63;background-image:linear-gradient(135deg,#6b3aa8 0%,#33165c 100%);border-radius:20px 20px 0 0;padding:36px 32px 32px">
+  return `<tr><td bgcolor="#3a1a63" style="background:#3a1a63;background-image:linear-gradient(135deg,#6b3aa8 0%,#33165c 100%);padding:38px 30px 34px">
     <table role="presentation" cellpadding="0" cellspacing="0"><tr>
       <td style="padding-right:10px">
-        <div style="width:30px;height:30px;border-radius:9px;${bg(YELLOW)}color:#33165c;font-weight:900;font-size:18px;text-align:center;line-height:30px">O</div>
+        <div style="width:30px;height:30px;border-radius:9px;${bg(PURPLE)}color:#ffffff;font-weight:900;font-size:17px;text-align:center;line-height:30px">O</div>
       </td>
       <td style="font-weight:900;font-size:17px;color:#ffffff;letter-spacing:-.3px">ODDSBAG <span style="color:#d9c2ff">오즈백 매거진</span></td>
     </tr></table>
@@ -120,7 +120,7 @@ function featured(p: Post): string {
         <div style="margin-top:13px;font-size:24px;font-weight:900;color:${INK};line-height:1.35;letter-spacing:-.6px">${p.title}</div>
         <div style="margin-top:11px;font-size:15px;color:${SUB};line-height:1.7">${p.summary}</div>
         <div style="margin-top:20px">
-          <span style="display:inline-block;${bg(YELLOW)}color:#1a1a2e;font-weight:900;font-size:14px;padding:13px 26px;border-radius:11px">읽어보기 →</span>
+          <span style="display:inline-block;${bg(PURPLE)}color:#ffffff;font-weight:900;font-size:15px;padding:14px 30px;border-radius:11px">읽어보기 →</span>
         </div>
       </div>
     </a>
@@ -149,7 +149,7 @@ function sectionLabel(text: string): string {
 }
 
 function bottomCta(): string {
-  return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:28px 28px 34px;border-radius:0 0 20px 20px;text-align:center;border-top:1px solid ${LINE}">
+  return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:28px 28px 36px;text-align:center;border-top:1px solid ${LINE}">
     <div style="font-size:15.5px;font-weight:800;color:${INK}">오늘의 이슈, 더 있어요</div>
     <div style="margin-top:16px">
       <a href="${SITE}" style="display:inline-block;${bg(PURPLE)}color:#ffffff;font-weight:900;font-size:14px;padding:14px 32px;border-radius:11px;text-decoration:none">전체 이슈 보러가기 →</a>
