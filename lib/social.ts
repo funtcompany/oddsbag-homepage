@@ -8,7 +8,7 @@
 
 import type { Post } from "@/lib/posts";
 import { buildCards, buildCaption } from "@/lib/cards";
-import { kvGet, kvSet } from "@/lib/store";
+import { kvGet, kvSet, sadd, scard } from "@/lib/store";
 
 const IG_ID = process.env.INSTAGRAM_ACCOUNT_ID;
 const TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
@@ -17,6 +17,21 @@ const SITE = "https://oddsbag.co.kr";
 const G = "https://graph.facebook.com/v21.0";
 
 export const socialEnabled = Boolean(IG_ID && TOKEN);
+
+// 홈페이지는 자주 발행해도 되지만, SNS는 하루에 너무 많이 올리면
+//  · 메타 API 한도(인스타 24시간 50건)에 걸리고
+//  · 팔로워가 스팸으로 느껴 언팔한다
+// 그래서 SNS만 따로 하루 한도를 둔다.
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 14);
+const dayKey = () => `social:shared:${new Date().toISOString().slice(0, 10)}`;
+
+export async function sharedToday(): Promise<number> {
+  try {
+    return await scard(dayKey());
+  } catch {
+    return 0;
+  }
+}
 
 async function graph(
   path: string,
@@ -122,9 +137,15 @@ export async function postToFacebook(post: Post): Promise<string> {
 // ---- 발행 시 한 번에 (실패해도 홈페이지 발행은 유지) ----
 export async function shareEverywhere(
   post: Post,
-): Promise<{ ig?: string; fb?: string; errors: string[] }> {
-  const out: { ig?: string; fb?: string; errors: string[] } = { errors: [] };
+): Promise<{ ig?: string; fb?: string; errors: string[]; capped?: boolean }> {
+  const out: { ig?: string; fb?: string; errors: string[]; capped?: boolean } = { errors: [] };
   if (!socialEnabled) return out;
+
+  // 하루 한도를 넘으면 SNS만 건너뛴다 (홈페이지 발행은 그대로 유지)
+  if ((await sharedToday()) >= DAILY_CAP) {
+    out.capped = true;
+    return out;
+  }
 
   try {
     out.ig = await postToInstagram(post);
@@ -135,6 +156,14 @@ export async function shareEverywhere(
     out.fb = await postToFacebook(post);
   } catch (e) {
     out.errors.push(`FB: ${(e as Error).message}`);
+  }
+
+  if (out.ig || out.fb) {
+    try {
+      await sadd(dayKey(), post.slug);
+    } catch {
+      /* 카운트 실패가 게시를 막지는 않는다 */
+    }
   }
   return out;
 }

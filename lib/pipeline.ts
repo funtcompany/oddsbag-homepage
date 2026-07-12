@@ -45,10 +45,13 @@ export async function runCollection(opts: {
   limit?: number;
   autoPublish?: boolean; // 기본 true (실시간 발행)
   share?: boolean; // 기본 true (SNS 동시 게시)
+  budgetMs?: number; // 작성에 쓸 시간 예산 (넘으면 다음 회차로 넘김)
 }): Promise<CollectResult> {
   const limit = Math.min(Math.max(opts.limit ?? 5, 1), 12);
   const autoPublish = opts.autoPublish !== false;
   const share = opts.share !== false;
+  // 크론이 시간 초과로 죽지 않게 — 남은 건 다음 회차(30분 뒤)가 이어받는다
+  const deadline = Date.now() + (opts.budgetMs ?? 540_000);
 
   const issues = await collectAllIssues(opts.sources);
   const seen = new Set(await smembers(K_SEEN));
@@ -69,7 +72,7 @@ export async function runCollection(opts: {
   const freshPosts: Post[] = []; // 방금 발행한 Post 원본 (SNS 게시용)
 
   for (const issue of fresh) {
-    if (made >= limit) break;
+    if (made >= limit || Date.now() > deadline) break;
     try {
       // 0) 원문 기사를 실제로 읽는다.
       //    못 읽으면 AI가 나머지를 상상해서 채우게 되므로 — 그 이슈는 아예 쓰지 않는다.
@@ -213,6 +216,10 @@ export async function runCollection(opts: {
     for (const post of freshPosts) {
       try {
         const r = await shareEverywhere(post);
+        if (r.capped) {
+          out.errors.push("SNS 하루 한도 도달 — 홈페이지에만 발행 (다음 날 자동 게시)");
+          break;
+        }
         if (r.ig) out.social.ig++;
         if (r.fb) out.social.fb++;
         if (r.errors.length) out.errors.push(...r.errors);

@@ -88,7 +88,12 @@ export async function runImprove(): Promise<ImproveResult> {
 
   // ---- 2) 인스타에 못 올라간 발행글 재게시 ----
   if (socialEnabled) {
-    const missing = published.filter((p) => !p.social?.ig).slice(0, RESHARE_PER_RUN);
+    // 이틀 안에 발행된 글만 재게시 (지난 뉴스를 뒤늦게 도배하지 않는다)
+    const twoDaysAgo = Date.now() - 2 * 864e5;
+    const missing = published
+      .filter((p) => !p.social?.ig)
+      .filter((p) => new Date(p.publishedAt ?? p.date).getTime() > twoDaysAgo)
+      .slice(0, RESHARE_PER_RUN);
     for (const post of missing) {
       try {
         const r = await shareEverywhere(post);

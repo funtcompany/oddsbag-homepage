@@ -1,4 +1,4 @@
-// 【1시간마다】 수집 → AI 작성 → 품질 심사 → 통과하면 즉시 발행 + 인스타/페북 게시
+// 【30분마다】 수집 → AI 작성 → 품질 심사 → 통과하면 즉시 발행 + 인스타/페북 게시
 import { NextRequest, NextResponse } from "next/server";
 import { runCollection } from "@/lib/pipeline";
 import type { IssueSource } from "@/lib/sources";
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     }
   }
   try {
-    const r = await runCollection({ sources: SOURCES, limit: 4 });
+    const r = await runCollection({ sources: SOURCES, limit: 5 });
     return NextResponse.json({
       ok: true,
       발행: r.published.length,
