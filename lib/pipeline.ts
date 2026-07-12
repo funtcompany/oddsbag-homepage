@@ -10,14 +10,13 @@ import { collectAllIssues } from "@/lib/aggregate";
 import { generateDraft, type DraftDraft } from "@/lib/ai";
 import { reviewDraft, reviseDraft, type Review } from "@/lib/quality";
 import { getLessons, recordReview } from "@/lib/learn";
-import { saveDraft, upsertPublished, type Post } from "@/lib/posts";
+import { saveDraft, queuePost, queueSize, type Post } from "@/lib/posts";
 import { categoryOf } from "@/lib/categories";
 import { sadd, smembers } from "@/lib/store";
 import { notionEnabled, addCollectedPage } from "@/lib/notion";
 import { findCoverImage } from "@/lib/images";
 import { resolveSourceText } from "@/lib/article";
-import { shareEverywhere, socialEnabled } from "@/lib/social";
-import { revalidateTag } from "next/cache";
+import { kvGet, kvSet } from "@/lib/store";
 import type { IssueSource } from "@/lib/sources";
 
 const K_SEEN = "issues:seen";
@@ -31,7 +30,29 @@ function makeSlug(categorySlug: string): string {
   return `${categorySlug}-${t}${r}`;
 }
 
+// 예약 발행 간격 — 이 간격으로 하나씩 올라간다 (홈페이지가 하루 종일 살아있게)
+const GAP_MIN = Number(process.env.PUBLISH_GAP_MIN || 45);
+const QUEUE_MAX = Number(process.env.QUEUE_MAX || 12); // 대기열이 이만큼 차면 새로 쓰지 않는다 (묵은 뉴스 방지 + 비용 절약)
+const K_NEXT_AT = "queue:nextAt";
+
+// 다음 글이 올라갈 시각을 잡는다 (약간의 랜덤을 섞어 기계적이지 않게)
+async function nextSlot(): Promise<Date> {
+  const now = Date.now();
+  let base = now;
+  try {
+    const raw = await kvGet(K_NEXT_AT);
+    if (raw) base = Math.max(now, new Date(raw).getTime());
+  } catch {
+    /* 없으면 지금부터 */
+  }
+  const jitter = (Math.random() - 0.5) * 12 * 60_000; // ±6분
+  const at = new Date(base);
+  await kvSet(K_NEXT_AT, new Date(base + GAP_MIN * 60_000 + jitter).toISOString());
+  return at;
+}
+
 export interface CollectResult {
+  queued: { slug: string; title: string; score: number; at: string }[];
   published: { slug: string; title: string; score: number }[];
   held: { title: string; score: number; reason: string }[];
   scanned: number;
@@ -43,13 +64,11 @@ export interface CollectResult {
 export async function runCollection(opts: {
   sources: IssueSource[];
   limit?: number;
-  autoPublish?: boolean; // 기본 true (실시간 발행)
-  share?: boolean; // 기본 true (SNS 동시 게시)
+  autoPublish?: boolean; // 기본 true (심사 통과 시 예약 대기열로)
   budgetMs?: number; // 작성에 쓸 시간 예산 (넘으면 다음 회차로 넘김)
 }): Promise<CollectResult> {
   const limit = Math.min(Math.max(opts.limit ?? 5, 1), 12);
   const autoPublish = opts.autoPublish !== false;
-  const share = opts.share !== false;
   // 크론이 시간 초과로 죽지 않게 — 남은 건 다음 회차(30분 뒤)가 이어받는다
   const deadline = Date.now() + (opts.budgetMs ?? 540_000);
 
@@ -61,6 +80,7 @@ export async function runCollection(opts: {
   const lessons = await getLessons();
 
   const out: CollectResult = {
+    queued: [],
     published: [],
     held: [],
     scanned: issues.length,
@@ -68,11 +88,18 @@ export async function runCollection(opts: {
     social: { ig: 0, fb: 0 },
     errors: [],
   };
+
+  // 대기열이 이미 가득 차 있으면 새 글을 쓰지 않는다 (묵은 뉴스가 쌓이는 걸 막고 API 비용도 아낀다)
+  const pending = await queueSize();
+  if (pending >= QUEUE_MAX) {
+    out.errors.push(`대기열 ${pending}건 — 이번 회차는 수집만 (다 소진되면 다시 씀)`);
+    return out;
+  }
+  const room = Math.max(1, QUEUE_MAX - pending);
   let made = 0;
-  const freshPosts: Post[] = []; // 방금 발행한 Post 원본 (SNS 게시용)
 
   for (const issue of fresh) {
-    if (made >= limit || Date.now() > deadline) break;
+    if (made >= Math.min(limit, room) || Date.now() > deadline) break;
     try {
       // 0) 원문 기사를 실제로 읽는다.
       //    못 읽으면 AI가 나머지를 상상해서 채우게 되므로 — 그 이슈는 아예 쓰지 않는다.
@@ -163,19 +190,23 @@ export async function runCollection(opts: {
       };
 
       if (passed) {
-        // ---- 즉시 발행 ----
-        post.publishedAt = new Date().toISOString();
-        await upsertPublished(post);
+        // ---- 예약 발행 대기열에 넣는다 (한꺼번에 쏟아내지 않는다) ----
+        const at = await nextSlot();
+        await queuePost(post, at);
         if (notionEnabled) {
           try {
-            post.notionId = await addCollectedPage(post, "발행");
-            await upsertPublished(post); // notionId 반영
+            post.notionId = await addCollectedPage(post, "예약");
+            await queuePost(post, at); // notionId 반영
           } catch (e) {
             out.errors.push(`노션 기록: ${(e as Error).message}`);
           }
         }
-        freshPosts.push(post);
-        out.published.push({ slug: post.slug, title: post.title, score: review.score });
+        out.queued.push({
+          slug: post.slug,
+          title: post.title,
+          score: review.score,
+          at: at.toISOString(),
+        });
       } else {
         // ---- 검수함 ----
         await saveDraft(post);
@@ -198,36 +229,6 @@ export async function runCollection(opts: {
       }
     } catch (e) {
       out.errors.push(`${issue.title.slice(0, 22)}: ${(e as Error).message}`);
-    }
-  }
-
-  // 5) 캐시 갱신 → 홈페이지 즉시 반영
-  if (out.published.length) {
-    try {
-      revalidateTag("posts", "max");
-    } catch {
-      /* ignore */
-    }
-  }
-
-  // 6) SNS 동시 게시 (발행된 것만, 실패해도 홈페이지는 유지)
-  //    캐시 갱신 후에 해야 /api/card 가 새 글을 찾을 수 있다.
-  if (share && socialEnabled && freshPosts.length) {
-    for (const post of freshPosts) {
-      try {
-        const r = await shareEverywhere(post);
-        if (r.capped) {
-          out.errors.push("SNS 하루 한도 도달 — 홈페이지에만 발행 (다음 날 자동 게시)");
-          break;
-        }
-        if (r.ig) out.social.ig++;
-        if (r.fb) out.social.fb++;
-        if (r.errors.length) out.errors.push(...r.errors);
-        post.social = { ig: r.ig, fb: r.fb, at: new Date().toISOString() };
-        await upsertPublished(post);
-      } catch (e) {
-        out.errors.push(`SNS ${post.slug}: ${(e as Error).message}`);
-      }
     }
   }
 

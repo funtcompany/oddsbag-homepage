@@ -1,4 +1,5 @@
-// 【30분마다】 수집 → AI 작성 → 품질 심사 → 통과하면 즉시 발행 + 인스타/페북 게시
+// 【30분마다】 수집 → AI 작성 → 품질 심사 → 통과하면 '예약 발행 대기열'에 넣는다
+// (실제 발행은 /api/cron/publish 가 시간 간격을 두고 하나씩)
 import { NextRequest, NextResponse } from "next/server";
 import { runCollection } from "@/lib/pipeline";
 import type { IssueSource } from "@/lib/sources";
@@ -25,10 +26,8 @@ export async function GET(req: NextRequest) {
     const r = await runCollection({ sources: SOURCES, limit: 5 });
     return NextResponse.json({
       ok: true,
-      발행: r.published.length,
+      예약: r.queued.length,
       검수함: r.held.length,
-      인스타: r.social.ig,
-      페북: r.social.fb,
       스캔: r.scanned,
       ...r,
     });

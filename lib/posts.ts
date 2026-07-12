@@ -14,7 +14,7 @@ import path from "path";
 import { unstable_cache } from "next/cache";
 import { kvGet, kvSet, kvDel, smembers, sadd, srem } from "@/lib/store";
 
-export type PostStatus = "draft" | "published";
+export type PostStatus = "draft" | "queued" | "published";
 
 export interface Post {
   slug: string;
@@ -46,6 +46,7 @@ export interface Post {
     rounds: number; // 자동 개선 시도 횟수
     note?: string;
   };
+  publishAt?: string; // 예약 발행 시각 (대기열에 있을 때)
   auditedAt?: string; // 마지막 재점검 시각 (1일 3회 크론)
   social?: { ig?: string; fb?: string; at?: string }; // SNS 게시 결과
 }
@@ -53,6 +54,7 @@ export interface Post {
 const POSTS_DIR = path.join(process.cwd(), "content", "posts");
 const K_PUBLISHED = "posts:published";
 const K_DRAFTS = "posts:drafts";
+const K_QUEUE = "posts:queued"; // 예약 발행 대기열
 const postKey = (slug: string) => `post:${slug}`;
 
 // ---- 파일 시드 ----
@@ -166,6 +168,41 @@ export async function publishPost(slug: string): Promise<boolean> {
   return true;
 }
 
+// ---- 예약 발행 대기열 ----
+// 한 번에 여러 건을 몰아서 올리지 않고, 시간 간격을 두고 하나씩 올린다.
+// 홈페이지가 하루 종일 살아 움직이는 느낌을 준다.
+
+export async function queuePost(post: Post, publishAt: Date): Promise<void> {
+  post.status = "queued";
+  post.publishAt = publishAt.toISOString();
+  await kvSet(postKey(post.slug), JSON.stringify(post));
+  await sadd(K_QUEUE, post.slug);
+}
+
+export async function getQueued(): Promise<Post[]> {
+  const list = await readRedisPosts(K_QUEUE);
+  return list.sort((a, b) => (a.publishAt ?? "") < (b.publishAt ?? "") ? -1 : 1);
+}
+
+export async function queueSize(): Promise<number> {
+  try {
+    return (await smembers(K_QUEUE)).length;
+  } catch {
+    return 0;
+  }
+}
+
+// 대기열 → 발행
+export async function releaseFromQueue(post: Post): Promise<void> {
+  post.status = "published";
+  post.publishedAt = new Date().toISOString();
+  post.date = post.publishedAt.slice(0, 10); // 실제 올라간 날짜로 맞춘다
+  delete post.publishAt;
+  await kvSet(postKey(post.slug), JSON.stringify(post));
+  await sadd(K_PUBLISHED, post.slug);
+  await srem(K_QUEUE, post.slug);
+}
+
 // 발행 게시물 업서트 (노션 동기화용)
 export async function upsertPublished(post: Post): Promise<void> {
   post.status = "published";
@@ -206,5 +243,6 @@ export async function getPostFresh(slug: string): Promise<Post | undefined> {
 export async function deletePost(slug: string): Promise<void> {
   await kvDel(postKey(slug));
   await srem(K_DRAFTS, slug);
+  await srem(K_QUEUE, slug);
   await srem(K_PUBLISHED, slug);
 }

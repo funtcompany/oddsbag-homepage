@@ -108,7 +108,7 @@ export async function ensureSchema(): Promise<void> {
 // 노션 페이지 생성 (상태: 수집 / 발행 / 검수필요)
 export async function addCollectedPage(
   post: Post,
-  status: "수집" | "발행" | "검수필요" = "수집",
+  status: "수집" | "예약" | "발행" | "검수필요" = "수집",
 ): Promise<string> {
   await ensureSchema();
   const data = await notion("/pages", "POST", {
@@ -142,7 +142,7 @@ export async function addCollectedPage(
 // 노션 페이지 상태 변경 (품질 점검에서 문제 발견 → 검수필요로 내림)
 export async function setNotionStatus(
   pageId: string,
-  status: "수집" | "발행" | "검수필요",
+  status: "수집" | "예약" | "발행" | "검수필요",
   note?: string,
 ): Promise<void> {
   if (!notionEnabled || !pageId) return;
