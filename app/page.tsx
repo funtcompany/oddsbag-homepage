@@ -4,7 +4,6 @@ import PostCard from "@/components/PostCard";
 import FeaturedHero from "@/components/FeaturedHero";
 import PopularRanking from "@/components/PopularRanking";
 import SubscribeBox from "@/components/SubscribeBox";
-import AppPromoBand from "@/components/AppPromoBand";
 import AdSlot from "@/components/AdSlot";
 import Link from "next/link";
 import { categories } from "@/lib/categories";
@@ -70,7 +69,7 @@ export default async function Home() {
           </div>
 
           {/* 카테고리별 섹션 */}
-          {categories.map((cat, idx) => {
+          {categories.map((cat) => {
             const posts = byCategory.get(cat.label) ?? [];
             if (posts.length === 0) return null;
             return (
@@ -93,12 +92,6 @@ export default async function Home() {
                     ))}
                   </div>
                 </section>
-
-                {idx === 1 && (
-                  <div className="mt-10">
-                    <AppPromoBand />
-                  </div>
-                )}
               </div>
             );
           })}

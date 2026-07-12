@@ -4,7 +4,6 @@ import PostCard from "@/components/PostCard";
 import AdSlot from "@/components/AdSlot";
 import ReactionBar from "@/components/ReactionBar";
 import CommentSection from "@/components/CommentSection";
-import AppPromoBand from "@/components/AppPromoBand";
 import { getAllPosts, getPostBySlug, getRelatedPosts } from "@/lib/posts";
 import { categoryOf } from "@/lib/categories";
 import Link from "next/link";
@@ -133,11 +132,6 @@ export default async function PostPage({
 
           {/* 반응 */}
           <ReactionBar slug={post.slug} />
-
-          {/* 오즈백 앱 은근한 노출 */}
-          <div className="mt-6">
-            <AppPromoBand compact />
-          </div>
 
           {/* 출처 */}
           {post.sources && post.sources.length > 0 && (

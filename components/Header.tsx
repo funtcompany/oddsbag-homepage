@@ -16,12 +16,6 @@ export default function Header() {
         </Link>
         <div className="flex items-center gap-3">
           <Link
-            href="/apps"
-            className="hidden text-sm font-medium text-oddsbag-gray transition hover:text-oddsbag-purple sm:inline"
-          >
-            오즈백 앱
-          </Link>
-          <Link
             href="/#subscribe"
             className="rounded-full bg-oddsbag-purple px-4 py-1.5 text-sm font-bold text-white transition hover:bg-oddsbag-purple-dark"
           >

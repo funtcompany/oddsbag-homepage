@@ -72,7 +72,13 @@ function sortByDateDesc(posts: Post[]): Post[] {
 // 파일 시드 + Redis 발행글 병합
 async function loadAllPublished(): Promise<Post[]> {
   const seeds = readSeedPosts().filter((p) => p.status === "published");
-  const redis = await readRedisPosts(K_PUBLISHED);
+  // Redis가 일시적으로 안 돼도 시드 콘텐츠로 안전하게 렌더 (ISR이 곧 복구)
+  let redis: Post[] = [];
+  try {
+    redis = await readRedisPosts(K_PUBLISHED);
+  } catch (e) {
+    console.warn("Redis 읽기 실패, 시드만 사용:", (e as Error).message);
+  }
   const bySlug = new Map<string, Post>();
   for (const p of seeds) bySlug.set(p.slug, p);
   for (const p of redis) bySlug.set(p.slug, p); // Redis가 시드보다 우선

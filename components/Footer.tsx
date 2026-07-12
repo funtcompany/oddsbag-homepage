@@ -36,11 +36,6 @@ export default function Footer() {
             <p className="text-xs font-bold text-white/50">오즈백</p>
             <ul className="mt-2 space-y-1 text-sm text-white/80">
               <li>
-                <Link href="/apps" className="transition hover:text-oddsbag-yellow">
-                  오즈백 앱 소개
-                </Link>
-              </li>
-              <li>
                 <Link
                   href="/#subscribe"
                   className="transition hover:text-oddsbag-yellow"
