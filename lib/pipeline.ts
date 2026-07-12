@@ -55,18 +55,28 @@ export async function runCollection(opts: {
         `${issue.summary}${issue.extra ? " / " + issue.extra : ""}`,
         issue.category,
       );
-      const cat = categoryOf(issue.category);
+      // AI가 판별한 카테고리를 사용 (수집처 추정보다 정확)
+      const finalCategory = draft.category;
+      const cat = categoryOf(finalCategory);
       const slug = makeSlug(cat.slug);
-      const cover = await findCoverImage(draft.imageQuery, issue.category);
+      // 후보 사진 중 AI가 기사에 맞는 걸 선택 (없으면 생성형 디자인)
+      const cover = await findCoverImage(
+        draft.imageQuery,
+        draft.imageQueryAlt,
+        finalCategory,
+        draft.title,
+        draft.summary,
+      );
       const post: Post = {
         slug,
         title: draft.title,
         summary: draft.summary,
-        category: issue.category,
+        category: finalCategory,
         date: today(),
         status: "draft",
         body: draft.body,
         emoji: draft.emoji,
+        mood: draft.mood,
         cover: cover?.url,
         imageCredit: cover?.credit,
         readMinutes: Math.max(2, Math.round(draft.body.length / 400)),

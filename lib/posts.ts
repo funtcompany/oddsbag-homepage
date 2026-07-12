@@ -25,6 +25,7 @@ export interface Post {
   status: PostStatus;
   body: string;
   emoji?: string;
+  mood?: string; // AI가 판별한 분위기 (디자인 색에 반영)
   cover?: string; // 커버 이미지 URL (Pexels 등)
   imageCredit?: string; // 사진 출처 표기
   featured?: boolean;

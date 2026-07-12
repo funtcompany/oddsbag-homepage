@@ -121,8 +121,9 @@ export interface Design {
 }
 
 export function getDesign(post: Post): Design {
+  // AI가 판별한 무드 우선, 없으면 카테고리 기본값
   const mood =
-    (post as unknown as { mood?: string }).mood ||
+    (post.mood && MOOD_GROUNDS[post.mood] ? post.mood : undefined) ||
     CATEGORY_MOOD[post.category] ||
     "trendy";
   const r = mulberry32(hashStr(post.slug + "::" + currentSeason()));
