@@ -112,6 +112,39 @@ export default function GenerativeCover({
   );
   const titleEl = <h3 style={titleStyle}>{post.title}</h3>;
 
+  // 히어로는 항상 하단 배치 + 요약까지 (여백을 정보로 채움)
+  if (variant === "hero") {
+    return (
+      <div className={`relative overflow-hidden ${className}`} style={{ background: d.bg, isolation: "isolate" }}>
+        {layers}
+        {!hasPhoto && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1]" style={{ height: "78%", background: `linear-gradient(transparent,${d.scrim}c4)` }} />
+        )}
+        <div className="absolute inset-0 z-[3] flex flex-col" style={{ padding: v.pad }}>
+          <div className="inline-flex items-center gap-1.5 self-start font-black" style={{ color: titleColor, fontSize: v.brand, letterSpacing: "-0.02em", ...shadow }}>
+            <span className="grid place-items-center rounded-[6px] font-black" style={{ width: v.brand + 5, height: v.brand + 5, background: d.accent, color: "#20122e", fontSize: v.brand - 2 }}>O</span>
+            ODDSBAG
+          </div>
+          <div style={{ marginTop: "auto", maxWidth: "42ch" }}>
+            {cat}
+            {titleEl}
+            {post.summary && (
+              <p
+                className="mt-3 line-clamp-2 text-[15px] font-medium leading-relaxed sm:text-[17px]"
+                style={{ color: isLight ? "rgba(255,255,255,.82)" : "rgba(0,0,0,.6)", wordBreak: "keep-all", ...shadow }}
+              >
+                {post.summary}
+              </p>
+            )}
+          </div>
+        </div>
+        <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
+          @oddsbag.official
+        </span>
+      </div>
+    );
+  }
+
   // 사진이 있으면 항상 하단 배치 (스크림 위 → 가독성 최고)
   const layout = hasPhoto ? "bottom" : d.layout;
 
