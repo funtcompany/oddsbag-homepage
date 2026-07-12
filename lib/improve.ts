@@ -15,11 +15,10 @@ import { getQualityTrend, getLessons } from "@/lib/learn";
 import { findCoverImage } from "@/lib/images";
 import { shareEverywhere, socialEnabled } from "@/lib/social";
 import { sendEmail, emailEnabled } from "@/lib/email";
+import { ask } from "@/lib/llm";
 import { smembers } from "@/lib/store";
 import { revalidateTag } from "next/cache";
 
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = "claude-sonnet-5";
 const OWNER = process.env.OWNER_EMAIL || "tjdrhks2826@gmail.com";
 
 const FIX_COVERS_PER_RUN = 6;
@@ -161,19 +160,7 @@ async function suggestActions(ctx: {
   subs: number;
   recentTitles: string[];
 }): Promise<string[]> {
-  if (!API_KEY) return [];
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 700,
-        system: `너는 오즈백(ODDSBAG) 매거진의 그로스 담당자다.
+  const system = `너는 오즈백(ODDSBAG) 매거진의 그로스 담당자다.
 홈페이지(oddsbag.co.kr)와 인스타그램(@oddsbag_official)의 데이터를 보고,
 앞으로 2일간 실행할 개선 액션을 뽑는다.
 
@@ -183,11 +170,9 @@ async function suggestActions(ctx: {
 - 카테고리가 한쪽으로 쏠리면 독자층이 좁아진다.
 - 실행 가능한 구체적 액션만. 추상적인 조언 금지.
 
-출력: '- ' 로 시작하는 액션 최대 5개. 각 한 문장. 다른 말 금지.`,
-        messages: [
-          {
-            role: "user",
-            content: `발행글: ${ctx.posts}건 / 검수함 대기: ${ctx.drafts}건
+출력: '- ' 로 시작하는 액션 최대 5개. 각 한 문장. 다른 말 금지.`;
+
+  const user = `발행글: ${ctx.posts}건 / 검수함 대기: ${ctx.drafts}건
 사진 없는 글: ${ctx.noCover}건
 카테고리 분포: ${JSON.stringify(ctx.byCategory)}
 품질 점수 평균: 최근 ${ctx.trend.avg7}점 (직전 ${ctx.trend.avgPrev}점)
@@ -195,15 +180,11 @@ async function suggestActions(ctx: {
 뉴스레터 구독자: ${ctx.subs}명
 최근 제목들: ${ctx.recentTitles.join(" / ")}
 현재 재발 방지 체크리스트:
-${ctx.lessons || "(아직 없음)"}`,
-          },
-        ],
-      }),
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const d = (await res.json()) as { content?: { text?: string }[] };
-    return (d.content?.map((c) => c.text ?? "").join("") ?? "")
+${ctx.lessons || "(아직 없음)"}`;
+
+  try {
+    const text = await ask(system, user, { maxTokens: 700, careful: true });
+    return text
       .split("\n")
       .map((l) => l.replace(/^[-•]\s*/, "").trim())
       .filter(Boolean)

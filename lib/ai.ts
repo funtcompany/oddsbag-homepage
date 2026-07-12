@@ -2,8 +2,7 @@
 // 저작권 안전: 원문을 복사하지 않고, 사실을 바탕으로 새로 요약·해설한다.
 // AI가 카테고리·무드·이미지 검색어까지 직접 판별한다.
 
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = "claude-sonnet-5";
+import { ask } from "@/lib/llm";
 
 export const CATEGORIES = [
   "사회",
@@ -97,8 +96,6 @@ export async function generateDraft(
   hintCategory: string,
   lessons = "", // 학습 루프: 과거 지적사항에서 뽑은 재발 방지 체크리스트
 ): Promise<DraftDraft> {
-  if (!API_KEY) throw new Error("ANTHROPIC_API_KEY 미설정");
-
   const userPrompt = `${lessons ? `[지난 글들에서 반복된 지적 — 이번엔 반드시 지킬 것]\n${lessons}\n\n` : ""}[원문 기사 — 오직 여기 있는 사실만 쓸 수 있다]
 제목: ${sourceTitle}
 본문:
@@ -110,31 +107,7 @@ ${sourceContext}
 원문에 없는 수치·인용·사실을 절대 만들어내지 마라. 모르는 건 쓰지 마라.
 지정된 태그 형식으로만 출력.`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": API_KEY,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 2200,
-      system: SYSTEM,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Claude API 오류 ${res.status}: ${t.slice(0, 200)}`);
-  }
-
-  const data = (await res.json()) as {
-    content?: { type: string; text?: string }[];
-  };
-  const text = data.content?.map((c) => c.text ?? "").join("").trim() ?? "";
+  const text = await ask(SYSTEM, userPrompt, { maxTokens: 2400 });
 
   const rawCategory = pick(text, "category");
   const rawMood = pick(text, "mood");
@@ -171,45 +144,30 @@ export async function pickBestPhoto(
   summary: string,
   candidates: { url: string }[],
 ): Promise<number | null> {
-  if (!API_KEY || candidates.length === 0) return null;
+  if (candidates.length === 0) return null;
+  try {
+    const prompt = `기사 제목: ${title}
+요약: ${summary}
 
-  const content: unknown[] = [
-    {
-      type: "text",
-      text: `기사 제목: ${title}\n요약: ${summary}\n\n아래 ${candidates.length}장의 사진 중 이 기사의 커버로 가장 적절한 것을 고르세요.
+방금 보낸 ${candidates.length}장의 사진(순서대로 1번~${candidates.length}번) 중, 이 기사의 커버로 가장 적절한 것을 고르세요.
 기준: 기사 주제와 명백히 어울릴 것. 어색하거나 무관한 사진이면 고르지 마세요.
 적절한 게 하나도 없으면 반드시 "none" 이라고 답하세요.
-답은 숫자 하나(1~${candidates.length}) 또는 "none" 만 출력. 다른 말 금지.`,
-    },
-  ];
-  candidates.forEach((c, i) => {
-    content.push({ type: "text", text: `[${i + 1}번]` });
-    content.push({ type: "image", source: { type: "url", url: c.url } });
-  });
+답은 숫자 하나(1~${candidates.length}) 또는 "none" 만 출력. 다른 말 금지.`;
 
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 10,
-        messages: [{ role: "user", content }],
-      }),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const d = (await res.json()) as { content?: { text?: string }[] };
-    const ans = (d.content?.[0]?.text ?? "").trim().toLowerCase();
+    const ans = (
+      await ask("너는 매거진 사진 에디터다. 사진과 기사가 어울리는지만 판단한다.", prompt, {
+        maxTokens: 12,
+        images: candidates.map((c) => c.url),
+      })
+    )
+      .trim()
+      .toLowerCase();
+
     if (ans.startsWith("none")) return null;
     const n = parseInt(ans, 10);
     if (Number.isNaN(n) || n < 1 || n > candidates.length) return null;
     return n - 1;
   } catch {
-    return null;
+    return null; // 사진을 못 고르면 생성형 타이포 디자인으로 간다
   }
 }
