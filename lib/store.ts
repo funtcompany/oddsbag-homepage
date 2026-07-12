@@ -103,3 +103,44 @@ export async function lrange(key: string): Promise<string[]> {
   const s = mem.hash.get(key)?.__list;
   return s ? (JSON.parse(s) as string[]) : [];
 }
+
+// ---- 범용 문자열 KV (게시물 저장용) ----
+const memKv = new Map<string, string>();
+
+export async function kvGet(key: string): Promise<string | null> {
+  if (isPersistent) {
+    return ((await redis(["GET", key])) as string | null) ?? null;
+  }
+  return memKv.get(key) ?? null;
+}
+
+export async function kvSet(key: string, value: string): Promise<void> {
+  if (isPersistent) {
+    await redis(["SET", key, value]);
+    return;
+  }
+  memKv.set(key, value);
+}
+
+export async function kvDel(key: string): Promise<void> {
+  if (isPersistent) {
+    await redis(["DEL", key]);
+    return;
+  }
+  memKv.delete(key);
+}
+
+export async function smembers(key: string): Promise<string[]> {
+  if (isPersistent) {
+    return ((await redis(["SMEMBERS", key])) as string[]) ?? [];
+  }
+  return Array.from(mem.set.get(key) ?? []);
+}
+
+export async function srem(key: string, member: string): Promise<void> {
+  if (isPersistent) {
+    await redis(["SREM", key, member]);
+    return;
+  }
+  mem.set.get(key)?.delete(member);
+}

@@ -11,8 +11,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-export function generateStaticParams() {
-  return getAllPosts().map((post) => ({ slug: post.slug }));
+export const revalidate = 60;
+export const dynamicParams = true; // 빌드 후 발행된 글도 온디맨드 렌더
+
+export async function generateStaticParams() {
+  return (await getAllPosts()).map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -21,7 +24,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlug(slug);
   if (!post) return { title: "게시물을 찾을 수 없어요" };
   return {
     title: post.title,
@@ -59,11 +62,11 @@ export default async function PostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlug(slug);
   if (!post) notFound();
 
   const cat = categoryOf(post.category);
-  const related = getRelatedPosts(post, 4);
+  const related = await getRelatedPosts(post, 4);
 
   return (
     <>

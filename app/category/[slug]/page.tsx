@@ -7,6 +7,8 @@ import { getPostsByCategory } from "@/lib/posts";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+export const revalidate = 60;
+
 export function generateStaticParams() {
   return categories.map((c) => ({ slug: c.slug }));
 }
@@ -34,7 +36,7 @@ export default async function CategoryPage({
   const cat = getCategoryBySlug(slug);
   if (!cat) notFound();
 
-  const posts = getPostsByCategory(cat.label);
+  const posts = await getPostsByCategory(cat.label);
 
   return (
     <>

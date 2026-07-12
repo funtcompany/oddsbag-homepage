@@ -8,17 +8,27 @@ import AppPromoBand from "@/components/AppPromoBand";
 import AdSlot from "@/components/AdSlot";
 import Link from "next/link";
 import { categories } from "@/lib/categories";
-import {
-  getFeaturedPost,
-  getLatestPosts,
-  getPostsByCategory,
-} from "@/lib/posts";
+import { getFeaturedPost, getLatestPosts, type Post } from "@/lib/posts";
 
-export default function Home() {
-  const featured = getFeaturedPost();
-  const latest = getLatestPosts();
+export const revalidate = 60; // 1분마다 새 발행글 반영 (ISR)
+
+export default async function Home() {
+  const [featured, latest] = await Promise.all([
+    getFeaturedPost(),
+    getLatestPosts(),
+  ]);
+
   const popular = latest.slice(0, 5);
   const restLatest = latest.filter((p) => p.slug !== featured?.slug).slice(0, 4);
+
+  // 카테고리별 그룹핑 (전체글 한 번만 조회한 걸로)
+  const byCategory = new Map<string, Post[]>();
+  for (const cat of categories) {
+    byCategory.set(
+      cat.label,
+      latest.filter((p) => p.category === cat.label).slice(0, 4),
+    );
+  }
 
   return (
     <>
@@ -61,7 +71,7 @@ export default function Home() {
 
           {/* 카테고리별 섹션 */}
           {categories.map((cat, idx) => {
-            const posts = getPostsByCategory(cat.label, 4);
+            const posts = byCategory.get(cat.label) ?? [];
             if (posts.length === 0) return null;
             return (
               <div key={cat.slug}>
@@ -84,7 +94,6 @@ export default function Home() {
                   </div>
                 </section>
 
-                {/* 두 번째 카테고리 뒤에 오즈백 앱 은근한 노출 */}
                 {idx === 1 && (
                   <div className="mt-10">
                     <AppPromoBand />

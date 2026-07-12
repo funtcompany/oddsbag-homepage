@@ -4,7 +4,7 @@ import { categories } from "@/lib/categories";
 
 const BASE = "https://oddsbag.kr";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = ["", "/magazine", "/apps"].map((path) => ({
     url: `${BASE}${path}`,
     changeFrequency: "daily" as const,
@@ -17,7 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  const postRoutes = getAllPosts().map((p) => ({
+  const postRoutes = (await getAllPosts()).map((p) => ({
     url: `${BASE}/magazine/${p.slug}`,
     lastModified: p.date,
     changeFrequency: "weekly" as const,

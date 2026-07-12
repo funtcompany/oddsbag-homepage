@@ -9,8 +9,10 @@ export const metadata: Metadata = {
   description: "오즈백 매거진의 모든 이슈를 한눈에.",
 };
 
-export default function MagazinePage() {
-  const posts = getAllPosts();
+export const revalidate = 60;
+
+export default async function MagazinePage() {
+  const posts = await getAllPosts();
 
   return (
     <>
