@@ -46,15 +46,15 @@ html {
 /* ===== 기사 본문 에디토리얼 타이포 =====
    본문 직속 문단(> p)에만 적용 → 콜아웃/반응/댓글 등 안쪽 요소는 침범 안 함 */
 .article-body > p {
-  font-size: 17.5px;
+  font-size: 19px;
   line-height: 1.85;
-  color: color-mix(in srgb, var(--oddsbag-dark) 88%, transparent);
-  margin: 20px 0;
+  color: color-mix(in srgb, var(--oddsbag-dark) 90%, transparent);
+  margin: 22px 0;
   word-break: keep-all;
 }
 .article-body > p.dropcap::first-letter {
   float: left;
-  font-size: 68px;
+  font-size: 74px;
   line-height: 0.72;
   font-weight: 900;
   color: var(--oddsbag-purple);

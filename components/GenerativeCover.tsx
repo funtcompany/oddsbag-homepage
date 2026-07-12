@@ -4,10 +4,11 @@ import type { CSSProperties } from "react";
 
 type Variant = "card" | "hero" | "article";
 
-const V: Record<Variant, { pad: string; brand: number; base: number; cat: number; clampCard: number }> = {
-  card: { pad: "14px 15px 30px", brand: 12, base: 22, cat: 10, clampCard: 4 },
-  hero: { pad: "28px 30px 40px", brand: 15, base: 40, cat: 13, clampCard: 3 },
-  article: { pad: "42px 22px 46px", brand: 14, base: 44, cat: 13, clampCard: 3 },
+// 텍스트 크기 상향 (모바일 가독성)
+const V: Record<Variant, { pad: string; brand: number; base: number; cat: number; clamp: number }> = {
+  card: { pad: "15px 16px 32px", brand: 13, base: 26, cat: 11.5, clamp: 4 },
+  hero: { pad: "30px 32px 44px", brand: 17, base: 46, cat: 14.5, clamp: 3 },
+  article: { pad: "44px 24px 48px", brand: 15, base: 50, cat: 14.5, clamp: 3 },
 };
 
 export default function GenerativeCover({
@@ -21,91 +22,110 @@ export default function GenerativeCover({
 }) {
   const d = getDesign(post);
   const v = V[variant];
+  const hasPhoto = Boolean(post.cover);
+
+  // 사진이 있으면: 사진 + 어두운 그라디언트 + 흰 타이포 (가독성 보장)
+  const titleColor = hasPhoto ? "#fff" : d.title;
+  const catColor = hasPhoto ? d.accent : d.catColor;
+  const wmColor = hasPhoto ? "#fff" : d.wm;
+  const isLight = hasPhoto ? true : d.light;
+
   const size = titleFontPx(post.title.length, v.base * (variant === "card" ? d.scale : 1));
-  const shadow: CSSProperties = d.light
-    ? { textShadow: "0 1px 14px rgba(0,0,0,.35)" }
+  const shadow: CSSProperties = isLight
+    ? { textShadow: "0 2px 18px rgba(0,0,0,.45)" }
     : {};
-  const isBusy = !["plain", "mesh", "spotlight"].includes(d.fx);
 
-  // 배경 레이어
   const layers = [];
-  if (d.fx === "blobs") {
+  if (hasPhoto) {
     layers.push(
-      <div key="fx" className="pointer-events-none absolute inset-0 z-0">
-        <span style={{ position: "absolute", width: "44%", height: "44%", borderRadius: "50%", background: `${d.accent}33`, top: "-8%", left: "-6%" }} />
-        <span style={{ position: "absolute", width: "32%", height: "32%", borderRadius: "50%", background: `${d.accent}26`, bottom: "-6%", right: "6%" }} />
-      </div>,
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        key="photo"
+        src={post.cover}
+        alt=""
+        loading="lazy"
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+      />,
+      <div
+        key="scrim"
+        className="pointer-events-none absolute inset-0 z-[1]"
+        style={{
+          background:
+            "linear-gradient(to top, rgba(10,6,20,.92) 0%, rgba(10,6,20,.55) 42%, rgba(10,6,20,.12) 100%)",
+        }}
+      />,
     );
-  } else if (d.fx === "confetti") {
-    const spots = [[10, 8], [70, 14], [40, 6], [85, 26], [22, 20], [58, 10]];
-    layers.push(
-      <div key="fx" className="pointer-events-none absolute inset-0 z-0">
-        {spots.map(([x, y], i) => (
-          <span key={i} style={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: 9, height: 9, background: d.accent, opacity: 0.55, transform: `rotate(${(i * 37) % 90}deg)`, borderRadius: i % 3 ? 2 : 50 }} />
-        ))}
-      </div>,
-    );
-  } else if (d.fx !== "plain") {
-    layers.push(<div key="fx" className="pointer-events-none absolute inset-0 z-0" style={fxStyle(d.fx, d.accent)} />);
+  } else {
+    if (d.fx === "blobs") {
+      layers.push(
+        <div key="fx" className="pointer-events-none absolute inset-0 z-0">
+          <span style={{ position: "absolute", width: "48%", height: "48%", borderRadius: "50%", background: `${d.accent}2e`, top: "-10%", left: "-8%", filter: "blur(2px)" }} />
+          <span style={{ position: "absolute", width: "34%", height: "34%", borderRadius: "50%", background: `${d.accent}22`, bottom: "-8%", right: "4%", filter: "blur(2px)" }} />
+        </div>,
+      );
+    } else if (d.fx !== "plain") {
+      layers.push(<div key="fx" className="pointer-events-none absolute inset-0 z-0" style={fxStyle(d.fx, d.accent)} />);
+    }
+    // 하단 배치 레이아웃엔 스크림
+    if (["bottom", "sidebar", "bignum"].includes(d.layout)) {
+      layers.push(
+        <div key="scrim" className="pointer-events-none absolute inset-x-0 bottom-0 z-[1]" style={{ height: "72%", background: `linear-gradient(transparent,${d.scrim}b3)` }} />,
+      );
+    }
   }
 
-  // 스크림 (하단 배치 레이아웃)
-  const needScrim = ["bottom", "sidebar", "bignum"].includes(d.layout);
-  if (needScrim) {
-    layers.push(
-      <div key="scrim" className="pointer-events-none absolute inset-x-0 bottom-0 z-[1]" style={{ height: "70%", background: `linear-gradient(transparent,${d.scrim}b0)` }} />,
-    );
-  }
-
-  // 모티프
+  // 모티프 (사진 있을 땐 생략 — 사진이 이미 시각요소)
   let motif = null;
-  if (d.motif === "shape")
-    motif = <span className="absolute z-[1]" style={{ right: 15, top: 50, width: 44, height: 44, borderRadius: d.scale > 1 ? "50%" : 12, background: d.accent, opacity: 0.9 }} />;
-  else if (d.motif === "corner")
-    motif = <span className="absolute z-[1]" style={{ right: -24, top: -24, width: 78, height: 78, background: d.accent, transform: "rotate(45deg)", opacity: 0.92 }} />;
-  else if (d.motif === "dots")
-    motif = <span className="absolute z-[1]" style={{ right: 14, top: 48, width: 68, height: 42, backgroundImage: `radial-gradient(${d.accent} 2px,transparent 2.4px)`, backgroundSize: "12px 12px", opacity: 0.85 }} />;
+  if (!hasPhoto) {
+    if (d.motif === "shape")
+      motif = <span className="absolute z-[1]" style={{ right: 16, top: 54, width: 46, height: 46, borderRadius: d.scale > 1 ? "50%" : 12, background: d.accent, opacity: 0.9 }} />;
+    else if (d.motif === "corner")
+      motif = <span className="absolute z-[1]" style={{ right: -26, top: -26, width: 82, height: 82, background: d.accent, transform: "rotate(45deg)", opacity: 0.9 }} />;
+  }
 
   const underline: CSSProperties =
-    d.motif === "underline"
-      ? { display: "inline", boxShadow: `inset 0 -0.34em 0 ${d.accent}77` }
+    !hasPhoto && d.motif === "underline"
+      ? { display: "inline", boxShadow: `inset 0 -0.32em 0 ${d.accent}77` }
       : {};
 
   const titleStyle: CSSProperties = {
-    color: d.title,
+    color: titleColor,
     fontSize: size,
     fontWeight: 900,
-    letterSpacing: "-0.02em",
-    lineHeight: 1.14,
+    letterSpacing: "-0.025em",
+    lineHeight: 1.16,
     margin: 0,
     wordBreak: "keep-all",
     overflowWrap: "anywhere",
     overflow: "hidden",
     display: "-webkit-box",
     WebkitBoxOrient: "vertical",
-    WebkitLineClamp: v.clampCard,
+    WebkitLineClamp: v.clamp,
     ...shadow,
     ...underline,
   };
 
   const cat = (
-    <span style={{ color: d.catColor, fontSize: v.cat, fontWeight: 900, letterSpacing: "0.12em", textTransform: "uppercase", display: "block", marginBottom: 6, ...shadow }}>
+    <span style={{ color: catColor, fontSize: v.cat, fontWeight: 900, letterSpacing: "0.1em", display: "block", marginBottom: 7, ...shadow }}>
       {post.category}
     </span>
   );
   const titleEl = <h3 style={titleStyle}>{post.title}</h3>;
 
+  // 사진이 있으면 항상 하단 배치 (스크림 위 → 가독성 최고)
+  const layout = hasPhoto ? "bottom" : d.layout;
+
   let body;
-  if (d.layout === "center")
-    body = <div className="flex flex-1 flex-col items-center justify-center gap-1.5 text-center">{cat}{titleEl}</div>;
-  else if (d.layout === "topband")
-    body = <div style={{ marginTop: 12 }}>{cat}{titleEl}</div>;
-  else if (d.layout === "bignum")
-    body = (<><div className="flex flex-1 items-center"><span style={{ fontSize: variant === "card" ? 64 : 120, filter: "drop-shadow(0 4px 12px rgba(0,0,0,.3))" }}>{d.emoji}</span></div><div>{cat}{titleEl}</div></>);
-  else if (d.layout === "sidebar")
-    body = <div style={{ marginTop: "auto", paddingLeft: 11, borderLeft: `4px solid ${d.accent}` }}>{cat}{titleEl}</div>;
-  else if (d.layout === "block")
-    body = <div style={{ marginTop: "auto", background: d.light ? "#00000038" : "#ffffff26", padding: 12, borderRadius: 12 }}>{cat}{titleEl}</div>;
+  if (layout === "center")
+    body = <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">{cat}{titleEl}</div>;
+  else if (layout === "topband")
+    body = <div style={{ marginTop: 14 }}>{cat}{titleEl}</div>;
+  else if (layout === "bignum")
+    body = (<><div className="flex flex-1 items-center"><span style={{ fontSize: variant === "card" ? 68 : 128, filter: "drop-shadow(0 4px 14px rgba(0,0,0,.3))" }}>{d.emoji}</span></div><div>{cat}{titleEl}</div></>);
+  else if (layout === "sidebar")
+    body = <div style={{ marginTop: "auto", paddingLeft: 12, borderLeft: `4px solid ${d.accent}` }}>{cat}{titleEl}</div>;
+  else if (layout === "block")
+    body = <div style={{ marginTop: "auto", background: d.light ? "#00000040" : "#ffffff2e", padding: 13, borderRadius: 13 }}>{cat}{titleEl}</div>;
   else
     body = <div style={{ marginTop: "auto" }}>{cat}{titleEl}</div>;
 
@@ -114,13 +134,13 @@ export default function GenerativeCover({
       {layers}
       {motif}
       <div className="absolute inset-0 z-[3] flex flex-col" style={{ padding: v.pad }}>
-        <div className="inline-flex items-center gap-1.5 self-start font-black" style={{ color: d.title, fontSize: v.brand, letterSpacing: "-0.02em", ...shadow }}>
-          <span className="grid place-items-center rounded-[5px] font-black" style={{ width: v.brand + 4, height: v.brand + 4, background: d.accent, color: "#20122e", fontSize: v.brand - 2 }}>O</span>
+        <div className="inline-flex items-center gap-1.5 self-start font-black" style={{ color: titleColor, fontSize: v.brand, letterSpacing: "-0.02em", ...shadow }}>
+          <span className="grid place-items-center rounded-[6px] font-black" style={{ width: v.brand + 5, height: v.brand + 5, background: d.accent, color: "#20122e", fontSize: v.brand - 2 }}>O</span>
           ODDSBAG
         </div>
         {body}
       </div>
-      <span className="absolute z-[4] font-extrabold" style={{ right: 11, bottom: 10, fontSize: variant === "card" ? 9 : 12, color: d.wm, opacity: 0.72, letterSpacing: "0.04em" }}>
+      <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: variant === "card" ? 10 : 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
         @oddsbag.official
       </span>
     </div>

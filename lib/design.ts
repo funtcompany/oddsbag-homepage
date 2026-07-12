@@ -95,9 +95,9 @@ function currentSeason(): keyof typeof SEASON_ACCENTS {
   return "winter";
 }
 
+// 차분한 배경만 유지 (하프톤/컨페티/리소/스트라이프 등 노이즈 패턴 제거)
 const FX = [
-  "plain", "mesh", "grid", "dots", "halftone", "stripes",
-  "concentric", "spotlight", "waves", "blobs", "confetti", "riso",
+  "plain", "mesh", "spotlight", "glow", "grid", "waves", "blobs",
 ] as const;
 const LAYOUTS = ["bottom", "center", "topband", "bignum", "sidebar", "block"] as const;
 const MOTIFS = ["none", "shape", "corner", "underline", "dots"] as const;
@@ -152,23 +152,15 @@ export function getDesign(post: Post): Design {
 export function fxStyle(fx: string, a: string): CSSProperties {
   switch (fx) {
     case "mesh":
-      return { background: `radial-gradient(60% 65% at 22% 18%,${a}44,transparent 55%),radial-gradient(50% 55% at 90% 32%,${a}2e,transparent 50%)` };
-    case "grid":
-      return { backgroundImage: `linear-gradient(${a}1f 1px,transparent 1px),linear-gradient(90deg,${a}1f 1px,transparent 1px)`, backgroundSize: "26px 26px" };
-    case "dots":
-      return { backgroundImage: `radial-gradient(${a}44 1.5px,transparent 1.7px)`, backgroundSize: "14px 14px" };
-    case "halftone":
-      return { backgroundImage: `radial-gradient(${a}55 3px,transparent 3.4px)`, backgroundSize: "22px 22px" };
-    case "stripes":
-      return { backgroundImage: `repeating-linear-gradient(45deg,${a}16 0 12px,transparent 12px 26px)` };
-    case "concentric":
-      return { backgroundImage: `repeating-radial-gradient(circle at 82% 16%,${a}1c 0 2px,transparent 2px 18px)` };
+      return { background: `radial-gradient(65% 70% at 20% 15%,${a}3a,transparent 60%),radial-gradient(55% 60% at 92% 35%,${a}24,transparent 55%)` };
     case "spotlight":
-      return { background: `radial-gradient(48% 48% at 74% 22%,${a}3a,transparent 60%)` };
+      return { background: `radial-gradient(55% 55% at 72% 20%,${a}33,transparent 65%)` };
+    case "glow":
+      return { background: `radial-gradient(80% 60% at 50% 105%,${a}3a,transparent 60%)` };
+    case "grid":
+      return { backgroundImage: `linear-gradient(${a}14 1px,transparent 1px),linear-gradient(90deg,${a}14 1px,transparent 1px)`, backgroundSize: "38px 38px" };
     case "waves":
-      return { backgroundImage: `repeating-linear-gradient(0deg,${a}12 0 2px,transparent 2px 16px)` };
-    case "riso":
-      return { backgroundImage: `radial-gradient(${a}38 1.5px,transparent 1.7px)`, backgroundSize: "11px 11px" };
+      return { backgroundImage: `repeating-linear-gradient(0deg,${a}0d 0 2px,transparent 2px 22px)` };
     default:
       return {};
   }

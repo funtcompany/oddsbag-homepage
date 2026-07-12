@@ -84,10 +84,10 @@ function renderBody(body: string) {
       out.push(
         <h2
           key={key++}
-          className="mt-11 flex items-center gap-3 text-2xl font-black text-oddsbag-dark"
+          className="mt-12 flex items-center gap-3 text-[26px] font-black leading-snug text-oddsbag-dark"
           style={{ wordBreak: "keep-all" }}
         >
-          <span className="h-6 w-3 shrink-0 rounded bg-oddsbag-purple" />
+          <span className="mt-0.5 h-7 w-3 shrink-0 rounded bg-oddsbag-purple" />
           {heading.replace(/\*\*/g, "")}
         </h2>,
       );
@@ -103,7 +103,7 @@ function renderBody(body: string) {
       out.push(
         <ul key={key++} className="my-5 flex flex-col gap-3">
           {items.map((it, j) => (
-            <li key={j} className="flex items-start gap-3.5 text-[17px] leading-relaxed text-oddsbag-dark/90" style={{ wordBreak: "keep-all" }}>
+            <li key={j} className="flex items-start gap-3.5 text-[18.5px] leading-relaxed text-oddsbag-dark/90" style={{ wordBreak: "keep-all" }}>
               <span className="mt-2.5 h-2 w-2 shrink-0 rounded bg-oddsbag-yellow ring-4 ring-oddsbag-yellow/20" />
               <span>{inline(it)}</span>
             </li>
@@ -139,42 +139,59 @@ export default async function PostPage({
   const cat = categoryOf(post.category);
   const related = await getRelatedPosts(post, 4);
   const d = getDesign(post);
-  const headShadow = d.light ? { textShadow: "0 3px 24px rgba(0,0,0,.35)" } : {};
+  const hasPhoto = Boolean(post.cover);
+  // 사진 위엔 흰 글자 + 그림자, 아니면 디자인 엔진 색
+  const headTitle = hasPhoto ? "#fff" : d.title;
+  const headCat = hasPhoto ? d.accent : d.catColor;
+  const headSub = hasPhoto ? "rgba(255,255,255,.8)" : d.sub;
+  const headShadow =
+    hasPhoto || d.light ? { textShadow: "0 3px 24px rgba(0,0,0,.45)" } : {};
 
   return (
     <>
       <Header />
       <main className="flex-1">
-        {/* 생성형 헤더 */}
+        {/* 헤더 — 사진 있으면 사진+스크림, 없으면 생성형 배경 */}
         <header className="relative overflow-hidden" style={{ background: d.bg }}>
-          <div className="absolute inset-0" style={fxStyle(d.fx, d.accent)} />
-          <div className="relative mx-auto max-w-2xl px-4 py-12 sm:py-16">
+          {hasPhoto ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={post.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <div
+                className="absolute inset-0"
+                style={{ background: "linear-gradient(to top, rgba(10,6,20,.93) 0%, rgba(10,6,20,.65) 45%, rgba(10,6,20,.3) 100%)" }}
+              />
+            </>
+          ) : (
+            <div className="absolute inset-0" style={fxStyle(d.fx, d.accent)} />
+          )}
+          <div className="relative mx-auto max-w-2xl px-4 py-14 sm:py-20">
             <Link
               href={`/category/${cat.slug}`}
-              className="text-sm font-bold hover:underline"
-              style={{ color: d.title, opacity: 0.85 }}
+              className="text-[15px] font-bold hover:underline"
+              style={{ color: headTitle, opacity: 0.85 }}
             >
               ← {cat.label}
             </Link>
             <div
-              className="mt-4 text-[13px] font-black tracking-[0.12em]"
-              style={{ color: d.catColor, ...headShadow }}
+              className="mt-4 text-[14px] font-black tracking-[0.1em]"
+              style={{ color: headCat, ...headShadow }}
             >
-              {d.emoji} {post.category.toUpperCase()}
+              {d.emoji} {post.category}
             </div>
             <h1
-              className="mt-3 text-3xl font-black leading-tight sm:text-[42px]"
-              style={{ color: d.title, letterSpacing: "-0.03em", wordBreak: "keep-all", ...headShadow }}
+              className="mt-3 text-[32px] font-black leading-[1.15] sm:text-[48px]"
+              style={{ color: headTitle, letterSpacing: "-0.03em", wordBreak: "keep-all", ...headShadow }}
             >
               {post.title}
             </h1>
             <p
-              className="mt-4 max-w-[60ch] text-[16px] font-medium leading-relaxed sm:text-lg"
-              style={{ color: d.sub }}
+              className="mt-5 max-w-[60ch] text-[17px] font-medium leading-relaxed sm:text-[19px]"
+              style={{ color: headSub }}
             >
               {post.summary}
             </p>
-            <div className="mt-5 flex items-center gap-2.5 text-[13px] font-semibold" style={{ color: d.sub }}>
+            <div className="mt-6 flex items-center gap-2.5 text-[14px] font-semibold" style={{ color: headSub }}>
               <span>{post.date}</span>
               {post.readMinutes && (
                 <>
@@ -183,6 +200,11 @@ export default async function PostPage({
                 </>
               )}
             </div>
+            {post.imageCredit && (
+              <div className="mt-4 text-[11px]" style={{ color: headSub, opacity: 0.6 }}>
+                {post.imageCredit}
+              </div>
+            )}
           </div>
         </header>
 

@@ -28,10 +28,13 @@ export default function PopularRanking({ posts }: { posts: Post[] }) {
                   {i + 1}
                 </span>
                 <div className="min-w-0">
-                  <p className="line-clamp-2 text-sm font-medium leading-snug text-oddsbag-dark group-hover:text-oddsbag-purple">
+                  <p
+                    className="line-clamp-2 text-[15.5px] font-semibold leading-snug text-oddsbag-dark group-hover:text-oddsbag-purple"
+                    style={{ wordBreak: "keep-all" }}
+                  >
                     {post.title}
                   </p>
-                  <span className="text-xs text-oddsbag-gray/60">{cat.label}</span>
+                  <span className="text-[12.5px] text-oddsbag-gray/70">{cat.label}</span>
                 </div>
               </Link>
             </li>
