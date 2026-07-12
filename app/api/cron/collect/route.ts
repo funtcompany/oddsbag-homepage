@@ -3,7 +3,7 @@ import { runCollection } from "@/lib/pipeline";
 import { syncFromNotion } from "@/lib/sync";
 import type { IssueSource } from "@/lib/sources";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // 수집 + AI 다건 + 동기화 여유
 
 // Vercel Cron 이 1시간마다 호출 (vercel.json)
 // 보안: CRON_SECRET 설정 시 Authorization 헤더 검증

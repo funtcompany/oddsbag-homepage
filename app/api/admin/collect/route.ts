@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runCollection } from "@/lib/pipeline";
 import type { IssueSource } from "@/lib/sources";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // 수집 + AI 다건 여유
 
 const ADMIN = process.env.ADMIN_PASSWORD;
 const ALL_SOURCES: IssueSource[] = [

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncFromNotion } from "@/lib/sync";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const ADMIN = process.env.ADMIN_PASSWORD;
 
