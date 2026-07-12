@@ -70,7 +70,25 @@ SNS에서 화제가 된 유행·밈·현상도 좋은 소재다 — 단, 원본 
 // 태그 형식 파서 — 본문에 줄바꿈/따옴표가 있어도 안전하다
 export function pick(text: string, name: string): string {
   const m = text.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i"));
-  return m ? m[1].trim() : "";
+  return m ? sanitize(m[1].trim()) : "";
+}
+
+// 글자 깨짐 검사 — 드물게 AI 응답에 깨진 문자가 섞여 들어온다.
+// 이런 글이 그대로 발행되면 독자에게 '전�g이' 처럼 보인다.
+const BROKEN = /[\uFFFD\uD800-\uDFFF]/; // 깨진 문자 · 짝 없는 서로게이트
+
+export function hasBrokenChars(text: string): boolean {
+  return BROKEN.test(text);
+}
+
+// 보이지 않는 제어문자·특수 공백 정리 (한글/이모지/문장부호는 그대로 둔다)
+export function sanitize(text: string): string {
+  return text
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "") // 제어문자
+    .replace(/[\u200B-\u200D\uFEFF\u2060]/g, "") // 폭 없는 공백 (복사할 때 깨짐 유발)
+    .replace(/\u00A0/g, " ") // 안 보이는 특수 공백 → 일반 공백
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
 }
 
 export async function generateDraft(
@@ -124,6 +142,10 @@ ${sourceContext}
   const title = pick(text, "title");
 
   if (!title || !body) throw new Error("초안 형식 오류 (제목/본문 없음)");
+  // 글자가 깨진 채로 저장되면 독자에게 그대로 보인다 → 아예 버리고 다시 쓰게 한다
+  if (hasBrokenChars(title + body + pick(text, "summary") + pick(text, "hook"))) {
+    throw new Error("글자 깨짐 감지 — 재작성 필요");
+  }
 
   return {
     title,

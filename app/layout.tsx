@@ -3,10 +3,22 @@ import { Noto_Sans_KR } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
+// 한글 폰트 주의점:
+//  subsets에 "latin"만 넣고 preload를 켜두면 한글 글리프가 빠진 채로 로드돼
+//  기기마다 다른 폰트로 대체되고, 특수문자·신조어에서 글자가 깨져 보인다.
+//  preload를 끄면 Next가 모든 서브셋(한글 포함)을 함께 넣어준다.
 const notoSansKr = Noto_Sans_KR({
   variable: "--font-noto-kr",
   subsets: ["latin"],
   weight: ["400", "500", "700", "900"],
+  display: "swap",
+  preload: false, // ← 한글 글리프 전체 포함
+  fallback: [
+    "Apple SD Gothic Neo",
+    "Pretendard",
+    "Malgun Gothic",
+    "sans-serif",
+  ],
 });
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;

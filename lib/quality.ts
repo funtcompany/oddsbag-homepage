@@ -9,7 +9,7 @@
 //
 // 결과에 따라: 즉시 발행 / 자동 개선 후 재심사 / 검수함 보류
 
-import { pick, type DraftDraft } from "@/lib/ai";
+import { pick, hasBrokenChars, type DraftDraft } from "@/lib/ai";
 
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = "claude-sonnet-5";
@@ -188,12 +188,15 @@ ${draft.body}
 지적사항을 반영해 다시 써라. 지정된 태그 형식으로만 출력.`;
 
   const raw = await claude(REVISE_SYSTEM, user, 2400);
-  return {
+  const fixed = {
     title: pick(raw, "title") || draft.title,
     summary: pick(raw, "summary") || draft.summary,
     body: pick(raw, "body") || draft.body,
     hook: pick(raw, "hook") || undefined,
   };
+  // 고치다가 글자가 깨졌으면 원래 글을 유지한다 (깨진 글을 내보내지 않는다)
+  if (hasBrokenChars(fixed.title + fixed.body)) return { ...draft, hook: undefined };
+  return fixed;
 }
 
 // ---- 발행 후 재감사 (1일 3회 점검 크론) ----
@@ -275,10 +278,12 @@ ${post.body}
 지적사항만 정확히 반영해 다시 써라. 없는 사실을 새로 만들지 마라 — 위험한 문장은 추가하지 말고 삭제하라. 지정된 태그 형식으로만 출력.`;
 
   const raw = await claude(REVISE_SYSTEM, user, 2400);
-  return {
+  const fixed = {
     title: pick(raw, "title") || post.title,
     summary: pick(raw, "summary") || post.summary,
     body: pick(raw, "body") || post.body,
     hook: pick(raw, "hook") || undefined,
   };
+  if (hasBrokenChars(fixed.title + fixed.body)) return { ...post, hook: undefined };
+  return fixed;
 }
