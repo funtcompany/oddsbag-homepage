@@ -8,7 +8,15 @@ export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");
   if (!slug) return NextResponse.json({ error: "slug 필요" }, { status: 400 });
   const counts = await hgetall(key(slug));
-  return NextResponse.json({ counts });
+  // 짧은 엣지 캐싱 — 반복 조회로 DB 부담을 주지 않도록 (내 반응은 즉시 반영됨)
+  return NextResponse.json(
+    { counts },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+      },
+    },
+  );
 }
 
 export async function POST(req: NextRequest) {

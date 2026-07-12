@@ -11,6 +11,7 @@
 
 import fs from "fs";
 import path from "path";
+import { unstable_cache } from "next/cache";
 import { kvGet, kvSet, kvDel, smembers, sadd, srem } from "@/lib/store";
 
 export type PostStatus = "draft" | "published";
@@ -68,7 +69,8 @@ function sortByDateDesc(posts: Post[]): Post[] {
 }
 
 // ---- 공개(발행) 조회 ----
-export async function getAllPosts(): Promise<Post[]> {
+// 파일 시드 + Redis 발행글 병합
+async function loadAllPublished(): Promise<Post[]> {
   const seeds = readSeedPosts().filter((p) => p.status === "published");
   const redis = await readRedisPosts(K_PUBLISHED);
   const bySlug = new Map<string, Post>();
@@ -76,6 +78,14 @@ export async function getAllPosts(): Promise<Post[]> {
   for (const p of redis) bySlug.set(p.slug, p); // Redis가 시드보다 우선
   return sortByDateDesc([...bySlug.values()]);
 }
+
+// 트래픽 최적화: 방문마다 DB를 읽지 않고 60초에 한 번만 읽어 캐시.
+// 발행/동기화/삭제 시 revalidateTag("posts")로 즉시 갱신 (아래 API 라우트).
+// 이 캐싱 덕분에 방문자는 CDN에서 받고, DB 부하는 트래픽과 무관하게 일정.
+export const getAllPosts = unstable_cache(loadAllPublished, ["oddsbag-posts"], {
+  revalidate: 60,
+  tags: ["posts"],
+});
 
 export async function getLatestPosts(count?: number): Promise<Post[]> {
   const all = await getAllPosts();
@@ -96,14 +106,8 @@ export async function getPostsByCategory(
 }
 
 export async function getPostBySlug(slug: string): Promise<Post | undefined> {
-  const raw = await kvGet(postKey(slug));
-  if (raw) {
-    const p = JSON.parse(raw) as Post;
-    if (p.status === "published") return p;
-  }
-  return readSeedPosts().find(
-    (p) => p.slug === slug && p.status === "published",
-  );
+  // 캐시된 발행 목록에서 조회 (방문마다 DB 조회 안 함)
+  return (await getAllPosts()).find((p) => p.slug === slug);
 }
 
 export async function getRelatedPosts(post: Post, count = 4): Promise<Post[]> {

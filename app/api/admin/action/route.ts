@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { publishPost, deletePost, getPostBySlug } from "@/lib/posts";
+import { publishPost, deletePost } from "@/lib/posts";
 import { kvGet, kvSet } from "@/lib/store";
 
 const ADMIN = process.env.ADMIN_PASSWORD;

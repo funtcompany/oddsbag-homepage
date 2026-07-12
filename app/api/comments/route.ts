@@ -13,7 +13,14 @@ export async function GET(req: NextRequest) {
   if (!slug) return NextResponse.json({ error: "slug 필요" }, { status: 400 });
   const raw = await lrange(key(slug));
   const comments = raw.map((s) => JSON.parse(s));
-  return NextResponse.json({ comments });
+  return NextResponse.json(
+    { comments },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=20, stale-while-revalidate=40",
+      },
+    },
+  );
 }
 
 export async function POST(req: NextRequest) {
