@@ -5,8 +5,10 @@
 //
 // 👉 무료 Upstash Redis 연동만 하면 좋아요/댓글/구독자/랭킹이 실제로 저장됩니다.
 
-const KV_URL = process.env.KV_REST_API_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN;
+const KV_URL =
+  process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const KV_TOKEN =
+  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
 export const isPersistent = Boolean(KV_URL && KV_TOKEN);
 
