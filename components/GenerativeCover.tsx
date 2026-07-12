@@ -89,7 +89,7 @@ export default function GenerativeCover({
   };
 
   const cat = (
-    <span style={{ color: d.accent, fontSize: v.cat, fontWeight: 900, letterSpacing: "0.12em", textTransform: "uppercase", display: "block", marginBottom: 6, ...shadow }}>
+    <span style={{ color: d.catColor, fontSize: v.cat, fontWeight: 900, letterSpacing: "0.12em", textTransform: "uppercase", display: "block", marginBottom: 6, ...shadow }}>
       {post.category}
     </span>
   );

@@ -107,6 +107,7 @@ export interface Design {
   bg: string;
   title: string;
   accent: string;
+  catColor: string; // 카테고리/아이브로 글자색 (배경 대비 확보)
   sub: string;
   wm: string;
   light: boolean;
@@ -132,6 +133,8 @@ export function getDesign(post: Post): Design {
     bg: g.bg,
     title: g.t,
     accent,
+    // 밝은 배경에선 밝은 포인트색이 안 보이므로 진한 제목색을 글자에 사용
+    catColor: light ? accent : g.t,
     sub: light ? "rgba(255,255,255,.72)" : "rgba(0,0,0,.5)",
     wm: g.t,
     light,

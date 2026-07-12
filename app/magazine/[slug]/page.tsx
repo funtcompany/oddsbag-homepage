@@ -74,7 +74,7 @@ function renderBody(body: string) {
             <div className="text-xs font-black tracking-[0.16em] text-oddsbag-yellow">
               오즈백 한 줄 정리
             </div>
-            <p className="mt-2.5 text-lg font-extrabold leading-snug">
+            <p className="mt-2.5 text-lg font-extrabold leading-snug" style={{ color: "#fff" }}>
               {content.join(" ").replace(/\*\*/g, "")}
             </p>
           </div>,
@@ -158,7 +158,7 @@ export default async function PostPage({
             </Link>
             <div
               className="mt-4 text-[13px] font-black tracking-[0.12em]"
-              style={{ color: d.accent, ...headShadow }}
+              style={{ color: d.catColor, ...headShadow }}
             >
               {d.emoji} {post.category.toUpperCase()}
             </div>
@@ -186,8 +186,8 @@ export default async function PostPage({
           </div>
         </header>
 
-        <article className="oddsbag-article mx-auto max-w-2xl px-4 py-9">
-          <div className="mt-1">{renderBody(post.body)}</div>
+        <article className="mx-auto max-w-2xl px-4 py-9">
+          <div className="article-body mt-1">{renderBody(post.body)}</div>
 
           <div className="my-9">
             <AdSlot />
