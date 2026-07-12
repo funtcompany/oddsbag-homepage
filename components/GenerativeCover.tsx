@@ -139,7 +139,7 @@ export default function GenerativeCover({
           </div>
         </div>
         <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
-          @oddsbag.official
+          @oddsbag_official
         </span>
       </div>
     );
@@ -174,7 +174,7 @@ export default function GenerativeCover({
         {body}
       </div>
       <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: variant === "card" ? 10 : 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
-        @oddsbag.official
+        @oddsbag_official
       </span>
     </div>
   );

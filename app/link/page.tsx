@@ -15,7 +15,7 @@ interface LinkItem {
 
 const oddsbag: LinkItem[] = [
   { emoji: "🗞️", label: "오즈백 매거진", sub: "오늘의 이슈 보러가기", href: "https://oddsbag.co.kr", primary: true },
-  { emoji: "📸", label: "인스타그램", sub: "@oddsbag.official", href: "https://instagram.com/oddsbag.official" },
+  { emoji: "📸", label: "인스타그램", sub: "@oddsbag_official", href: "https://instagram.com/oddsbag_official" },
 ];
 
 const brands: LinkItem[] = [

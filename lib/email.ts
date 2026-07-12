@@ -82,7 +82,7 @@ function shell(inner: string, preheader: string): string {
      <div style="margin-top:12px">
        <a href="${SITE}" style="color:${SUB};text-decoration:none;font-weight:700">매거진</a>
        &nbsp;·&nbsp;
-       <a href="https://instagram.com/oddsbag.official" style="color:${SUB};text-decoration:none;font-weight:700">인스타그램</a>
+       <a href="https://instagram.com/oddsbag_official" style="color:${SUB};text-decoration:none;font-weight:700">인스타그램</a>
        &nbsp;·&nbsp;
        <a href="${SITE}/link" style="color:${SUB};text-decoration:none;font-weight:700">전체 채널</a>
      </div>

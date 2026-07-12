@@ -11,6 +11,37 @@ const notoSansKr = Noto_Sans_KR({
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
+// 검색엔진에 '이 사이트가 뭔지' 알려주는 구조화 데이터
+const SITE_JSONLD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://oddsbag.co.kr/#org",
+      name: "오즈백 ODDSBAG",
+      url: "https://oddsbag.co.kr",
+      logo: "https://oddsbag.co.kr/og.png",
+      sameAs: [
+        "https://instagram.com/oddsbag_official",
+        "https://www.facebook.com/profile.php?id=61586029697990",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://oddsbag.co.kr/#site",
+      url: "https://oddsbag.co.kr",
+      name: "오즈백 ODDSBAG",
+      inLanguage: "ko-KR",
+      publisher: { "@id": "https://oddsbag.co.kr/#org" },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: "https://oddsbag.co.kr/magazine?q={search_term_string}",
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://oddsbag.co.kr"),
   title: {
@@ -63,6 +94,10 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${notoSansKr.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSONLD) }}
+        />
         {children}
         {ADSENSE_CLIENT && (
           <Script

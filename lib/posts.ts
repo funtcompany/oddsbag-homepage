@@ -33,6 +33,21 @@ export interface Post {
   tags?: string[];
   sources?: { title: string; url: string }[];
   createdAt?: string; // 초안 생성 시각 (정렬용)
+
+  // ---- 자동화 파이프라인 메타 ----
+  hook?: string; // 인스타 썸네일용 훅 한 줄
+  notionId?: string; // 노션 페이지 ID (상태 되돌리기용)
+  publishedAt?: string; // 발행 시각
+  quality?: {
+    score: number;
+    fakeRisk: string;
+    verdict: string;
+    reviewedAt: string;
+    rounds: number; // 자동 개선 시도 횟수
+    note?: string;
+  };
+  auditedAt?: string; // 마지막 재점검 시각 (1일 3회 크론)
+  social?: { ig?: string; fb?: string; at?: string }; // SNS 게시 결과
 }
 
 const POSTS_DIR = path.join(process.cwd(), "content", "posts");
@@ -156,6 +171,24 @@ export async function upsertPublished(post: Post): Promise<void> {
   post.status = "published";
   await kvSet(postKey(post.slug), JSON.stringify(post));
   await sadd(K_PUBLISHED, post.slug);
+}
+
+// 발행 취소 → 검수함으로 되돌림 (품질 점검에서 문제 발견 시)
+export async function unpublishPost(slug: string, reason: string): Promise<boolean> {
+  const raw = await kvGet(postKey(slug));
+  if (!raw) return false;
+  const post = JSON.parse(raw) as Post;
+  post.status = "draft";
+  if (post.quality) post.quality.note = reason;
+  await kvSet(postKey(slug), JSON.stringify(post));
+  await srem(K_PUBLISHED, slug);
+  await sadd(K_DRAFTS, slug);
+  return true;
+}
+
+// 발행글 원본(캐시 거치지 않음) — 점검 크론용
+export async function getPublishedRaw(): Promise<Post[]> {
+  return readRedisPosts(K_PUBLISHED);
 }
 
 // 게시물 완전 삭제

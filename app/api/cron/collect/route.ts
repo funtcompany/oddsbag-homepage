@@ -1,12 +1,9 @@
+// 【1시간마다】 수집 → AI 작성 → 품질 심사 → 통과하면 즉시 발행 + 인스타/페북 게시
 import { NextRequest, NextResponse } from "next/server";
 import { runCollection } from "@/lib/pipeline";
-import { syncFromNotion } from "@/lib/sync";
 import type { IssueSource } from "@/lib/sources";
 
-export const maxDuration = 300; // 수집 + AI 다건 + 동기화 여유
-
-// Vercel Cron 이 1시간마다 호출 (vercel.json)
-// 보안: CRON_SECRET 설정 시 Authorization 헤더 검증
+export const maxDuration = 800; // 수집+작성+심사+개선+SNS
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const SOURCES: IssueSource[] = [
@@ -25,14 +22,17 @@ export async function GET(req: NextRequest) {
     }
   }
   try {
-    // 1) 수집 → 노션 수집함 적재  2) 노션 발행글 → 홈페이지 동기화
-    const result = await runCollection({ sources: SOURCES, limit: 5 });
-    const sync = await syncFromNotion();
-    return NextResponse.json({ ok: true, ...result, synced: sync.synced.length });
+    const r = await runCollection({ sources: SOURCES, limit: 4 });
+    return NextResponse.json({
+      ok: true,
+      발행: r.published.length,
+      검수함: r.held.length,
+      인스타: r.social.ig,
+      페북: r.social.fb,
+      스캔: r.scanned,
+      ...r,
+    });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message ?? "cron 오류" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

@@ -19,6 +19,7 @@ export interface DraftDraft {
   title: string;
   summary: string;
   body: string;
+  hook: string; // 인스타 첫 장(썸네일)에 쓸 시선 붙잡는 한 줄
   emoji: string;
   tags: string[];
   category: string; // AI가 판별한 카테고리
@@ -45,17 +46,21 @@ SNS에서 화제가 된 유행·밈·현상도 좋은 소재다 — 단, 원본 
 - imageQuery: 이 기사에 어울리는 스톡 사진을 찾을 '영어' 검색어. 구체적으로! (나쁜 예: "news" / 좋은 예: "hospital bill medical cost", "soccer stadium celebration")
 - imageQueryAlt: 위보다 넓은 백업 검색어 (2단어 내외)
 
+- hook: 인스타그램 첫 장에 크게 박을 '시선 붙잡는 한 줄'. 12~22자. 궁금하게 만들되 낚시는 금지.
+  (나쁜 예: "충격! 모두가 놀랐다" / 좋은 예: "병원비, 왜 갑자기 두 배가 됐을까")
+
 출력은 반드시 아래 JSON만. 다른 말 붙이지 말 것.
-{"title":"...","summary":"한 줄 요약","body":"## ...","emoji":"이모지 1개","tags":["태그1","태그2"],"category":"...","mood":"...","imageQuery":"english keywords","imageQueryAlt":"english"}`;
+{"title":"...","summary":"한 줄 요약","body":"## ...","hook":"인스타 훅 한 줄","emoji":"이모지 1개","tags":["태그1","태그2"],"category":"...","mood":"...","imageQuery":"english keywords","imageQueryAlt":"english"}`;
 
 export async function generateDraft(
   sourceTitle: string,
   sourceContext: string,
   hintCategory: string,
+  lessons = "", // 학습 루프: 과거 지적사항에서 뽑은 재발 방지 체크리스트
 ): Promise<DraftDraft> {
   if (!API_KEY) throw new Error("ANTHROPIC_API_KEY 미설정");
 
-  const userPrompt = `참고 이슈 제목: ${sourceTitle}
+  const userPrompt = `${lessons ? `[지난 글들에서 반복된 지적 — 이번엔 반드시 지킬 것]\n${lessons}\n\n` : ""}참고 이슈 제목: ${sourceTitle}
 참고 내용/맥락: ${sourceContext}
 (수집처가 추정한 분류: ${hintCategory} — 참고만 하고, 내용 기준으로 네가 정확히 다시 판단해)
 
@@ -100,6 +105,7 @@ export async function generateDraft(
     title: parsed.title?.trim() || sourceTitle,
     summary: parsed.summary?.trim() || "",
     body: parsed.body?.trim() || "",
+    hook: parsed.hook?.trim() || parsed.title?.trim() || sourceTitle,
     emoji: parsed.emoji?.trim() || "📰",
     tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
     category,

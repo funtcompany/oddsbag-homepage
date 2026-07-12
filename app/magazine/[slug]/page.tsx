@@ -27,16 +27,25 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) return { title: "게시물을 찾을 수 없어요" };
-  // 기사 사진이 있으면 그걸, 없으면 브랜드 OG 이미지
-  const image = post.cover || "/og.png";
+  // 글마다 전용 OG 이미지를 서버에서 생성 (사진이 없어도 타이포 디자인으로)
+  const image = `/api/og/${post.slug}`;
+  const url = `https://oddsbag.co.kr/magazine/${post.slug}`;
   return {
     title: post.title,
     description: post.summary,
+    keywords: [...(post.tags ?? []), post.category, "오즈백", "이슈", "뉴스"],
+    alternates: { canonical: url },
     openGraph: {
       type: "article",
+      locale: "ko_KR",
+      siteName: "오즈백 ODDSBAG",
       title: post.title,
       description: post.summary,
-      url: `https://oddsbag.co.kr/magazine/${post.slug}`,
+      url,
+      publishedTime: post.publishedAt ?? post.date,
+      modifiedTime: post.auditedAt ?? post.publishedAt ?? post.date,
+      section: post.category,
+      tags: post.tags,
       images: [{ url: image, width: 1200, height: 630, alt: post.title }],
     },
     twitter: {
@@ -45,6 +54,51 @@ export async function generateMetadata({
       description: post.summary,
       images: [image],
     },
+  };
+}
+
+// 검색엔진이 '뉴스 기사'로 이해하게 하는 구조화 데이터
+function articleJsonLd(post: {
+  slug: string;
+  title: string;
+  summary: string;
+  category: string;
+  date: string;
+  publishedAt?: string;
+  auditedAt?: string;
+  tags?: string[];
+}) {
+  const url = `https://oddsbag.co.kr/magazine/${post.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "NewsArticle",
+        headline: post.title.slice(0, 110),
+        description: post.summary,
+        image: [`https://oddsbag.co.kr/api/og/${post.slug}`],
+        datePublished: post.publishedAt ?? post.date,
+        dateModified: post.auditedAt ?? post.publishedAt ?? post.date,
+        articleSection: post.category,
+        keywords: (post.tags ?? []).join(", "),
+        inLanguage: "ko-KR",
+        mainEntityOfPage: { "@type": "WebPage", "@id": url },
+        author: { "@type": "Organization", name: "오즈백 ODDSBAG", url: "https://oddsbag.co.kr" },
+        publisher: {
+          "@type": "Organization",
+          name: "오즈백 ODDSBAG",
+          logo: { "@type": "ImageObject", url: "https://oddsbag.co.kr/og.png" },
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "홈", item: "https://oddsbag.co.kr" },
+          { "@type": "ListItem", position: 2, name: "매거진", item: "https://oddsbag.co.kr/magazine" },
+          { "@type": "ListItem", position: 3, name: post.title, item: url },
+        ],
+      },
+    ],
   };
 }
 
@@ -163,6 +217,11 @@ export default async function PostPage({
 
   return (
     <>
+      {/* 검색엔진용 구조화 데이터 (구글 뉴스 노출) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(post)) }}
+      />
       <Header />
       <main className="flex-1">
         {/* 헤더 — 사진 있으면 사진+스크림, 없으면 생성형 배경 */}

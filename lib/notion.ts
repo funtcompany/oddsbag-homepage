@@ -78,13 +78,50 @@ function blocksToMd(blocks: { type: string; [k: string]: unknown }[]): string {
     .join("\n\n");
 }
 
-// 수집 페이지 생성 (상태=수집)
-export async function addCollectedPage(post: Post): Promise<string> {
+// 노션 DB에 필요한 속성이 없으면 자동 추가 (최초 1회)
+let schemaReady = false;
+export async function ensureSchema(): Promise<void> {
+  if (!notionEnabled || schemaReady) return;
+  try {
+    await notion(`/databases/${DB}`, "PATCH", {
+      properties: {
+        품질점수: { number: {} },
+        가짜뉴스위험: {
+          select: {
+            options: [
+              { name: "low", color: "green" },
+              { name: "medium", color: "yellow" },
+              { name: "high", color: "red" },
+            ],
+          },
+        },
+        심사메모: { rich_text: {} },
+        훅: { rich_text: {} },
+      },
+    });
+    schemaReady = true;
+  } catch {
+    /* 이미 있으면 무시 */
+  }
+}
+
+// 노션 페이지 생성 (상태: 수집 / 발행 / 검수필요)
+export async function addCollectedPage(
+  post: Post,
+  status: "수집" | "발행" | "검수필요" = "수집",
+): Promise<string> {
+  await ensureSchema();
   const data = await notion("/pages", "POST", {
     parent: { database_id: DB },
     properties: {
       제목: { title: rt(post.title) },
-      상태: { select: { name: "수집" } },
+      상태: { select: { name: status } },
+      품질점수: { number: post.quality?.score ?? null },
+      가짜뉴스위험: post.quality?.fakeRisk
+        ? { select: { name: post.quality.fakeRisk } }
+        : { select: null },
+      심사메모: { rich_text: rt(post.quality?.note ?? "") },
+      훅: { rich_text: rt(post.hook ?? "") },
       카테고리: { select: { name: post.category } },
       요약: { rich_text: rt(post.summary) },
       이모지: { rich_text: rt(post.emoji ?? "📰") },
@@ -102,12 +139,29 @@ export async function addCollectedPage(post: Post): Promise<string> {
   return data.id as string;
 }
 
+// 노션 페이지 상태 변경 (품질 점검에서 문제 발견 → 검수필요로 내림)
+export async function setNotionStatus(
+  pageId: string,
+  status: "수집" | "발행" | "검수필요",
+  note?: string,
+): Promise<void> {
+  if (!notionEnabled || !pageId) return;
+  const properties: Record<string, unknown> = { 상태: { select: { name: status } } };
+  if (note) properties["심사메모"] = { rich_text: rt(note) };
+  try {
+    await notion(`/pages/${pageId}`, "PATCH", { properties });
+  } catch {
+    /* 노션 실패가 홈페이지를 막지 않는다 */
+  }
+}
+
 interface NotionProp {
   title?: { plain_text: string }[];
   rich_text?: { plain_text: string }[];
   select?: { name: string } | null;
   multi_select?: { name: string }[];
   url?: string | null;
+  number?: number | null;
   date?: { start: string } | null;
 }
 
@@ -137,6 +191,8 @@ export async function getPublishedFromNotion(): Promise<Post[]> {
     const body = blocksToMd(blocksRes.results ?? []);
 
     posts.push({
+      notionId: page.id,
+      hook: rich("훅") || undefined,
       slug,
       title,
       summary: rich("요약"),
