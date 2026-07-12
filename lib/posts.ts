@@ -24,6 +24,8 @@ export interface Post {
   status: PostStatus;
   body: string;
   emoji?: string;
+  cover?: string; // 커버 이미지 URL (Pexels 등)
+  imageCredit?: string; // 사진 출처 표기
   featured?: boolean;
   readMinutes?: number;
   tags?: string[];

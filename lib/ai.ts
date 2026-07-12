@@ -10,6 +10,7 @@ export interface DraftDraft {
   body: string;
   emoji: string;
   tags: string[];
+  imageQuery: string; // Pexels 스톡 검색용 영어 키워드
 }
 
 const SYSTEM = `너는 '오즈백(ODDSBAG)' 매거진의 에디터야.
@@ -22,8 +23,9 @@ const SYSTEM = `너는 '오즈백(ODDSBAG)' 매거진의 에디터야.
 - 본문은 마크다운. '## 소제목' 2~3개로 구성하고, 마지막은 반드시 '## 오즈백 한 줄 정리' 로 끝낸다.
 - 정치적 편향/자극적 표현 자제, 따뜻하고 중립적으로.
 - 출력은 반드시 아래 JSON 형식만. 다른 말 붙이지 말 것.
+- imageQuery 는 이 글에 어울리는 스톡 사진을 찾기 위한 '영어' 키워드 1~3단어 (예: "stock market", "soccer stadium", "coffee cup").
 
-{"title":"...","summary":"한 줄 요약","body":"## ...\\n...","emoji":"관련 이모지 1개","tags":["태그1","태그2"]}`;
+{"title":"...","summary":"한 줄 요약","body":"## ...\\n...","emoji":"관련 이모지 1개","tags":["태그1","태그2"],"imageQuery":"english keywords"}`;
 
 export async function generateDraft(
   sourceTitle: string,
@@ -75,5 +77,6 @@ export async function generateDraft(
     body: parsed.body?.trim() || "",
     emoji: parsed.emoji?.trim() || "📰",
     tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
+    imageQuery: parsed.imageQuery?.trim() || "",
   };
 }

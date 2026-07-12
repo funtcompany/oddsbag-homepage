@@ -10,13 +10,22 @@ export default function FeaturedHero({ post }: { post: Post }) {
       className="group relative flex min-h-[280px] flex-col justify-end overflow-hidden rounded-3xl sm:min-h-[380px]"
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient}`} />
-      <span
-        className="absolute right-6 top-6 text-7xl opacity-30 transition group-hover:scale-110 sm:text-9xl"
-        aria-hidden
-      >
-        {post.emoji ?? cat.emoji}
-      </span>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+      {post.cover ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={post.cover}
+          alt={post.title}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <span
+          className="absolute right-6 top-6 text-7xl opacity-30 transition group-hover:scale-110 sm:text-9xl"
+          aria-hidden
+        >
+          {post.emoji ?? cat.emoji}
+        </span>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
 
       <div className="relative z-10 p-6 sm:p-8">
         <span className="inline-block rounded-full bg-oddsbag-yellow px-2.5 py-0.5 text-xs font-black text-oddsbag-dark">

@@ -90,6 +90,8 @@ export async function addCollectedPage(post: Post): Promise<string> {
       이모지: { rich_text: rt(post.emoji ?? "📰") },
       소스: { rich_text: rt(post.sources?.[0]?.title ?? "") },
       원본링크: { url: post.sources?.[0]?.url ?? null },
+      커버이미지: { url: post.cover ?? null },
+      사진출처: { rich_text: rt(post.imageCredit ?? "") },
       slug: { rich_text: rt(post.slug) },
       태그: { multi_select: (post.tags ?? []).map((t) => ({ name: t.slice(0, 90) })) },
       수집일: { date: { start: post.date } },
@@ -142,6 +144,8 @@ export async function getPublishedFromNotion(): Promise<Post[]> {
       status: "published",
       body,
       emoji: rich("이모지") || "📰",
+      cover: prop("커버이미지")?.url ?? undefined,
+      imageCredit: rich("사진출처") || undefined,
       tags: (prop("태그")?.multi_select ?? []).map((t) => t.name),
       sources: prop("원본링크")?.url
         ? [{ title: "원문 보기", url: prop("원본링크")!.url as string }]

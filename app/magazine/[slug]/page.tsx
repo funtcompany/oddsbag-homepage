@@ -74,11 +74,27 @@ export default async function PostPage({
       <main className="flex-1">
         {/* 커버 */}
         <div
-          className={`relative flex min-h-[220px] items-center justify-center bg-gradient-to-br ${cat.gradient}`}
+          className={`relative flex min-h-[220px] items-center justify-center overflow-hidden bg-gradient-to-br ${cat.gradient} sm:min-h-[320px]`}
         >
-          <span className="text-7xl opacity-90" aria-hidden>
-            {post.emoji ?? cat.emoji}
-          </span>
+          {post.cover ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={post.cover}
+                alt={post.title}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              {post.imageCredit && (
+                <span className="absolute bottom-1.5 right-2 rounded bg-black/40 px-1.5 py-0.5 text-[10px] text-white/80">
+                  {post.imageCredit}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-7xl opacity-90" aria-hidden>
+              {post.emoji ?? cat.emoji}
+            </span>
+          )}
         </div>
 
         <article className="mx-auto max-w-2xl px-4 py-8">

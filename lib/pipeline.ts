@@ -8,6 +8,7 @@ import { categoryOf } from "@/lib/categories";
 import { sadd } from "@/lib/store";
 import { smembers } from "@/lib/store";
 import { notionEnabled, addCollectedPage } from "@/lib/notion";
+import { findCoverImage } from "@/lib/images";
 import type { IssueSource } from "@/lib/sources";
 
 const K_SEEN = "issues:seen"; // 이미 처리한 이슈 (중복 방지)
@@ -56,6 +57,7 @@ export async function runCollection(opts: {
       );
       const cat = categoryOf(issue.category);
       const slug = makeSlug(cat.slug);
+      const cover = await findCoverImage(draft.imageQuery, issue.category);
       const post: Post = {
         slug,
         title: draft.title,
@@ -65,6 +67,8 @@ export async function runCollection(opts: {
         status: "draft",
         body: draft.body,
         emoji: draft.emoji,
+        cover: cover?.url,
+        imageCredit: cover?.credit,
         readMinutes: Math.max(2, Math.round(draft.body.length / 400)),
         tags: draft.tags,
         sources: [

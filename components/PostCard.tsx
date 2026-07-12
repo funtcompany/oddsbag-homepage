@@ -11,11 +11,21 @@ export default function PostCard({ post }: { post: Post }) {
     >
       {/* 커버 (이미지 없을 때 그라디언트 + 이모지) */}
       <div
-        className={`relative flex aspect-[16/10] items-center justify-center bg-gradient-to-br ${cat.gradient}`}
+        className={`relative flex aspect-[16/10] items-center justify-center overflow-hidden bg-gradient-to-br ${cat.gradient}`}
       >
-        <span className="text-5xl drop-shadow-sm" aria-hidden>
-          {post.emoji ?? cat.emoji}
-        </span>
+        {post.cover ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.cover}
+            alt={post.title}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-5xl drop-shadow-sm" aria-hidden>
+            {post.emoji ?? cat.emoji}
+          </span>
+        )}
         <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-bold text-oddsbag-dark">
           {cat.label}
         </span>
