@@ -50,9 +50,35 @@ function thumb(p: Post, w: number, h: number): string {
 
 // ---- 공통 레이아웃 ----
 function shell(inner: string, preheader: string): string {
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#efeaf8">
+  return `<!doctype html><html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- 다크모드 자동 반전 차단 (애플메일·아이폰·아웃룩) -->
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<style>
+  :root { color-scheme: light; supported-color-schemes: light; }
+  /* 그래도 반전하는 클라이언트(지메일 등)에서 우리 색을 강제 유지 */
+  @media (prefers-color-scheme: dark) {
+    .ob-bg   { background:#efeaf8 !important; }
+    .ob-card { background:#ffffff !important; }
+    .ob-ink  { color:#1a1a2e !important; }
+    .ob-sub  { color:#6d6580 !important; }
+    .ob-mut  { color:#8a7fa6 !important; }
+    .ob-line { border-color:#eee9f5 !important; }
+  }
+  /* 아웃룩 다크모드 */
+  [data-ogsc] .ob-bg   { background:#efeaf8 !important; }
+  [data-ogsc] .ob-card { background:#ffffff !important; }
+  [data-ogsc] .ob-ink  { color:#1a1a2e !important; }
+  [data-ogsc] .ob-sub  { color:#6d6580 !important; }
+  [data-ogsc] .ob-mut  { color:#8a7fa6 !important; }
+</style>
+</head>
+<body class="ob-bg" style="margin:0;padding:0;background:#efeaf8">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${preheader}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#efeaf8;padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="ob-bg" style="background:#efeaf8;padding:24px 12px">
  <tr><td align="center">
   <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;font-family:${F};color:#1a1a2e">
    ${inner}
@@ -94,14 +120,14 @@ function featured(p: Post): string {
   const img = p.cover
     ? `<img src="${p.cover}" width="600" height="260" alt="" style="display:block;width:100%;height:260px;object-fit:cover;border:0" />`
     : `<div style="height:150px;background:#3a1a63;text-align:center;line-height:150px;font-size:64px">${p.emoji ?? "📰"}</div>`;
-  return `<tr><td style="background:#ffffff;padding:0">
+  return `<tr><td class="ob-card" style="background:#ffffff;padding:0">
     <a href="${SITE}/magazine/${p.slug}" style="text-decoration:none;color:inherit">
       ${img}
       <div style="padding:24px 28px 28px">
         <div style="font-size:11px;font-weight:900;letter-spacing:2px;color:#c084fc">오늘의 픽</div>
         <div style="margin-top:10px">${chip(p.category)}</div>
-        <div style="margin-top:12px;font-size:23px;font-weight:900;color:#1a1a2e;line-height:1.35;letter-spacing:-.6px">${p.title}</div>
-        <div style="margin-top:10px;font-size:15px;color:#6d6580;line-height:1.65">${p.summary}</div>
+        <div class="ob-ink" style="margin-top:12px;font-size:23px;font-weight:900;color:#1a1a2e;line-height:1.35;letter-spacing:-.6px">${p.title}</div>
+        <div class="ob-sub" style="margin-top:10px;font-size:15px;color:#6d6580;line-height:1.65">${p.summary}</div>
         <div style="margin-top:18px">
           <span style="display:inline-block;background:#ffe600;color:#1a1a2e;font-weight:900;font-size:14px;padding:12px 24px;border-radius:10px">읽어보기 →</span>
         </div>
@@ -112,15 +138,15 @@ function featured(p: Post): string {
 
 // ---- 나머지 기사 (썸네일 + 텍스트) ----
 function row(p: Post): string {
-  return `<tr><td style="background:#ffffff;padding:0 28px">
+  return `<tr><td class="ob-card" style="background:#ffffff;padding:0 28px">
     <a href="${SITE}/magazine/${p.slug}" style="text-decoration:none;color:inherit;display:block">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee9f5">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="ob-line" style="border-top:1px solid #eee9f5">
         <tr>
           <td width="104" valign="top" style="padding:18px 14px 18px 0">${thumb(p, 92, 74)}</td>
           <td valign="top" style="padding:18px 0">
             ${chip(p.category)}
-            <div style="margin-top:8px;font-size:16px;font-weight:800;color:#1a1a2e;line-height:1.4;letter-spacing:-.3px">${p.title}</div>
-            <div style="margin-top:6px;font-size:13.5px;color:#8a7fa6;line-height:1.55">${p.summary.slice(0, 60)}${p.summary.length > 60 ? "…" : ""}</div>
+            <div class="ob-ink" style="margin-top:8px;font-size:16px;font-weight:800;color:#1a1a2e;line-height:1.4;letter-spacing:-.3px">${p.title}</div>
+            <div class="ob-mut" style="margin-top:6px;font-size:13.5px;color:#8a7fa6;line-height:1.55">${p.summary.slice(0, 60)}${p.summary.length > 60 ? "…" : ""}</div>
           </td>
         </tr>
       </table>
@@ -129,12 +155,12 @@ function row(p: Post): string {
 }
 
 function sectionLabel(text: string): string {
-  return `<tr><td style="background:#ffffff;padding:26px 28px 4px;font-size:12px;font-weight:900;letter-spacing:2px;color:#b7abd0">${text}</td></tr>`;
+  return `<tr><td class="ob-card ob-mut" style="background:#ffffff;padding:26px 28px 4px;font-size:12px;font-weight:900;letter-spacing:2px;color:#b7abd0">${text}</td></tr>`;
 }
 
 function bottomCta(): string {
-  return `<tr><td style="background:#ffffff;padding:26px 28px 32px;border-radius:0 0 20px 20px;text-align:center;border-top:1px solid #eee9f5">
-    <div style="font-size:15px;font-weight:800;color:#1a1a2e">오늘의 이슈, 더 있어요</div>
+  return `<tr><td class="ob-card" style="background:#ffffff;padding:26px 28px 32px;border-radius:0 0 20px 20px;text-align:center;border-top:1px solid #eee9f5" >
+    <div class="ob-ink" style="font-size:15px;font-weight:800;color:#1a1a2e">오늘의 이슈, 더 있어요</div>
     <div style="margin-top:14px">
       <a href="${SITE}" style="display:inline-block;background:#5b2d8e;color:#fff;font-weight:900;font-size:14px;padding:13px 30px;border-radius:11px;text-decoration:none">전체 이슈 보러가기 →</a>
     </div>
