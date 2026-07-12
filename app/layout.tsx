@@ -12,7 +12,7 @@ const notoSansKr = Noto_Sans_KR({
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://oddsbag.kr"),
+  metadataBase: new URL("https://oddsbag.co.kr"),
   title: {
     default: "오즈백 ODDSBAG | 이상하게 필요한 것들, 여기 다 있어",
     template: "%s | 오즈백 ODDSBAG",
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "ko_KR",
-    url: "https://oddsbag.kr",
+    url: "https://oddsbag.co.kr",
     siteName: "오즈백 ODDSBAG",
     title: "오즈백 ODDSBAG | 이상하게 필요한 것들, 여기 다 있어",
     description: "한번쯤 써볼 만한 잡다하고 이색적인 기능들을 한곳에.",

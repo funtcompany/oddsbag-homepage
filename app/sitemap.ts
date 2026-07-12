@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/posts";
 import { categories } from "@/lib/categories";
 
-const BASE = "https://oddsbag.kr";
+const BASE = "https://oddsbag.co.kr";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = ["", "/magazine", "/apps"].map((path) => ({
