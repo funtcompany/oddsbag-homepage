@@ -35,9 +35,34 @@ body {
   color: var(--foreground);
   font-family: var(--font-noto-kr), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; /* 가로 스크롤/잘림 방지 (안전망) */
 }
 
 /* 부드러운 스크롤 */
 html {
   scroll-behavior: smooth;
 }
+
+/* ===== 기사 본문 에디토리얼 타이포 ===== */
+.oddsbag-article p {
+  font-size: 17.5px;
+  line-height: 1.85;
+  color: color-mix(in srgb, var(--oddsbag-dark) 88%, transparent);
+  margin: 20px 0;
+  word-break: keep-all;
+}
+.oddsbag-article p.dropcap::first-letter {
+  float: left;
+  font-size: 68px;
+  line-height: 0.72;
+  font-weight: 900;
+  color: var(--oddsbag-purple);
+  padding: 8px 12px 0 0;
+}
+.oddsbag-article mark {
+  background: linear-gradient(transparent 58%, color-mix(in srgb, var(--oddsbag-yellow) 80%, transparent) 58%);
+  color: inherit;
+  font-weight: 700;
+  padding: 0 1px;
+}
+

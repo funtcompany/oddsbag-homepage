@@ -36,7 +36,7 @@ export default async function Home() {
       <main className="flex-1">
         <div className="mx-auto max-w-6xl px-4 py-6">
           {/* 상단: 피처드 + 인기글 랭킹 */}
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             <div className="lg:col-span-2">
               {featured && <FeaturedHero post={featured} />}
             </div>

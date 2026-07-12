@@ -52,8 +52,8 @@ export default function SubscribeBox() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="이메일 주소"
-            className="flex-1 rounded-xl border-0 px-4 py-3 text-oddsbag-dark outline-none ring-2 ring-transparent focus:ring-oddsbag-yellow"
+            placeholder="이메일 주소를 입력하세요"
+            className="flex-1 rounded-xl border border-white/25 bg-white px-4 py-3 text-oddsbag-dark placeholder:text-oddsbag-gray/70 outline-none ring-2 ring-transparent focus:border-oddsbag-yellow focus:ring-oddsbag-yellow"
           />
           <button
             type="submit"
