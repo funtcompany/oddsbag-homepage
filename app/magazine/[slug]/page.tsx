@@ -27,10 +27,24 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) return { title: "게시물을 찾을 수 없어요" };
+  // 기사 사진이 있으면 그걸, 없으면 브랜드 OG 이미지
+  const image = post.cover || "/og.png";
   return {
     title: post.title,
     description: post.summary,
-    openGraph: { title: post.title, description: post.summary },
+    openGraph: {
+      type: "article",
+      title: post.title,
+      description: post.summary,
+      url: `https://oddsbag.co.kr/magazine/${post.slug}`,
+      images: [{ url: image, width: 1200, height: 630, alt: post.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.summary,
+      images: [image],
+    },
   };
 }
 

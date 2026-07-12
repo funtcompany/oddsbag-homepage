@@ -35,12 +35,21 @@ export const metadata: Metadata = {
     url: "https://oddsbag.co.kr",
     siteName: "오즈백 ODDSBAG",
     title: "오즈백 ODDSBAG | 이상하게 필요한 것들, 여기 다 있어",
-    description: "한번쯤 써볼 만한 잡다하고 이색적인 기능들을 한곳에.",
+    description: "매일의 사회·경제·스포츠 이슈를 오즈백 시선으로.",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "오즈백 ODDSBAG 매거진",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "오즈백 ODDSBAG",
     description: "이상하게 필요한 것들, 오즈백에 다 있어",
+    images: ["/og.png"],
   },
   // 네이버 서치어드바이저 인증 (발급 후 코드 입력)
   // verification: { other: { "naver-site-verification": "인증코드" } },

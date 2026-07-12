@@ -96,7 +96,7 @@ export async function runCollection(opts: {
       created.push({
         slug,
         title: post.title,
-        category: issue.category,
+        category: finalCategory, // AI가 판별한 최종 카테고리
         source: issue.source,
       });
       made++;
