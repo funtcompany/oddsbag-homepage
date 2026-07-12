@@ -30,15 +30,9 @@ export default function AdSlot({
     }
   }, []);
 
-  if (!CLIENT) {
-    return (
-      <div
-        className={`flex min-h-[90px] items-center justify-center rounded-xl border border-dashed border-oddsbag-purple/20 bg-oddsbag-light-gray/50 text-xs text-oddsbag-gray/60 ${className}`}
-      >
-        광고 영역 (애드센스 승인 후 자동 노출)
-      </div>
-    );
-  }
+  // 애드센스 승인(NEXT_PUBLIC_ADSENSE_CLIENT 설정) 전에는 아무것도 노출하지 않음.
+  // 승인 후 게시자 ID를 환경변수에 넣으면 실제 광고가 자동으로 나타남.
+  if (!CLIENT) return null;
 
   return (
     <ins
