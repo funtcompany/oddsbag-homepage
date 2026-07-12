@@ -7,7 +7,7 @@
 // 원칙: 속도보다 신뢰. 가짜뉴스 위험이 조금이라도 있으면 절대 자동 발행하지 않는다.
 
 import { collectAllIssues } from "@/lib/aggregate";
-import { generateDraft } from "@/lib/ai";
+import { generateDraft, type DraftDraft } from "@/lib/ai";
 import { reviewDraft, reviseDraft, type Review } from "@/lib/quality";
 import { getLessons, recordReview } from "@/lib/learn";
 import { saveDraft, upsertPublished, type Post } from "@/lib/posts";
@@ -15,6 +15,7 @@ import { categoryOf } from "@/lib/categories";
 import { sadd, smembers } from "@/lib/store";
 import { notionEnabled, addCollectedPage } from "@/lib/notion";
 import { findCoverImage } from "@/lib/images";
+import { resolveSourceText } from "@/lib/article";
 import { shareEverywhere, socialEnabled } from "@/lib/social";
 import { revalidateTag } from "next/cache";
 import type { IssueSource } from "@/lib/sources";
@@ -34,6 +35,7 @@ export interface CollectResult {
   published: { slug: string; title: string; score: number }[];
   held: { title: string; score: number; reason: string }[];
   scanned: number;
+  unreadable: number; // 원문을 읽지 못해 건너뛴 이슈 (지어내지 않기 위해)
   social: { ig: number; fb: number };
   errors: string[];
 }
@@ -59,6 +61,7 @@ export async function runCollection(opts: {
     published: [],
     held: [],
     scanned: issues.length,
+    unreadable: 0,
     social: { ig: 0, fb: 0 },
     errors: [],
   };
@@ -68,17 +71,31 @@ export async function runCollection(opts: {
   for (const issue of fresh) {
     if (made >= limit) break;
     try {
-      const context = `${issue.summary}${issue.extra ? " / " + issue.extra : ""}`;
+      // 0) 원문 기사를 실제로 읽는다.
+      //    못 읽으면 AI가 나머지를 상상해서 채우게 되므로 — 그 이슈는 아예 쓰지 않는다.
+      const src = await resolveSourceText(issue);
+      if (!src) {
+        out.unreadable++;
+        await sadd(K_SEEN, issueKey(issue.title)); // 다음 회차에 또 시도하지 않게
+        continue;
+      }
+      const context = `${src.text}${issue.extra ? "\n(참고: " + issue.extra + ")" : ""}`;
+      const sourceUrl = src.url;
 
-      // 1) 작성
-      let draft = await generateDraft(issue.title, context, issue.category, lessons);
+      // 1) 작성 (원문 사실만 사용) — 형식이 깨지면 한 번 더 시도
+      let draft: DraftDraft;
+      try {
+        draft = await generateDraft(issue.title, context, issue.category, lessons);
+      } catch {
+        draft = await generateDraft(issue.title, context, issue.category, lessons);
+      }
 
       // 2) 심사 (원문과 대조 — 환각·가짜뉴스 검사)
       let review: Review = await reviewDraft(draft, {
         title: issue.title,
         context,
         from: issue.source,
-        url: issue.link,
+        url: sourceUrl,
       });
       let rounds = 0;
 
@@ -91,7 +108,7 @@ export async function runCollection(opts: {
           title: issue.title,
           context,
           from: issue.source,
-          url: issue.link,
+          url: sourceUrl,
         });
       }
 
@@ -130,7 +147,7 @@ export async function runCollection(opts: {
         imageCredit: cover?.credit,
         readMinutes: Math.max(2, Math.round(draft.body.length / 400)),
         tags: draft.tags,
-        sources: [{ title: `원문 보기 (${issue.source})`, url: issue.link }],
+        sources: [{ title: `원문 보기 (${issue.source})`, url: sourceUrl }],
         createdAt: new Date().toISOString(),
         quality: {
           score: review.score,

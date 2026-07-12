@@ -191,6 +191,17 @@ export async function getPublishedRaw(): Promise<Post[]> {
   return readRedisPosts(K_PUBLISHED);
 }
 
+// 글 하나를 캐시 없이 바로 조회 (인스타가 발행 직후 카드 이미지를 가져갈 때 필요)
+export async function getPostFresh(slug: string): Promise<Post | undefined> {
+  try {
+    const raw = await kvGet(postKey(slug));
+    if (raw) return JSON.parse(raw) as Post;
+  } catch {
+    /* Redis 실패 시 캐시로 폴백 */
+  }
+  return getPostBySlug(slug);
+}
+
 // 게시물 완전 삭제
 export async function deletePost(slug: string): Promise<void> {
   await kvDel(postKey(slug));

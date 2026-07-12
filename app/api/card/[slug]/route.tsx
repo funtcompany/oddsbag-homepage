@@ -7,7 +7,7 @@
 
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
-import { getPostBySlug } from "@/lib/posts";
+import { getPostFresh } from "@/lib/posts";
 import { buildCards, type Card } from "@/lib/cards";
 
 export const runtime = "nodejs";
@@ -305,7 +305,7 @@ export async function GET(
   const i = Math.max(0, parseInt(req.nextUrl.searchParams.get("i") ?? "0", 10) || 0);
   const og = req.nextUrl.searchParams.get("og") === "1";
 
-  const post = await getPostBySlug(slug);
+  const post = await getPostFresh(slug);
   if (!post) return new Response("not found", { status: 404 });
 
   const cards = buildCards(post);

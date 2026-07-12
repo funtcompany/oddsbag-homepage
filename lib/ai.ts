@@ -49,8 +49,29 @@ SNS에서 화제가 된 유행·밈·현상도 좋은 소재다 — 단, 원본 
 - hook: 인스타그램 첫 장에 크게 박을 '시선 붙잡는 한 줄'. 12~22자. 궁금하게 만들되 낚시는 금지.
   (나쁜 예: "충격! 모두가 놀랐다" / 좋은 예: "병원비, 왜 갑자기 두 배가 됐을까")
 
-출력은 반드시 아래 JSON만. 다른 말 붙이지 말 것.
-{"title":"...","summary":"한 줄 요약","body":"## ...","hook":"인스타 훅 한 줄","emoji":"이모지 1개","tags":["태그1","태그2"],"category":"...","mood":"...","imageQuery":"english keywords","imageQueryAlt":"english"}`;
+출력은 반드시 아래 형식 그대로. 다른 말 붙이지 말 것.
+<title>제목</title>
+<summary>한 줄 요약</summary>
+<hook>인스타 훅 한 줄</hook>
+<emoji>이모지 1개</emoji>
+<tags>태그1, 태그2, 태그3</tags>
+<category>카테고리</category>
+<mood>무드</mood>
+<imageQuery>english keywords</imageQuery>
+<imageQueryAlt>english</imageQueryAlt>
+<body>
+## 소제목
+본문...
+
+## 오즈백 한 줄 정리
+...
+</body>`;
+
+// 태그 형식 파서 — 본문에 줄바꿈/따옴표가 있어도 안전하다
+export function pick(text: string, name: string): string {
+  const m = text.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i"));
+  return m ? m[1].trim() : "";
+}
 
 export async function generateDraft(
   sourceTitle: string,
@@ -60,11 +81,16 @@ export async function generateDraft(
 ): Promise<DraftDraft> {
   if (!API_KEY) throw new Error("ANTHROPIC_API_KEY 미설정");
 
-  const userPrompt = `${lessons ? `[지난 글들에서 반복된 지적 — 이번엔 반드시 지킬 것]\n${lessons}\n\n` : ""}참고 이슈 제목: ${sourceTitle}
-참고 내용/맥락: ${sourceContext}
+  const userPrompt = `${lessons ? `[지난 글들에서 반복된 지적 — 이번엔 반드시 지킬 것]\n${lessons}\n\n` : ""}[원문 기사 — 오직 여기 있는 사실만 쓸 수 있다]
+제목: ${sourceTitle}
+본문:
+${sourceContext}
+
 (수집처가 추정한 분류: ${hintCategory} — 참고만 하고, 내용 기준으로 네가 정확히 다시 판단해)
 
-위 이슈를 오즈백 톤의 매거진 글로 새로 써줘. JSON만 출력.`;
+위 원문을 바탕으로 오즈백 톤의 매거진 글로 새로 써줘.
+원문에 없는 수치·인용·사실을 절대 만들어내지 마라. 모르는 건 쓰지 마라.
+지정된 태그 형식으로만 출력.`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -75,7 +101,7 @@ export async function generateDraft(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1600,
+      max_tokens: 2200,
       system: SYSTEM,
       messages: [{ role: "user", content: userPrompt }],
     }),
@@ -91,27 +117,29 @@ export async function generateDraft(
     content?: { type: string; text?: string }[];
   };
   const text = data.content?.map((c) => c.text ?? "").join("").trim() ?? "";
-  const jsonStr = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-  const parsed = JSON.parse(jsonStr) as DraftDraft;
 
-  const category = (CATEGORIES as readonly string[]).includes(parsed.category)
-    ? parsed.category
-    : hintCategory;
-  const mood = (MOODS as readonly string[]).includes(parsed.mood)
-    ? parsed.mood
-    : "trendy";
+  const rawCategory = pick(text, "category");
+  const rawMood = pick(text, "mood");
+  const body = pick(text, "body");
+  const title = pick(text, "title");
+
+  if (!title || !body) throw new Error("초안 형식 오류 (제목/본문 없음)");
 
   return {
-    title: parsed.title?.trim() || sourceTitle,
-    summary: parsed.summary?.trim() || "",
-    body: parsed.body?.trim() || "",
-    hook: parsed.hook?.trim() || parsed.title?.trim() || sourceTitle,
-    emoji: parsed.emoji?.trim() || "📰",
-    tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
-    category,
-    mood,
-    imageQuery: parsed.imageQuery?.trim() || "",
-    imageQueryAlt: parsed.imageQueryAlt?.trim() || "",
+    title,
+    summary: pick(text, "summary"),
+    body,
+    hook: pick(text, "hook") || title,
+    emoji: pick(text, "emoji") || "📰",
+    tags: pick(text, "tags")
+      .split(/[,·]/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 5),
+    category: (CATEGORIES as readonly string[]).includes(rawCategory) ? rawCategory : hintCategory,
+    mood: (MOODS as readonly string[]).includes(rawMood) ? rawMood : "trendy",
+    imageQuery: pick(text, "imageQuery"),
+    imageQueryAlt: pick(text, "imageQueryAlt"),
   };
 }
 
