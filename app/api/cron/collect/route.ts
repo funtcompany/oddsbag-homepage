@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runCollection } from "@/lib/pipeline";
+import { syncFromNotion } from "@/lib/sync";
 import type { IssueSource } from "@/lib/sources";
 
 export const maxDuration = 60;
@@ -13,6 +14,7 @@ const SOURCES: IssueSource[] = [
   "google-trends",
   "google-news",
   "google-news-world",
+  "youtube",
 ];
 
 export async function GET(req: NextRequest) {
@@ -23,8 +25,10 @@ export async function GET(req: NextRequest) {
     }
   }
   try {
+    // 1) 수집 → 노션 수집함 적재  2) 노션 발행글 → 홈페이지 동기화
     const result = await runCollection({ sources: SOURCES, limit: 5 });
-    return NextResponse.json({ ok: true, ...result });
+    const sync = await syncFromNotion();
+    return NextResponse.json({ ok: true, ...result, synced: sync.synced.length });
   } catch (e) {
     return NextResponse.json(
       { error: (e as Error).message ?? "cron 오류" },

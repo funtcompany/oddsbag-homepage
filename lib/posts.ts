@@ -138,6 +138,13 @@ export async function publishPost(slug: string): Promise<boolean> {
   return true;
 }
 
+// 발행 게시물 업서트 (노션 동기화용)
+export async function upsertPublished(post: Post): Promise<void> {
+  post.status = "published";
+  await kvSet(postKey(post.slug), JSON.stringify(post));
+  await sadd(K_PUBLISHED, post.slug);
+}
+
 // 게시물 완전 삭제
 export async function deletePost(slug: string): Promise<void> {
   await kvDel(postKey(slug));

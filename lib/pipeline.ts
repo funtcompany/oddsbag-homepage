@@ -7,6 +7,7 @@ import { saveDraft, type Post } from "@/lib/posts";
 import { categoryOf } from "@/lib/categories";
 import { sadd } from "@/lib/store";
 import { smembers } from "@/lib/store";
+import { notionEnabled, addCollectedPage } from "@/lib/notion";
 import type { IssueSource } from "@/lib/sources";
 
 const K_SEEN = "issues:seen"; // 이미 처리한 이슈 (중복 방지)
@@ -74,7 +75,9 @@ export async function runCollection(opts: {
         ],
         createdAt: new Date().toISOString(),
       };
-      await saveDraft(post);
+      // 노션 허브가 설정돼 있으면 노션 수집함으로, 아니면 Redis 검수함으로
+      if (notionEnabled) await addCollectedPage(post);
+      else await saveDraft(post);
       await sadd(K_SEEN, issueKey(issue.title));
       created.push({
         slug,

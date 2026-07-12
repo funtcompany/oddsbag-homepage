@@ -7,6 +7,7 @@ import {
   type RawIssue,
   type IssueSource,
 } from "@/lib/sources";
+import { collectYouTube } from "@/lib/youtube";
 import { categories } from "@/lib/categories";
 
 // 네이버 → RawIssue (카테고리별)
@@ -40,6 +41,7 @@ export async function collectAllIssues(
   if (sources.includes("google-news")) tasks.push(collectGoogleNewsKR(2));
   if (sources.includes("google-news-world"))
     tasks.push(collectGoogleNewsWorld(1));
+  if (sources.includes("youtube")) tasks.push(collectYouTube("KR", 6));
 
   const results = await Promise.allSettled(tasks);
   const issues = results

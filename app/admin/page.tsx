@@ -2,16 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 
-interface Draft {
-  slug: string;
-  title: string;
-  summary: string;
-  category: string;
-  body: string;
-  emoji?: string;
-  createdAt?: string;
-  sources?: { title: string; url: string }[];
-}
 interface Published {
   slug: string;
   title: string;
@@ -19,31 +9,28 @@ interface Published {
   date: string;
 }
 
+const NOTION_DB_URL = "https://www.notion.so/39ba021454af81fda095e59a00525be0";
+
 export default function AdminPage() {
   const [pw, setPw] = useState("");
   const [authed, setAuthed] = useState(false);
-  const [drafts, setDrafts] = useState<Draft[]>([]);
   const [published, setPublished] = useState<Published[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const load = useCallback(
-    async (password: string) => {
-      const res = await fetch(`/api/admin/list?password=${encodeURIComponent(password)}`);
-      if (!res.ok) {
-        setAuthed(false);
-        setMsg("비밀번호가 틀렸어요.");
-        return false;
-      }
-      const d = await res.json();
-      setDrafts(d.drafts ?? []);
-      setPublished(d.published ?? []);
-      setAuthed(true);
-      setMsg("");
-      return true;
-    },
-    [],
-  );
+  const load = useCallback(async (password: string) => {
+    const res = await fetch(`/api/admin/list?password=${encodeURIComponent(password)}`);
+    if (!res.ok) {
+      setAuthed(false);
+      setMsg("비밀번호가 틀렸어요.");
+      return false;
+    }
+    const d = await res.json();
+    setPublished(d.published ?? []);
+    setAuthed(true);
+    setMsg("");
+    return true;
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem("oddsbag-admin-pw");
@@ -60,7 +47,7 @@ export default function AdminPage() {
 
   async function collect() {
     setBusy(true);
-    setMsg("수집 중… (네이버·구글트렌드·구글뉴스에서 이슈를 모아 AI가 초안을 씁니다. 1~2분 걸려요)");
+    setMsg("수집 중… 네이버·구글트렌드·구글뉴스·유튜브에서 이슈를 모아 AI가 초안을 써서 노션 수집함에 넣습니다. (1~2분)");
     try {
       const res = await fetch("/api/admin/collect", {
         method: "POST",
@@ -69,7 +56,26 @@ export default function AdminPage() {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
-      setMsg(`✅ ${d.created?.length ?? 0}건 초안 생성 (스캔 ${d.scanned}건)`);
+      setMsg(`✅ 노션 수집함에 ${d.created?.length ?? 0}건 추가 (스캔 ${d.scanned}건). 노션에서 검토·편집 후 '상태=발행'으로 바꾸세요.`);
+    } catch (e) {
+      setMsg(`오류: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sync() {
+    setBusy(true);
+    setMsg("노션 → 홈페이지 동기화 중…");
+    try {
+      const res = await fetch("/api/admin/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      setMsg(`✅ ${d.synced?.length ?? 0}건 홈페이지에 반영됨.`);
       await load(pw);
     } catch (e) {
       setMsg(`오류: ${(e as Error).message}`);
@@ -78,14 +84,14 @@ export default function AdminPage() {
     }
   }
 
-  async function act(action: string, slug: string) {
-    if (action === "delete" && !confirm("삭제할까요?")) return;
+  async function del(slug: string) {
+    if (!confirm("홈페이지에서 삭제할까요?")) return;
     setBusy(true);
     try {
       await fetch("/api/admin/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: pw, action, slug }),
+        body: JSON.stringify({ password: pw, action: "delete", slug }),
       });
       await load(pw);
     } finally {
@@ -96,11 +102,8 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-oddsbag-light-gray/40 p-4">
-        <form
-          onSubmit={login}
-          className="w-full max-w-sm rounded-2xl border border-oddsbag-light-gray bg-white p-6"
-        >
-          <h1 className="text-xl font-black text-oddsbag-dark">오즈백 검수함</h1>
+        <form onSubmit={login} className="w-full max-w-sm rounded-2xl border border-oddsbag-light-gray bg-white p-6">
+          <h1 className="text-xl font-black text-oddsbag-dark">오즈백 관리자</h1>
           <p className="mt-1 text-sm text-oddsbag-gray">관리자 비밀번호를 입력하세요.</p>
           <input
             type="password"
@@ -120,86 +123,56 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-oddsbag-dark">오즈백 검수함</h1>
+      <h1 className="text-2xl font-black text-oddsbag-dark">오즈백 관리자</h1>
+
+      {/* 작업 흐름 */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <button
           onClick={collect}
           disabled={busy}
-          className="rounded-xl bg-oddsbag-purple px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          className="rounded-2xl bg-oddsbag-purple p-4 text-left text-white transition hover:bg-oddsbag-purple-dark disabled:opacity-50"
         >
-          {busy ? "처리중…" : "🔄 지금 이슈 수집"}
+          <div className="text-lg font-black">1 · 이슈 수집</div>
+          <div className="mt-1 text-xs text-white/80">
+            여러 소스 → AI 초안 → 노션 수집함
+          </div>
+        </button>
+        <a
+          href={NOTION_DB_URL}
+          target="_blank"
+          className="rounded-2xl border border-oddsbag-light-gray bg-white p-4 transition hover:border-oddsbag-purple"
+        >
+          <div className="text-lg font-black text-oddsbag-dark">2 · 노션에서 작성</div>
+          <div className="mt-1 text-xs text-oddsbag-gray">
+            검토·편집 후 상태를 ‘발행’으로 →
+          </div>
+        </a>
+        <button
+          onClick={sync}
+          disabled={busy}
+          className="rounded-2xl border border-oddsbag-light-gray bg-white p-4 text-left transition hover:border-oddsbag-purple disabled:opacity-50"
+        >
+          <div className="text-lg font-black text-oddsbag-dark">3 · 홈 동기화</div>
+          <div className="mt-1 text-xs text-oddsbag-gray">
+            노션 발행글 → 홈페이지 반영
+          </div>
         </button>
       </div>
+
       {msg && (
-        <p className="mt-3 rounded-lg bg-oddsbag-light-gray/60 p-3 text-sm text-oddsbag-dark">
+        <p className="mt-4 rounded-lg bg-oddsbag-light-gray/60 p-3 text-sm text-oddsbag-dark">
           {msg}
         </p>
       )}
 
-      {/* 초안 (검수 대기) */}
-      <section className="mt-8">
-        <h2 className="text-lg font-black text-oddsbag-dark">
-          검수 대기 초안 ({drafts.length})
-        </h2>
-        <div className="mt-3 space-y-3">
-          {drafts.length === 0 && (
-            <p className="text-sm text-oddsbag-gray">
-              대기 중인 초안이 없어요. “지금 이슈 수집”을 눌러보세요.
-            </p>
-          )}
-          {drafts.map((d) => (
-            <div
-              key={d.slug}
-              className="rounded-2xl border border-oddsbag-light-gray bg-white p-4"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{d.emoji}</span>
-                <span className="rounded-full bg-oddsbag-purple/10 px-2 py-0.5 text-xs font-bold text-oddsbag-purple">
-                  {d.category}
-                </span>
-              </div>
-              <h3 className="mt-2 font-bold text-oddsbag-dark">{d.title}</h3>
-              <p className="mt-1 text-sm text-oddsbag-gray">{d.summary}</p>
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs font-medium text-oddsbag-purple">
-                  본문 미리보기
-                </summary>
-                <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-oddsbag-light-gray/50 p-3 text-xs text-oddsbag-dark/80">
-                  {d.body}
-                </pre>
-              </details>
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => act("publish", d.slug)}
-                  disabled={busy}
-                  className="rounded-lg bg-oddsbag-purple px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  발행
-                </button>
-                <a
-                  href={`/magazine/${d.slug}`}
-                  target="_blank"
-                  className="rounded-lg border border-oddsbag-light-gray px-3 py-1.5 text-sm text-oddsbag-gray"
-                >
-                  미리보기
-                </a>
-                <button
-                  onClick={() => act("delete", d.slug)}
-                  disabled={busy}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-500 disabled:opacity-50"
-                >
-                  삭제
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <p className="mt-4 text-xs text-oddsbag-gray">
+        💡 매시 정각 자동 수집·동기화가 돌아갑니다. 위 버튼은 수동으로 즉시 실행할 때 쓰세요.
+      </p>
 
       {/* 발행됨 */}
-      <section className="mt-10">
+      <section className="mt-8">
         <h2 className="text-lg font-black text-oddsbag-dark">
-          발행됨 ({published.length})
+          홈페이지 발행글 ({published.length})
         </h2>
         <div className="mt-3 space-y-2">
           {published.map((p) => (
@@ -208,24 +181,18 @@ export default function AdminPage() {
               className="flex items-center justify-between rounded-xl border border-oddsbag-light-gray bg-white px-4 py-2.5"
             >
               <div className="min-w-0">
-                <span className="text-xs text-oddsbag-gray">{p.category}</span>
+                <span className="text-xs text-oddsbag-gray">
+                  {p.category} · {p.date}
+                </span>
                 <p className="truncate text-sm font-medium text-oddsbag-dark">
                   {p.title}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <a
-                  href={`/magazine/${p.slug}`}
-                  target="_blank"
-                  className="text-sm text-oddsbag-purple"
-                >
+              <div className="flex shrink-0 gap-3">
+                <a href={`/magazine/${p.slug}`} target="_blank" className="text-sm text-oddsbag-purple">
                   보기
                 </a>
-                <button
-                  onClick={() => act("delete", p.slug)}
-                  disabled={busy}
-                  className="text-sm text-red-400"
-                >
+                <button onClick={() => del(p.slug)} disabled={busy} className="text-sm text-red-400">
                   삭제
                 </button>
               </div>
