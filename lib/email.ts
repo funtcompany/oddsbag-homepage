@@ -43,18 +43,23 @@ const CAT_COLOR: Record<string, string> = {
   "문화·연예": "#ff7eb6",
   트렌드: "#ffa64d",
 };
+
+// 지메일 다크모드는 background-color를 지우지만 background-image(그라디언트)는 유지한다.
+// 모든 배경에 단색 그라디언트를 함께 넣어 색이 사라지지 않게 한다 ("방탄 배경").
+const bg = (c: string) => `background-color:${c};background-image:linear-gradient(${c},${c});`;
+
 const F = `-apple-system,'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif`;
 
 function chip(cat: string): string {
   const c = CAT_COLOR[cat] ?? PURPLE;
-  return `<span style="display:inline-block;background:${c}22;color:${c};font-size:11px;font-weight:800;letter-spacing:.5px;padding:5px 11px;border-radius:999px">${cat}</span>`;
+  return `<span style="display:inline-block;${bg(c)}color:#0f0a18;font-size:11px;font-weight:800;letter-spacing:.5px;padding:5px 11px;border-radius:999px">${cat}</span>`;
 }
 
 function thumb(p: Post, w: number, h: number): string {
   if (p.cover) {
     return `<img src="${p.cover}" width="${w}" height="${h}" alt="" style="display:block;width:${w}px;height:${h}px;object-fit:cover;border-radius:10px;border:0" />`;
   }
-  return `<div style="width:${w}px;height:${h}px;border-radius:10px;background:#2f2148;text-align:center;line-height:${h}px;font-size:${Math.round(h / 2.4)}px">${p.emoji ?? "📰"}</div>`;
+  return `<div style="width:${w}px;height:${h}px;border-radius:10px;${bg("#2f2148")}text-align:center;line-height:${h}px;font-size:${Math.round(h / 2.4)}px">${p.emoji ?? "📰"}</div>`;
 }
 
 function shell(inner: string, preheader: string): string {
@@ -65,9 +70,9 @@ function shell(inner: string, preheader: string): string {
 <meta name="color-scheme" content="dark light">
 <meta name="supported-color-schemes" content="dark light">
 </head>
-<body style="margin:0;padding:0;background:${BG}">
+<body style="margin:0;padding:0;${bg(BG)}">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${preheader}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BG}" style="background:${BG};padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BG}" style="${bg(BG)}padding:24px 12px">
  <tr><td align="center">
   <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;font-family:${F};color:${INK}">
    ${inner}
@@ -92,7 +97,7 @@ function hero(title: string, sub: string, date?: string): string {
   return `<tr><td bgcolor="#3a1a63" style="background:#3a1a63;background-image:linear-gradient(135deg,#6b3aa8 0%,#33165c 100%);border-radius:20px 20px 0 0;padding:36px 32px 32px">
     <table role="presentation" cellpadding="0" cellspacing="0"><tr>
       <td style="padding-right:10px">
-        <div style="width:30px;height:30px;border-radius:9px;background:${YELLOW};color:#33165c;font-weight:900;font-size:18px;text-align:center;line-height:30px">O</div>
+        <div style="width:30px;height:30px;border-radius:9px;${bg(YELLOW)}color:#33165c;font-weight:900;font-size:18px;text-align:center;line-height:30px">O</div>
       </td>
       <td style="font-weight:900;font-size:17px;color:#ffffff;letter-spacing:-.3px">ODDSBAG <span style="color:#d9c2ff">오즈백 매거진</span></td>
     </tr></table>
@@ -105,8 +110,8 @@ function hero(title: string, sub: string, date?: string): string {
 function featured(p: Post): string {
   const img = p.cover
     ? `<img src="${p.cover}" width="600" height="250" alt="" style="display:block;width:100%;height:250px;object-fit:cover;border:0" />`
-    : `<div style="height:140px;background:#2f2148;text-align:center;line-height:140px;font-size:60px">${p.emoji ?? "📰"}</div>`;
-  return `<tr><td bgcolor="${CARD}" style="background:${CARD};padding:0">
+    : `<div style="height:140px;${bg("#2f2148")}text-align:center;line-height:140px;font-size:60px">${p.emoji ?? "📰"}</div>`;
+  return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:0">
     <a href="${SITE}/magazine/${p.slug}" style="text-decoration:none;color:inherit">
       ${img}
       <div style="padding:26px 28px 30px">
@@ -115,7 +120,7 @@ function featured(p: Post): string {
         <div style="margin-top:13px;font-size:24px;font-weight:900;color:${INK};line-height:1.35;letter-spacing:-.6px">${p.title}</div>
         <div style="margin-top:11px;font-size:15px;color:${SUB};line-height:1.7">${p.summary}</div>
         <div style="margin-top:20px">
-          <span style="display:inline-block;background:${YELLOW};color:#1a1a2e;font-weight:900;font-size:14px;padding:13px 26px;border-radius:11px">읽어보기 →</span>
+          <span style="display:inline-block;${bg(YELLOW)}color:#1a1a2e;font-weight:900;font-size:14px;padding:13px 26px;border-radius:11px">읽어보기 →</span>
         </div>
       </div>
     </a>
@@ -123,7 +128,7 @@ function featured(p: Post): string {
 }
 
 function row(p: Post): string {
-  return `<tr><td bgcolor="${CARD}" style="background:${CARD};padding:0 28px">
+  return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:0 28px">
     <a href="${SITE}/magazine/${p.slug}" style="text-decoration:none;color:inherit;display:block">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${LINE}">
         <tr>
@@ -140,14 +145,14 @@ function row(p: Post): string {
 }
 
 function sectionLabel(text: string): string {
-  return `<tr><td bgcolor="${CARD}" style="background:${CARD};padding:26px 28px 2px;font-size:12px;font-weight:900;letter-spacing:2px;color:${MUT}">${text}</td></tr>`;
+  return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:26px 28px 2px;font-size:12px;font-weight:900;letter-spacing:2px;color:${MUT}">${text}</td></tr>`;
 }
 
 function bottomCta(): string {
-  return `<tr><td bgcolor="${CARD}" style="background:${CARD};padding:28px 28px 34px;border-radius:0 0 20px 20px;text-align:center;border-top:1px solid ${LINE}">
+  return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:28px 28px 34px;border-radius:0 0 20px 20px;text-align:center;border-top:1px solid ${LINE}">
     <div style="font-size:15.5px;font-weight:800;color:${INK}">오늘의 이슈, 더 있어요</div>
     <div style="margin-top:16px">
-      <a href="${SITE}" style="display:inline-block;background:${PURPLE};color:#ffffff;font-weight:900;font-size:14px;padding:14px 32px;border-radius:11px;text-decoration:none">전체 이슈 보러가기 →</a>
+      <a href="${SITE}" style="display:inline-block;${bg(PURPLE)}color:#ffffff;font-weight:900;font-size:14px;padding:14px 32px;border-radius:11px;text-decoration:none">전체 이슈 보러가기 →</a>
     </div>
   </td></tr>`;
 }
