@@ -1,21 +1,18 @@
 // 인스타그램 릴스 자동 게시 (Instagram Graph API)
-// 필요한 환경변수: INSTAGRAM_ACCOUNT_ID, INSTAGRAM_ACCESS_TOKEN, MEDIA_PUBLIC_BASE
+// 필요한 환경변수: INSTAGRAM_ACCOUNT_ID, INSTAGRAM_ACCESS_TOKEN
 //
 // ※ 인스타 릴스는 '공개 접근 가능한 영상 URL'을 요구한다 (파일 업로드 불가).
-//   그래서 워크플로가 완성 mp4를 공개 위치(예: GitHub Release)에 올리고,
-//   그 주소의 베이스를 MEDIA_PUBLIC_BASE 로 넘겨준다. → ${MEDIA_PUBLIC_BASE}/${slug}.mp4
+//   그래서 host.mjs 가 완성 mp4를 공개 URL로 올린 뒤, 그 URL을 여기로 넘긴다.
 
 const IG = process.env.INSTAGRAM_ACCOUNT_ID;
 const TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
-const BASE = process.env.MEDIA_PUBLIC_BASE;
 const G = "https://graph.facebook.com/v21.0";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function postReel(mp4Path, slug, caption) {
+export async function postReel(videoUrl, caption) {
   if (!IG || !TOKEN) throw new Error("인스타 미설정 (토큰 없음)");
-  if (!BASE) throw new Error("인스타 미설정 (공개 영상 URL 호스팅 MEDIA_PUBLIC_BASE 필요)");
-  const videoUrl = `${BASE.replace(/\/$/, "")}/${slug}.mp4`;
+  if (!videoUrl) throw new Error("인스타 미설정 (영상 URL 없음)");
 
   // 1) 릴스 컨테이너 생성
   const create = await (await fetch(`${G}/${IG}/media`, {

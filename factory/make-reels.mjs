@@ -17,6 +17,7 @@ import { makeMusic, writeWav } from "./music.mjs";
 import { uploadShort } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
 import { postVideo } from "./facebook.mjs";
+import { uploadPublic } from "./host.mjs";
 import { hashtags } from "./hashtags.mjs";
 import { buildCards, reelSay, bgmStyleFor, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
 
@@ -115,7 +116,7 @@ async function buildReel(post) {
   const fbCaption = `${lead}\n\n👉 전체 글 보기 → oddsbag.co.kr\n📌 오즈백 페이지 팔로우\n\n${hashtags(post, 8)}`;
   try { await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: [post.category, "오즈백", "이슈", "쇼츠"], privacy: YT_PRIVACY }); }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }
-  try { await postReel(final, slug, igCaption); }
+  try { const url = await uploadPublic(final); await postReel(url, igCaption); }
   catch (e) { console.log("  · 인스타 건너뜀:", e.message); }
   try { await postVideo(final, fbCaption); }
   catch (e) { console.log("  · 페이스북 건너뜀:", e.message); }
