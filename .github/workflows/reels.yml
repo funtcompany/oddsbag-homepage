@@ -1,0 +1,55 @@
+name: 오즈백 릴스 자동 제작
+
+# 매일 5회(08/12/15/19/22시 KST) 각 1개씩 = 하루 5개. 수동 실행도 가능.
+# (유튜브 무료 한도 하루 6개 이내에서 여유있게 5개)
+on:
+  schedule:
+    - cron: "0 23,3,6,10,13 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "한 번에 만들 릴스 수"
+        default: "1"
+
+concurrency:
+  group: oddsbag-reels
+  cancel-in-progress: false
+
+jobs:
+  reels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: ffmpeg 설치
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: 릴스 제작 (+ 게시)
+        working-directory: factory
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }}
+          ODDS_VOICE: ${{ secrets.ODDS_VOICE }}
+          # --- 게시용 (없으면 영상만 만들고 게시는 건너뜀) ---
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          MEDIA_PUBLIC_BASE: ${{ secrets.MEDIA_PUBLIC_BASE }}
+          REEL_LIMIT: ${{ github.event.inputs.limit || '1' }}
+        run: node make-reels.mjs
+
+      - name: 완성 영상 보관 (다운로드용)
+        uses: actions/upload-artifact@v4
+        with:
+          name: reels
+          path: factory/out/*.mp4
+          if-no-files-found: ignore
+          retention-days: 7

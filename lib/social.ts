@@ -7,7 +7,7 @@
 // 메타 API가 그 URL을 직접 가져가므로 별도 업로드/스토리지가 필요 없다.
 
 import type { Post } from "@/lib/posts";
-import { buildCards, buildCaption } from "@/lib/cards";
+import { buildCards, buildCaption, buildHashtags, firstCommentEmoji } from "@/lib/cards";
 import { kvGet, kvSet, sadd, scard } from "@/lib/store";
 
 const IG_ID = process.env.INSTAGRAM_ACCOUNT_ID;
@@ -77,18 +77,40 @@ export async function postToInstagram(post: Post): Promise<string> {
   });
 
   // 3) 발행 (컨테이너 준비까지 잠깐 대기 필요할 수 있음)
+  let mediaId = "";
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       const pub = await graph(`/${IG_ID}/media_publish`, {
         creation_id: container.id as string,
       });
-      return pub.id as string;
+      mediaId = pub.id as string;
+      break;
     } catch (e) {
       if (attempt === 4) throw e;
       await new Promise((r) => setTimeout(r, 3000));
     }
   }
-  throw new Error("인스타 발행 실패");
+  if (!mediaId) throw new Error("인스타 발행 실패");
+
+  // 4) 캡션은 깔끔하게 두고, 해시태그는 첫 댓글(이모지) → 대댓글(30개)로.
+  //    '댓글 관리' 권한이 없거나 실패해도 게시 자체는 유지한다.
+  try {
+    await attachHashtagsInComment(post, mediaId);
+  } catch {
+    /* 댓글/대댓글 실패는 무시 — 홈페이지·인스타 게시는 그대로 살아있다 */
+  }
+
+  return mediaId;
+}
+
+// ---- 첫 댓글(이모지) + 대댓글(해시태그 30개) ----
+//  캡션을 지저분하게 만들지 않으려고 태그를 댓글로 뺀다.
+//  · 댓글 달기:   POST /{ig-media-id}/comments
+//  · 대댓글 달기: POST /{ig-comment-id}/replies
+//  (인스타 토큰에 instagram_manage_comments 권한이 있어야 동작)
+async function attachHashtagsInComment(post: Post, mediaId: string): Promise<void> {
+  const c = await graph(`/${mediaId}/comments`, { message: firstCommentEmoji(post) });
+  await graph(`/${c.id as string}/replies`, { message: buildHashtags(post) });
 }
 
 // ---- 페이스북 페이지 ID 자동 탐색 (한 번 찾으면 캐시) ----

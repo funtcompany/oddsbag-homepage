@@ -12,3 +12,4 @@ node_modules
 
 # 로컬 환경파일
 .env*.local
+factory

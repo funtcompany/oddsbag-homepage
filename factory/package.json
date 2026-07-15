@@ -1,0 +1,10 @@
+{
+  "name": "oddsbag-reel-factory",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "오즈백 릴스/쇼츠 영상 공장 — GitHub Actions에서 실행",
+  "scripts": {
+    "start": "node make-reels.mjs"
+  }
+}
