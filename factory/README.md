@@ -2,22 +2,21 @@
 
 Vercel(홈페이지)에서는 영상 인코딩이 안 되므로, **GitHub Actions**(무료)에서 영상을 만든다.
 
-## 흐름
-1. `/api/reel/pending` — 오늘 만들 발행글을 받아온다
-2. `/api/reel/[slug]` — 매니페스트(카드·나레이션 문구·BGM 스타일)
-3. 구글 Chirp3-HD로 나레이션 생성
-4. `/api/reel/[slug]?c=&f=` — 세로 프레임(1080×1920) 내려받기
-5. ffmpeg로 이어붙이고 트렌디 BGM(은은한 고정 볼륨) 믹스 → mp4
-6. (자격증명 있으면) 유튜브 쇼츠 + 인스타 릴스 게시
-7. `/api/reel/done` — 완료 기록(중복 제작 방지)
+## 흐름 (자립형 — Vercel/홈페이지에 의존하지 않음)
+1. DB(Upstash Redis)에서 발행글을 직접 읽어 오늘 만들 글 선정 (`posts:published`, `reels:done`)
+2. 카드 구성 + 구글 Chirp3-HD 나레이션
+3. 세로 프레임(1080×1920)을 공장 안에서 직접 렌더 (satori+resvg)
+4. ffmpeg로 이어붙이고 트렌디 BGM(은은한 고정 볼륨) 믹스 → mp4
+5. (자격증명 있으면) 유튜브 쇼츠 + 인스타 릴스 게시
+6. 완료를 DB에 기록(`reels:done`) → 중복 제작 방지
 
 ## GitHub Secrets (설정 → Secrets and variables → Actions)
 
 ### 필수 (영상 제작)
 | 이름 | 값 |
 |---|---|
-| `SITE_URL` | `https://oddsbag.co.kr` |
-| `CRON_SECRET` | 홈페이지 .env.local 의 CRON_SECRET 과 동일하게 |
+| `UPSTASH_REDIS_REST_URL` | 홈페이지 .env.local 과 동일 |
+| `UPSTASH_REDIS_REST_TOKEN` | 홈페이지 .env.local 과 동일 |
 | `GOOGLE_TTS_API_KEY` | 구글 클라우드 TTS 키 |
 | `ODDS_VOICE` | (선택) 목소리. 기본 `ko-KR-Chirp3-HD-Aoede` |
 

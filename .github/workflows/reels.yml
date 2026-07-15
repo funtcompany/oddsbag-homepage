@@ -29,11 +29,16 @@ jobs:
       - name: ffmpeg 설치
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
 
+      - name: 렌더링 라이브러리 설치
+        working-directory: factory
+        run: npm ci
+
       - name: 릴스 제작 (+ 게시)
         working-directory: factory
         env:
-          SITE_URL: ${{ secrets.SITE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          # DB 직접 읽기 (Vercel 불필요)
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }}
           ODDS_VOICE: ${{ secrets.ODDS_VOICE }}
           # --- 게시용 (없으면 영상만 만들고 게시는 건너뜀) ---

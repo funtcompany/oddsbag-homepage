@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "오즈백 릴스/쇼츠 영상 공장 — GitHub Actions에서 실행",
+  "description": "오즈백 릴스/쇼츠 영상 공장 (자립형) — GitHub Actions에서 실행",
   "scripts": {
     "start": "node make-reels.mjs"
+  },
+  "dependencies": {
+    "satori": "^0.12.0",
+    "@resvg/resvg-js": "^2.6.2"
   }
 }
