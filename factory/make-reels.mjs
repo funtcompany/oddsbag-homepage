@@ -16,6 +16,8 @@ import { smembers, sadd, getJSON, redisReady } from "./redis.mjs";
 import { makeMusic, writeWav } from "./music.mjs";
 import { uploadShort } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
+import { postVideo } from "./facebook.mjs";
+import { hashtags } from "./hashtags.mjs";
 import { buildCards, reelSay, bgmStyleFor, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
 
 const TTS_KEY = process.env.GOOGLE_TTS_API_KEY;
@@ -106,12 +108,17 @@ async function buildReel(post) {
   sh(`ffmpeg -y ${inputs.join(" ")} -filter_complex "${fc}" -map 0:v -map "[a]" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a aac -b:a 160k -shortest "${final}"`);
   console.log(`  ✅ 완성: ${final} (${totalDur.toFixed(1)}초)`);
 
-  // 게시 (자격증명 있을 때만)
-  const caption = `${post.title}\n\n전체 글 → 프로필 링크 (oddsbag.co.kr)`;
-  try { await uploadShort(final, { title: `${post.title} #Shorts`, description: caption, tags: [post.category, "오즈백", "이슈", "쇼츠"], privacy: YT_PRIVACY }); }
+  // 게시 (자격증명 있을 때만) — 유입 최적화: 훅 첫줄 + 명확한 CTA + 태그
+  const lead = (post.hook || post.title).trim();
+  const igCaption = `${lead}\n\n👉 전체 내용은 프로필 링크에서 (oddsbag.co.kr)\n📌 오즈백 팔로우하고 매일 이슈 받아보기`;
+  const ytDesc = `${lead}\n\n👉 oddsbag.co.kr 에서 전체 글 보기\n📌 @oddsbag_official 구독\n\n${hashtags(post, 6)}`;
+  const fbCaption = `${lead}\n\n👉 전체 글 보기 → oddsbag.co.kr\n📌 오즈백 페이지 팔로우\n\n${hashtags(post, 8)}`;
+  try { await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: [post.category, "오즈백", "이슈", "쇼츠"], privacy: YT_PRIVACY }); }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }
-  try { await postReel(final, slug, caption); }
+  try { await postReel(final, slug, igCaption); }
   catch (e) { console.log("  · 인스타 건너뜀:", e.message); }
+  try { await postVideo(final, fbCaption); }
+  catch (e) { console.log("  · 페이스북 건너뜀:", e.message); }
 
   fs.rmSync(work, { recursive: true, force: true });
 }

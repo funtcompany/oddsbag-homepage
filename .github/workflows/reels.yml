@@ -48,6 +48,8 @@ jobs:
           INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           MEDIA_PUBLIC_BASE: ${{ secrets.MEDIA_PUBLIC_BASE }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FB_PUBLISHED: ${{ secrets.FB_PUBLISHED }}
           REEL_LIMIT: ${{ github.event.inputs.limit || '1' }}
         run: node make-reels.mjs
 
