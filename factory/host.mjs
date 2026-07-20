@@ -74,8 +74,10 @@ async function to0x0(buf, ext, type) {
   return (await r.text()).trim();
 }
 
-// 순서: CI 통과율·인코딩 안정성 높은 순. 하나 실패하면 다음으로 넘어간다.
-const HOSTS = [["tmpfiles", toTmpfiles], ["uguu", toUguu], ["catbox", toCatbox], ["0x0", to0x0]];
+// 순서: 메타(인스타)가 잘 받아들이는 '직접 바이트 응답' 호스트 먼저.
+//  · 0x0/catbox는 원본 바이트를 그대로 서빙(메타 인코딩 호환 ↑)
+//  · tmpfiles/uguu는 업로드는 잘 되지만 다운로드 주소가 메타와 궁합이 나빠 후순위
+const HOSTS = [["0x0", to0x0], ["catbox", toCatbox], ["uguu", toUguu], ["tmpfiles", toTmpfiles]];
 
 export async function uploadPublic(filePath) {
   const ext = (filePath.split(".").pop() || "mp4").toLowerCase();
