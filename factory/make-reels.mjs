@@ -13,13 +13,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { smembers, sadd, getJSON, redisReady } from "./redis.mjs";
-import { makeMusic, writeWav } from "./music.mjs";
-import { uploadShort } from "./youtube.mjs";
+import { makeMusic, writeWav, pickBgm } from "./music.mjs";
+import { uploadShort, setThumbnail } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
 import { postVideo } from "./facebook.mjs";
 import { uploadPublic } from "./host.mjs";
-import { hashtags } from "./hashtags.mjs";
-import { buildCards, reelSay, bgmStyleFor, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
+import { hashtags, keywords } from "./hashtags.mjs";
+import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
 
 const TTS_KEY = process.env.GOOGLE_TTS_API_KEY;
 const VOICE = process.env.ODDS_VOICE || "ko-KR-Chirp3-HD-Aoede";
@@ -96,9 +96,11 @@ async function buildReel(post) {
   const silent = path.join(work, "video.mp4");
   sh(`ffmpeg -y -f concat -safe 0 -i "${work}/list.txt" -c copy "${silent}"`);
 
-  // BGM + 나레이션 믹스 (은은한 고정 볼륨)
+  // BGM + 나레이션 믹스 (은은한 고정 볼륨) — 글마다 스타일·조를 다르게 골라 다양하게
   const music = path.join(work, "music.wav");
-  writeWav(music, makeMusic(bgmStyleFor(post.category), totalDur));
+  const bgm = pickBgm(post.category, post.slug);
+  console.log(`  · BGM: ${bgm.style}${bgm.shift ? ` (${bgm.shift > 0 ? "+" : ""}${bgm.shift})` : ""}`);
+  writeWav(music, makeMusic(bgm.style, totalDur, 44100, bgm.shift));
   const inputs = [`-i "${silent}"`, `-i "${music}"`, ...cards.map((c) => `-i "${c.narr}"`)];
   let fc = ""; const v = [];
   cards.forEach((c, i) => { const d = Math.round((offsets[i] + 0.35) * 1000); fc += `[${i + 2}:a]adelay=${d}|${d},volume=2.1[v${i}];`; v.push(`[v${i}]`); });
@@ -109,16 +111,35 @@ async function buildReel(post) {
   sh(`ffmpeg -y ${inputs.join(" ")} -filter_complex "${fc}" -map 0:v -map "[a]" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a aac -b:a 160k -shortest "${final}"`);
   console.log(`  ✅ 완성: ${final} (${totalDur.toFixed(1)}초)`);
 
-  // 게시 (자격증명 있을 때만) — 유입 최적화: 훅 첫줄 + 명확한 CTA + 태그
+  // 썸네일 = 첫 장(훅 카드) 고정 — 세 플랫폼 표지를 동일한 첫 장면으로 통일
+  let thumb = null;
+  try {
+    const png = await renderFrame(post, cards, 0, total, 5, fonts, pal); // t=5 → 완전히 안착한 첫 장
+    const thumbPng = path.join(work, "thumb.png");
+    fs.writeFileSync(thumbPng, png);
+    thumb = path.join(work, "thumb.jpg");
+    sh(`ffmpeg -y -i "${thumbPng}" -q:v 2 "${thumb}"`);
+  } catch (e) { console.log("  · 썸네일 렌더 건너뜀:", e.message); thumb = null; }
+
+  // 게시 (자격증명 있을 때만) — 유입 최적화: 훅 첫줄 + 명확한 CTA + 태그(10~30개)
   const lead = (post.hook || post.title).trim();
+  const igTags = hashtags(post, 30); // 인스타는 첫 댓글에 30개
   const igCaption = `${lead}\n\n👉 전체 내용은 프로필 링크에서 (oddsbag.co.kr)\n📌 오즈백 팔로우하고 매일 이슈 받아보기`;
-  const ytDesc = `${lead}\n\n👉 oddsbag.co.kr 에서 전체 글 보기\n📌 @oddsbag_official 구독\n\n${hashtags(post, 6)}`;
-  const fbCaption = `${lead}\n\n👉 전체 글 보기 → oddsbag.co.kr\n📌 오즈백 페이지 팔로우\n\n${hashtags(post, 8)}`;
-  try { await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: [post.category, "오즈백", "이슈", "쇼츠"], privacy: YT_PRIVACY }); }
+  const ytDesc = `${lead}\n\n👉 oddsbag.co.kr 에서 전체 글 보기\n📌 @oddsbag_official 구독\n\n${hashtags(post, 15)}`;
+  const fbCaption = `${lead}\n\n👉 전체 글 보기 → oddsbag.co.kr\n📌 오즈백 페이지 팔로우\n\n${hashtags(post, 15)}`;
+  try {
+    const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
+    if (thumb && vid) { try { await setThumbnail(vid, thumb); } catch (e) { console.log("  · 유튜브 썸네일 건너뜀:", e.message); } }
+  }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }
-  try { const url = await uploadPublic(final); await postReel(url, igCaption); }
+  try {
+    const url = await uploadPublic(final);
+    let coverUrl;
+    if (thumb) { try { coverUrl = await uploadPublic(thumb); } catch (e) { console.log("  · 인스타 커버 업로드 건너뜀:", e.message); } }
+    await postReel(url, igCaption, coverUrl, igTags);
+  }
   catch (e) { console.log("  · 인스타 건너뜀:", e.message); }
-  try { await postVideo(final, fbCaption); }
+  try { await postVideo(final, fbCaption, thumb); }
   catch (e) { console.log("  · 페이스북 건너뜀:", e.message); }
 
   fs.rmSync(work, { recursive: true, force: true });

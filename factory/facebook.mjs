@@ -21,7 +21,7 @@ async function pageToken(pid) {
   return r.access_token || TOKEN; // 못 얻으면 기존 토큰 시도
 }
 
-export async function postVideo(mp4Path, description) {
+export async function postVideo(mp4Path, description, thumbPath) {
   if (!TOKEN) throw new Error("페이스북 미설정 (토큰 없음)");
   const pid = await pageId();
   const ptoken = await pageToken(pid);
@@ -34,7 +34,18 @@ export async function postVideo(mp4Path, description) {
     pre += `--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`;
   }
   pre += `--${boundary}\r\nContent-Disposition: form-data; name="source"; filename="reel.mp4"\r\nContent-Type: video/mp4\r\n\r\n`;
-  const body = Buffer.concat([Buffer.from(pre, "utf8"), fs.readFileSync(mp4Path), Buffer.from(`\r\n--${boundary}--\r\n`, "utf8")]);
+  const parts = [Buffer.from(pre, "utf8"), fs.readFileSync(mp4Path)];
+  // 썸네일(첫 장) 첨부 — 페북이 영상 중간 아무 장면을 고르지 않게
+  if (thumbPath) {
+    const tType = thumbPath.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+    parts.push(Buffer.from(
+      `\r\n--${boundary}\r\nContent-Disposition: form-data; name="thumb"; filename="thumb.jpg"\r\nContent-Type: ${tType}\r\n\r\n`,
+      "utf8",
+    ));
+    parts.push(fs.readFileSync(thumbPath));
+  }
+  parts.push(Buffer.from(`\r\n--${boundary}--\r\n`, "utf8"));
+  const body = Buffer.concat(parts);
 
   const r = await fetch(`${G}/${pid}/videos`, {
     method: "POST",

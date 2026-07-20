@@ -38,3 +38,19 @@ export async function uploadShort(mp4Path, { title, description, tags, privacy =
   console.log(`  · 유튜브 쇼츠 게시: https://youtu.be/${j.id}`);
   return j.id;
 }
+
+// 커스텀 썸네일(첫 장) 지정. 채널이 썸네일 인증(전화 인증)돼 있어야 적용된다.
+// 미인증이면 에러가 나며, 호출부에서 잡아 건너뛴다(영상은 정상 게시됨).
+export async function setThumbnail(videoId, imgPath) {
+  if (!CID || !CSECRET || !RTOKEN) throw new Error("유튜브 미설정 (토큰 없음)");
+  const token = await accessToken();
+  const type = imgPath.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+  const r = await fetch(`https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${videoId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": type },
+    body: fs.readFileSync(imgPath),
+  });
+  const j = await r.json();
+  if (j.error) throw new Error("썸네일 지정 실패: " + JSON.stringify(j.error).slice(0, 160));
+  console.log("  · 유튜브 썸네일 = 첫 장 지정됨");
+}
