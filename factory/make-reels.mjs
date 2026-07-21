@@ -73,7 +73,6 @@ async function buildReel(post) {
   console.log(`\n▶ ${slug} — ${post.title}`);
 
   const cards = buildCards(post);
-  const total = cards.length;
   const pal = paletteFor(post.slug, post.mood);
 
   // B-roll 배경(선택): 저작권 안전한 Pexels 무료 영상. 못 찾으면 조용히 타이포로 폴백.
@@ -94,15 +93,27 @@ async function buildReel(post) {
   const fonts = await loadFontsForPost(cards, renderOpts.credit || ""); // 출처 글자도 폰트에 포함(깨짐 방지)
 
   // 나레이션 + 카드 길이
-  const offsets = []; let acc = 0;
+  let acc = 0;
   for (let i = 0; i < cards.length; i++) {
     const mp3 = path.join(work, `n${i}.mp3`);
     await tts(reelSay(cards[i]), mp3);
     cards[i].narr = mp3;
-    const d = Math.max(2.6, probe(mp3) + 0.75);
-    offsets.push(acc); acc += d; cards[i].dur = d;
+    cards[i].dur = Math.max(2.6, probe(mp3) + 0.75);
+    acc += cards[i].dur;
   }
-  const totalDur = acc;
+  // 숏폼 상한(기본 40초): 초과하면 뒤쪽 포인트/정리 카드부터 덜어낸다(훅·무슨일이냐·CTA는 유지)
+  const MAX_SEC = Number(process.env.MAX_REEL_SEC || 40);
+  while (acc > MAX_SEC && cards.length > 3) {
+    let idx = -1;
+    for (let i = cards.length - 2; i >= 2; i--) { if (["point", "quote"].includes(cards[i].kind)) { idx = i; break; } }
+    if (idx < 0) break;
+    acc -= cards[idx].dur; cards.splice(idx, 1);
+  }
+  const total = cards.length;
+  const offsets = []; let a2 = 0;
+  for (const c of cards) { offsets.push(a2); a2 += c.dur; }
+  const totalDur = a2;
+  console.log(`  · 길이 ${totalDur.toFixed(1)}초 · 카드 ${total}장`);
 
   // 프레임 자체 렌더 + 카드별 클립
   const clips = [];

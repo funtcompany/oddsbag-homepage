@@ -55,13 +55,14 @@ function parseSections(body) {
 export function buildCards(post) {
   const cards = [];
   cards.push({ kind: "hook", label: post.category, title: (post.hook || post.title).trim() });
-  if (post.summary) cards.push({ kind: "intro", label: "무슨 일이냐면", title: clip(post.summary, 110) });
+  if (post.summary) cards.push({ kind: "intro", label: "무슨 일이냐면", title: clip(post.summary, 90) });
   const secs = parseSections(post.body);
   const closing = secs.find((s) => s.heading.includes("한 줄 정리"));
-  secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, 6).forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading, body: clip(s.text) }));
-  if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 120) });
+  // 숏폼(20~40초) 최적화: 핵심 포인트 3개 + 본문 짧게(낭독·가독성 둘 다 개선)
+  secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, 3).forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading, body: clip(s.text, 90) }));
+  if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 100) });
   cards.push({ kind: "cta", label: "@oddsbag_official", title: "전체 글은\n오즈백 매거진에서", body: "프로필 링크 → oddsbag.co.kr" });
-  return cards.slice(0, 8);
+  return cards.slice(0, 6);
 }
 export function reelSay(card) {
   switch (card.kind) {

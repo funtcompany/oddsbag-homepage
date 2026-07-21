@@ -41,6 +41,9 @@ jobs:
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }}
           ODDS_VOICE: ${{ secrets.ODDS_VOICE }}
+          # 배경영상(B-roll) 켜기 — Pexels 무료·상업안전. 못 찾으면 자동 타이포 폴백
+          USE_BROLL: "1"
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           # --- 게시용 (없으면 영상만 만들고 게시는 건너뜀) ---
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
