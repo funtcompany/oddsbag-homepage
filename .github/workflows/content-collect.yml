@@ -1,9 +1,9 @@
 name: 오즈백 수집·작성·발행
 
-# 30분마다 수집→작성→심사→예약. (Vercel 크론 대체 — 무료)
+# 매시간 수집→작성→심사→예약. (무료 Gemini 한도에 맞춰 시간당 3건)
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -38,4 +38,5 @@ jobs:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           SITE_URL: ${{ secrets.SITE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          COLLECT_LIMIT: "3"
         run: node run-collect.mjs

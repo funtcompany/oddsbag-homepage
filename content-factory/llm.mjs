@@ -102,13 +102,25 @@ async function askClaude(system, user, opt) {
 }
 
 // ---- 공용 진입점 ----
+// 무료 Gemini 한도(분당 요청 수) 준수: 호출 간 최소 간격 + 한도 초과 시 잠깐 쉬고 재시도.
+let _lastCall = 0;
+const MIN_GAP_MS = Number(process.env.LLM_MIN_GAP_MS || 4500); // ≈13회/분 (무료 한도 이내)
+const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const _isQuota = (m) => /quota|RESOURCE_EXHAUSTED|429|rate limit|too many/i.test(String(m));
+
 export async function ask(system, user, opt = {}) {
   if (GEMINI_KEY) {
-    try {
-      return await askGemini(system, user, opt);
-    } catch (e) {
-      // 크레딧 소진·장애 → Claude로 자동 대체 (서비스는 멈추지 않는다)
-      console.warn("Gemini 실패 → Claude로 대체:", e.message);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const wait = MIN_GAP_MS - (Date.now() - _lastCall);
+      if (wait > 0) await _sleep(wait);
+      _lastCall = Date.now();
+      try {
+        return await askGemini(system, user, opt);
+      } catch (e) {
+        if (_isQuota(e.message) && attempt === 0) { await _sleep(15000); continue; } // 분당 한도 → 15초 쉬고 1회 재시도
+        console.warn("Gemini 실패 → Claude로 대체:", e.message);
+        break;
+      }
     }
   }
   return askClaude(system, user, opt);

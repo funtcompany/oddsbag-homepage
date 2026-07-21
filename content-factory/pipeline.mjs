@@ -163,8 +163,13 @@ export async function runCollection(opts) {
       let draft;
       try {
         draft = await generateDraft(issue.title, context, issue.category, lessons);
-      } catch {
-        draft = await generateDraft(issue.title, context, issue.category, lessons);
+      } catch (e) {
+        // AI 한도(무료 quota)·크레딧 소진이면 남은 이슈를 계속 시도해봐야 낭비 → 이번 회차 중단
+        if (/quota|RESOURCE_EXHAUSTED|429|credit|too low|rate limit/i.test(String(e?.message))) {
+          out.errors.push("AI 한도 소진 — 이번 회차 중단");
+          break;
+        }
+        draft = await generateDraft(issue.title, context, issue.category, lessons); // 형식 문제면 1회 재시도
       }
 
       // 2) 심사 (원문과 대조 — 환각·가짜뉴스 검사)
