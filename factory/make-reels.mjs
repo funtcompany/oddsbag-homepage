@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { smembers, sadd, getJSON, redisReady } from "./redis.mjs";
+import { smembers, sadd, srem, getJSON, redisReady } from "./redis.mjs";
 import { makeMusic, writeWav, pickBgm } from "./music.mjs";
 import { uploadShort, setThumbnail, addToCategoryPlaylist } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
@@ -55,14 +55,20 @@ async function tts(text, outPath) {
   fs.writeFileSync(outPath, Buffer.from(j.audioContent, "base64"));
 }
 
-// 오늘 만들 글 선정: 발행글 중 아직 릴스 없는 것, 최신 우선
+// 오늘 만들 글 선정: (0) REEL_SLUGS 지정 시 그것만 (1) 재제작 우선순위(reels:priority) 먼저 (2) 최신 발행글
 async function pickPending(limit) {
-  const [pubSlugs, doneArr] = await Promise.all([smembers(K_PUB), smembers(DONE)]);
+  if (process.env.REEL_SLUGS) { // 특정 글만 강제 제작(수동)
+    const want = process.env.REEL_SLUGS.split(",").map((s) => s.trim()).filter(Boolean);
+    return (await Promise.all(want.map((s) => getJSON(`post:${s}`)))).filter(Boolean);
+  }
+  const [pubSlugs, doneArr, prioArr] = await Promise.all([smembers(K_PUB), smembers(DONE), smembers("reels:priority")]);
   const done = new Set(doneArr || []);
+  const prio = new Set((prioArr || []).filter((s) => !done.has(s)));
   const fresh = (pubSlugs || []).filter((s) => !done.has(s));
   const posts = (await Promise.all(fresh.map((s) => getJSON(`post:${s}`)))).filter(Boolean).filter((p) => p.status === "published");
   posts.sort((a, b) => (b.publishedAt ?? b.date ?? "").localeCompare(a.publishedAt ?? a.date ?? ""));
-  return posts.slice(0, limit);
+  // 재제작 대상(우선순위) 먼저, 그다음 최신 발행글
+  return [...posts.filter((p) => prio.has(p.slug)), ...posts.filter((p) => !prio.has(p.slug))].slice(0, limit);
 }
 
 async function buildReel(post) {
@@ -209,7 +215,7 @@ async function main() {
   for (const post of pending) {
     try {
       await buildReel(post);
-      if (process.env.MARK_DONE !== "0") await sadd(DONE, post.slug);
+      if (process.env.MARK_DONE !== "0") { await sadd(DONE, post.slug); await srem("reels:priority", post.slug); }
     } catch (e) {
       console.error(`  ✗ ${post.slug} 실패:`, e.message);
     }

@@ -15,6 +15,7 @@ async function cmd(args) {
 
 export const smembers = (key) => cmd(["SMEMBERS", key]);
 export const sadd = (key, member) => cmd(["SADD", key, member]);
+export const srem = (key, member) => cmd(["SREM", key, member]);
 export async function getJSON(key) {
   const v = await cmd(["GET", key]);
   return v ? JSON.parse(v) : null;
