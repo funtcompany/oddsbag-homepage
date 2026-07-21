@@ -36,9 +36,15 @@ export function paletteFor(slug, mood) { const list = PALETTES[mood] ?? PALETTES
 export const bgmStyleFor = (cat) => ({ "IT·테크": "synthwave", "트렌드": "synthwave", "스포츠": "energetic", "경제": "newsy", "사회": "newsy", "문화·연예": "lofi" }[cat] || "lofi");
 
 // ---- 카드 시퀀스 (홈페이지 buildCards 와 동일) ----
+// 큰 정밀 숫자를 읽기 좋게 반올림: "1463만2347점" → "약 1,463만 점" (눈으로도, TTS로도 편하게)
+export function humanizeNum(s) {
+  return String(s)
+    .replace(/(\d+)만\s?(\d{3,4})\s*([점원명건개표배호]?)/g, (_, a, _b, unit) => `약 ${Number(a).toLocaleString()}만${unit ? " " + unit : ""}`)
+    .replace(/(\d+)억\s?(\d{3,5})(?!\s*원)/g, (_, a) => `약 ${Number(a).toLocaleString()}억`);
+}
 // 릴스 카드용 본문 발췌: 예산(n자) 안에서 '완결된 문장'까지만 담는다. 단어/문장 중간은 절대 안 자른다.
 function clip(s, n = 150) {
-  const t = s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  const t = humanizeNum(s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim());
   if (t.length <= n) return t;
   // 문장 끝(. ! ? 뒤 공백)으로 분리 — '다'가 단어 중간에 있어도 안 자르도록 진짜 종결부호만 사용
   const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean);
@@ -193,7 +199,15 @@ function frame(post, card, idx, total, t, pal, opts = {}) {
   const titleLines = wrapLines(card.title, titleSize, -2.5);
   body.push(el("div", { display: "flex", flexDirection: "column", opacity: eTitle, transform: `translateY(${(1 - eTitle) * 44}px)` }, titleLines.map((ln) => el("div", { display: "flex", fontSize: titleSize, fontWeight: 900, color: ink, lineHeight: 1.18, letterSpacing: -2.5 }, ln))));
   body.push(el("div", { display: "flex", marginTop: 26, width: 60 + eTitle * 140, height: 10, borderRadius: 999, background: p.accent }, ""));
-  if (card.body) { const bl = wrapLines(card.body, 46, 0); body.push(el("div", { display: "flex", flexDirection: "column", marginTop: 34, opacity: eBody, transform: `translateY(${(1 - eBody) * 36}px)` }, bl.map((ln) => el("div", { display: "flex", fontSize: 46, fontWeight: 500, color: sub, lineHeight: 1.5 }, ln)))); }
+  if (card.body) {
+    // 문장 단위로 나눠 문장 사이에 여백을 준다 → 어디서 한 생각이 끝나는지 눈에 보이게(가독성)
+    // 종결부호+공백에서만 나눔 → "4.79%" 같은 소수점은 안 쪼개짐
+    const sentences = card.body.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+    const groups = sentences.map((sen) =>
+      el("div", { display: "flex", flexDirection: "column", marginBottom: 20 },
+        wrapLines(sen, 46, 0).map((ln) => el("div", { display: "flex", fontSize: 46, fontWeight: 500, color: sub, lineHeight: 1.48 }, ln))));
+    body.push(el("div", { display: "flex", flexDirection: "column", marginTop: 34, opacity: eBody, transform: `translateY(${(1 - eBody) * 36}px)` }, groups));
+  }
   // 제목 블록을 화면 상단~중앙에 배치(썸네일·가독성). 훅/본문 모두 위쪽으로.
   kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 40 : 20, paddingLeft: 84, paddingRight: 84, paddingBottom: 360 }, body));
   kids.push(el("div", { display: "flex", position: "absolute", bottom: 90, left: 84, fontSize: 32, fontWeight: 800, color: sub }, "@oddsbag_official"));
