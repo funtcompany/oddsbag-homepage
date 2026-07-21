@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAudit } from "@/lib/audit";
 
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 const CRON_SECRET = process.env.CRON_SECRET;
 

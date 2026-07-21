@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runImprove } from "@/lib/improve";
 
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
