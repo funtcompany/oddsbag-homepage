@@ -4,13 +4,40 @@
 // 서비스가 멈추면 안 되므로, 실패 시 Claude로 자동으로 넘어간다.
 // 사장님은 아무것도 안 해도 되고, 로그에 어느 엔진을 썼는지 남는다.
 
+const GROQ_KEY = process.env.GROQ_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b"; // 한국어 우수 + 무료 한도 넉넉(20b가 120b보다 여유)
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GEMINI_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CLAUDE_KEY);
+
+// ---- Groq (주력: 무료 한도 넉넉·빠름·한국어 우수). 텍스트 전용(이미지 미지원) ----
+async function askGroq(system, user, opt) {
+  if (!GROQ_KEY) throw new Error("GROQ_API_KEY 없음");
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages,
+      max_tokens: opt.maxTokens ?? 2200,
+      temperature: opt.careful ? 0.2 : 0.7,
+    }),
+    signal: AbortSignal.timeout(60000),
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!res.ok || !data.choices) throw new Error(`Groq: ${JSON.stringify(data).slice(0, 120)}`);
+  const text = (data.choices[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("Groq: 빈 응답");
+  return text;
+}
 
 // ---- Gemini ----
 async function askGemini(system, user, opt) {
@@ -102,13 +129,31 @@ async function askClaude(system, user, opt) {
 }
 
 // ---- 공용 진입점 ----
-// 무료 Gemini 한도(분당 요청 수) 준수: 호출 간 최소 간격 + 한도 초과 시 잠깐 쉬고 재시도.
-let _lastCall = 0;
-const MIN_GAP_MS = Number(process.env.LLM_MIN_GAP_MS || 4500); // ≈13회/분 (무료 한도 이내)
+// 무료 AI 한도(분당 요청/토큰) 준수: 호출 간 최소 간격 + 한도 초과 시 잠깐 쉬고 재시도.
+let _lastCall = 0, _lastGroq = 0;
+const MIN_GAP_MS = Number(process.env.LLM_MIN_GAP_MS || 4500); // Gemini ≈13회/분
+const GROQ_GAP_MS = Number(process.env.GROQ_GAP_MS || 7000);   // Groq ≈8회/분 (무료 분당 한도 이내)
 const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const _isQuota = (m) => /quota|RESOURCE_EXHAUSTED|429|rate limit|too many/i.test(String(m));
 
 export async function ask(system, user, opt = {}) {
+  const hasImages = (opt.images?.length ?? 0) > 0;
+  // 1) 텍스트는 Groq 우선 (무료 한도 넉넉). 이미지 인식(비전)은 Groq 미지원 → Gemini로.
+  if (GROQ_KEY && !hasImages) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const wait = GROQ_GAP_MS - (Date.now() - _lastGroq);
+      if (wait > 0) await _sleep(wait);
+      _lastGroq = Date.now();
+      try {
+        return await askGroq(system, user, opt);
+      } catch (e) {
+        if (/rate limit|429|too many/i.test(e.message) && attempt === 0) { await _sleep(12000); continue; } // 분당 한도 → 12초 쉬고 1회 재시도
+        console.warn("Groq 실패 → Gemini로 대체:", e.message);
+        break;
+      }
+    }
+  }
+  // 2) Gemini (비전 포함, 또는 Groq 실패 시) — 무료 분당 한도 대비 throttle + 재시도
   if (GEMINI_KEY) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const wait = MIN_GAP_MS - (Date.now() - _lastCall);
@@ -117,11 +162,12 @@ export async function ask(system, user, opt = {}) {
       try {
         return await askGemini(system, user, opt);
       } catch (e) {
-        if (_isQuota(e.message) && attempt === 0) { await _sleep(15000); continue; } // 분당 한도 → 15초 쉬고 1회 재시도
+        if (_isQuota(e.message) && attempt === 0) { await _sleep(15000); continue; }
         console.warn("Gemini 실패 → Claude로 대체:", e.message);
         break;
       }
     }
   }
+  // 3) Claude (최후 예비)
   return askClaude(system, user, opt);
 }
