@@ -14,7 +14,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { smembers, sadd, getJSON, redisReady } from "./redis.mjs";
 import { makeMusic, writeWav, pickBgm } from "./music.mjs";
-import { uploadShort, setThumbnail } from "./youtube.mjs";
+import { uploadShort, setThumbnail, addToCategoryPlaylist } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
 import { postVideo } from "./facebook.mjs";
 import { uploadPublic } from "./host.mjs";
@@ -138,6 +138,7 @@ async function buildReel(post) {
   try {
     const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
     if (thumb && vid) { try { await setThumbnail(vid, thumb); } catch (e) { console.log("  · 유튜브 썸네일 건너뜀:", e.message); } }
+    if (vid) { try { await addToCategoryPlaylist(vid, post.category); } catch (e) { console.log("  · 재생목록 건너뜀:", e.message); } }
   }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }
   try {

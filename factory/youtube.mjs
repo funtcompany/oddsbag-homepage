@@ -39,6 +39,26 @@ export async function uploadShort(mp4Path, { title, description, tags, privacy =
   return j.id;
 }
 
+// 카테고리 재생목록("오즈백 · 경제" 등)에 영상 자동 분류. 없으면 만들고, 있으면 담는다.
+export async function addToCategoryPlaylist(videoId, category) {
+  if (!videoId || !category) return;
+  if (!CID || !CSECRET || !RTOKEN) throw new Error("유튜브 미설정 (토큰 없음)");
+  const token = await accessToken();
+  const G = "https://www.googleapis.com/youtube/v3";
+  const H = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const title = `오즈백 · ${category}`;
+  const pl = await (await fetch(`${G}/playlists?part=snippet&mine=true&maxResults=50`, { headers: H })).json();
+  let pid = (pl.items || []).find((x) => x.snippet.title === title)?.id;
+  if (!pid) {
+    const np = await (await fetch(`${G}/playlists?part=snippet,status`, { method: "POST", headers: H, body: JSON.stringify({ snippet: { title, description: `오즈백 ${category} 이슈 모음` }, status: { privacyStatus: "public" } }) })).json();
+    if (!np.id) throw new Error("재생목록 생성 실패: " + JSON.stringify(np).slice(0, 120));
+    pid = np.id;
+  }
+  const r = await (await fetch(`${G}/playlistItems?part=snippet`, { method: "POST", headers: H, body: JSON.stringify({ snippet: { playlistId: pid, resourceId: { kind: "youtube#video", videoId } } }) })).json();
+  if (!r.id) throw new Error("재생목록 담기 실패: " + JSON.stringify(r).slice(0, 120));
+  console.log(`  · 재생목록 분류: ${title}`);
+}
+
 // 커스텀 썸네일(첫 장) 지정. 채널이 썸네일 인증(전화 인증)돼 있어야 적용된다.
 // 미인증이면 에러가 나며, 호출부에서 잡아 건너뛴다(영상은 정상 게시됨).
 export async function setThumbnail(videoId, imgPath) {
