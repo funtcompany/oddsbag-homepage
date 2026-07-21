@@ -248,17 +248,22 @@ function render(
         </div>
 
         {card.body ? (
-          <div
-            style={{
-              display: "flex",
-              marginTop: 30,
-              fontSize: 38,
-              fontWeight: 500,
-              color: photoBg ? "rgba(255,255,255,.85)" : p.sub,
-              lineHeight: 1.6,
-            }}
-          >
-            {card.body}
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 30 }}>
+            {card.body.split(/(?<=[.!?])\s+/).filter(Boolean).map((sen, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  fontSize: 38,
+                  fontWeight: 500,
+                  color: photoBg ? "rgba(255,255,255,.85)" : p.sub,
+                  lineHeight: 1.55,
+                  marginBottom: 16,
+                }}
+              >
+                {sen}
+              </div>
+            ))}
           </div>
         ) : null}
 

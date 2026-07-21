@@ -21,12 +21,24 @@ export interface Card {
 
 const MAX_BODY = 150;
 
+// 큰 정밀 숫자를 읽기 좋게 반올림: "1463만2347점" → "약 1,463만 점" (눈으로도, TTS로도 편하게)
+export function humanizeNum(s: string): string {
+  return String(s)
+    .replace(/(\d+)만\s?(\d{3,4})\s*([점원명건개표배호]?)/g, (_m, a: string, _b: string, unit: string) => `약 ${Number(a).toLocaleString()}만${unit ? " " + unit : ""}`)
+    .replace(/(\d+)억\s?(\d{3,5})(?!\s*원)/g, (_m, a: string) => `약 ${Number(a).toLocaleString()}억`);
+}
+
+// 카드 본문 발췌: 예산(n자) 안에서 '완결된 문장'까지만. 단어/문장 중간은 절대 안 자른다.
 function clip(s: string, n = MAX_BODY): string {
-  const t = s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  const t = humanizeNum(s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim());
   if (t.length <= n) return t;
-  const cut = t.slice(0, n);
-  const dot = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("다"), cut.lastIndexOf("요"));
-  return (dot > n * 0.55 ? cut.slice(0, dot + 1) : cut) + (dot > n * 0.55 ? "" : "…");
+  const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean); // 종결부호+공백에서만 → 소수점 안 쪼갬
+  let out = "";
+  for (const sen of sentences) {
+    if (out && (out + " " + sen).length > n) break;
+    out = out ? out + " " + sen : sen;
+  }
+  return (out || sentences[0]).trim();
 }
 
 interface Section {
