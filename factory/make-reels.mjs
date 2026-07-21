@@ -23,6 +23,7 @@ import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_F
 
 const TTS_KEY = process.env.GOOGLE_TTS_API_KEY;
 const VOICE = process.env.ODDS_VOICE || "ko-KR-Chirp3-HD-Aoede";
+const RATE = Number(process.env.ODDS_RATE || 0.98); // 배속 (1.0=기본, 낮을수록 차분)
 const LIMIT = Number(process.env.REEL_LIMIT || 1);
 const YT_PRIVACY = process.env.YT_PRIVACY || "public";
 const OUT = path.resolve("out");
@@ -31,15 +32,20 @@ const K_PUB = "posts:published", DONE = "reels:done";
 const sh = (c) => execSync(c, { stdio: "inherit" });
 const probe = (f) => parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${f}"`).toString().trim());
 
-function ssmlFor(text) {
-  const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const b = esc.replace(/([,、])\s*/g, '$1<break time="280ms"/>').replace(/([.!?。])\s+/g, '$1<break time="450ms"/>');
-  return `<speak>${b}</speak>`;
+// Chirp3-HD는 강제 <break> 없이 '자연스러운 문장부호'만으로 사람처럼 억양·쉼을 만든다.
+// 그래서 SSML을 쓰지 않고, 읽기 좋은 순수 텍스트로 다듬어 넘긴다.
+function speakText(text) {
+  let t = text.replace(/\s+/g, " ").trim();
+  t = t.replace(/([·ㆍ/])/g, ", ");           // 가운뎃점·슬래시 → 자연스러운 쉼(쉼표)
+  t = t.replace(/["'"'「」『』]/g, "");          // 따옴표는 읽지 않게 제거(어색한 끊김 방지)
+  t = t.replace(/\s*,\s*/g, ", ").replace(/,\s*,/g, ",");
+  if (!/[.!?…]$/.test(t)) t += ".";             // 문장 끝 마침표 → 자연스러운 마무리 억양
+  return t;
 }
 async function tts(text, outPath) {
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${TTS_KEY}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ input: { ssml: ssmlFor(text) }, voice: { languageCode: "ko-KR", name: VOICE }, audioConfig: { audioEncoding: "MP3", speakingRate: 1.06 } }),
+    body: JSON.stringify({ input: { text: speakText(text) }, voice: { languageCode: "ko-KR", name: VOICE }, audioConfig: { audioEncoding: "MP3", speakingRate: RATE } }),
   });
   const j = await res.json();
   if (!j.audioContent) throw new Error("TTS 실패: " + JSON.stringify(j).slice(0, 200));

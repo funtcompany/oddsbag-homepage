@@ -74,14 +74,55 @@ export function reelSay(card) {
 }
 
 // ---- 줄바꿈 (어절 단위, 한글/영문 폭 반영) ----
+// 자연스러운 한글 줄바꿈:
+//  ① 숫자+단위(1억 개 / 13일 / 30 %)는 한 덩어리로 붙여 절대 안 쪼갬
+//  ② 줄 길이를 고르게 맞춤(왼쪽부터 꽉 채우지 않음) — 균형 줄바꿈
+//  ③ 마지막에 한 단어만 남는 '외톨이 줄' 방지
 function wrapLines(text, fontSize, ls = 0, avail = 880) {
   const wide = (ch) => /[가-힣　-〿一-鿿＀-￯]/.test(ch);
   const measure = (s) => { let w = 0; for (const ch of s) w += (wide(ch) ? fontSize * 0.98 : fontSize * 0.52) + ls; return w; };
+  const spaceW = measure(" ");
+  const uw = (u) => u.reduce((s, x, i) => s + measure(x) + (i ? spaceW : 0), 0); // 유닛배열 → 줄 폭
+  // 앞 어절이 숫자로 끝나고, 뒤 어절이 단위/조사로 시작하면 붙인다(1억 개 / 13일 / 30 %)
+  const COUNTER = /^[개명년월일원번위곳건장권대병잔캔알포매척벌줄평배호층종차정톤톨%퍼％]|^(개월|시간|퍼센트|만에|원어치)/;
+  const glue = (a, b) => /[0-9조억만천백십]$/.test(a) && COUNTER.test(b);
+  const quoteOpen = (s) => ((s.match(/['"'"「『]/g) || []).length % 2) === 1; // 따옴표가 열린 채면 true
   const out = [];
   for (const seg of text.split("\n")) {
-    const words = seg.split(" "); let cur = "";
-    for (const wd of words) { const t = cur ? cur + " " + wd : wd; if (!cur || measure(t) <= avail) cur = t; else { out.push(cur); cur = wd; } }
-    if (cur) out.push(cur);
+    // 1) 어절 → 붙임 유닛으로 병합 (유닛은 절대 쪼개지 않음)
+    //    · 숫자+단위(1억 개)   · 열린 따옴표 안의 구절('잘 팔린 약'을) — 폭주 방지로 최대 4어절
+    const raw = seg.split(" ").filter(Boolean);
+    if (!raw.length) continue;
+    const units = [];
+    for (const wd of raw) {
+      const prev = units[units.length - 1];
+      const inQuote = prev && quoteOpen(prev) && prev.split(" ").length < 4;
+      if (prev && (glue(prev, wd) || inQuote)) units[units.length - 1] += " " + wd;
+      else units.push(wd);
+    }
+    const total = uw(units);
+    const L = Math.max(1, Math.ceil(total / avail)); // 필요한 최소 줄 수
+    const target = total / L;                        // 줄마다 목표 폭(고르게)
+    // 2) 목표 폭에 맞춰 균형 있게 채움 (avail은 절대 넘지 않음). 줄은 유닛배열로 유지
+    const lines = []; let cur = [];
+    for (const u of units) {
+      const trial = uw([...cur, u]);
+      const overflow = cur.length && trial > avail;
+      const balanced = cur.length && uw(cur) >= target * 0.86 && lines.length < L - 1;
+      if (overflow || balanced) { lines.push(cur); cur = []; }
+      cur.push(u);
+    }
+    if (cur.length) lines.push(cur);
+    // 3) 외톨이 줄 방지: 마지막 줄이 한 유닛뿐이면
+    if (lines.length >= 2 && lines[lines.length - 1].length === 1) {
+      const last = lines[lines.length - 1], prev = lines[lines.length - 2];
+      if (uw([...prev, ...last]) <= avail) {
+        lines.splice(lines.length - 2, 2, [...prev, ...last]);   // 윗줄에 합치기
+      } else if (prev.length >= 2) {
+        last.unshift(prev.pop());  // 윗줄 끝 단어를 아래로 내려 마지막 줄을 2단어로
+      }
+    }
+    for (const l of lines) out.push(l.join(" "));
   }
   return out;
 }
@@ -132,13 +173,14 @@ function frame(post, card, idx, total, t, pal) {
   ]));
   // 본문
   const body = [];
-  if (big && !photoBg) body.push(el("div", { display: "flex", flex: 1, alignItems: "center", opacity: eEmoji, transform: `translateY(${(1 - eEmoji) * 40}px)`, fontSize: 300 }, post.emoji || "📰"));
+  if (big && !photoBg) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eEmoji, transform: `translateY(${(1 - eEmoji) * 40}px)`, fontSize: 230, marginBottom: 50 }, post.emoji || "📰"));
   if (card.label) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eLabel, transform: `translateY(${(1 - eLabel) * 30}px)`, background: card.kind === "point" ? "transparent" : p.accent, color: card.kind === "point" ? p.accent : p.onAccent, fontSize: card.kind === "point" ? 52 : 32, fontWeight: 900, padding: card.kind === "point" ? "0" : "14px 30px", borderRadius: 999, marginBottom: 30 }, card.label));
   const titleLines = wrapLines(card.title, titleSize, -2.5);
   body.push(el("div", { display: "flex", flexDirection: "column", opacity: eTitle, transform: `translateY(${(1 - eTitle) * 44}px)` }, titleLines.map((ln) => el("div", { display: "flex", fontSize: titleSize, fontWeight: 900, color: ink, lineHeight: 1.18, letterSpacing: -2.5 }, ln))));
   body.push(el("div", { display: "flex", marginTop: 26, width: 60 + eTitle * 140, height: 10, borderRadius: 999, background: p.accent }, ""));
   if (card.body) { const bl = wrapLines(card.body, 46, 0); body.push(el("div", { display: "flex", flexDirection: "column", marginTop: 34, opacity: eBody, transform: `translateY(${(1 - eBody) * 36}px)` }, bl.map((ln) => el("div", { display: "flex", fontSize: 46, fontWeight: 500, color: sub, lineHeight: 1.5 }, ln)))); }
-  kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: big ? "flex-end" : "center", padding: "0 84px 220px 84px" }, body));
+  // 제목 블록을 화면 상단~중앙에 배치(썸네일·가독성). 훅/본문 모두 위쪽으로.
+  kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 40 : 20, paddingLeft: 84, paddingRight: 84, paddingBottom: 360 }, body));
   kids.push(el("div", { display: "flex", position: "absolute", bottom: 90, left: 84, fontSize: 32, fontWeight: 800, color: sub }, "@oddsbag_official"));
 
   return el("div", { width: W, height: H, display: "flex", flexDirection: "column", background: p.bg, position: "relative", fontFamily: "Noto" }, kids);
