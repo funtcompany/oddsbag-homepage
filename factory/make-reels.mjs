@@ -19,6 +19,7 @@ import { postReel } from "./instagram.mjs";
 import { postVideo } from "./facebook.mjs";
 import { uploadPublic } from "./host.mjs";
 import { hashtags, keywords } from "./hashtags.mjs";
+import { findBrollForCategory, downloadBroll, brollCredit } from "./pexels.mjs";
 import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
 
 const TTS_KEY = process.env.GOOGLE_TTS_API_KEY;
@@ -74,7 +75,23 @@ async function buildReel(post) {
   const cards = buildCards(post);
   const total = cards.length;
   const pal = paletteFor(post.slug, post.mood);
-  const fonts = await loadFontsForPost(cards);
+
+  // B-roll 배경(선택): 저작권 안전한 Pexels 무료 영상. 못 찾으면 조용히 타이포로 폴백.
+  let brollFile = null, brollDur = 0, renderOpts = {};
+  if (process.env.USE_BROLL === "1" && process.env.PEXELS_API_KEY) {
+    try {
+      const b = await findBrollForCategory(post.category, (post.tags || [])[0]);
+      if (b) {
+        brollFile = path.join(work, "broll.mp4");
+        await downloadBroll(b.link, brollFile);
+        brollDur = b.duration;
+        renderOpts = { transparent: true, credit: brollCredit(b).caption };
+        console.log(`  · 배경영상: "${b.query}" (${b.author} / Pexels, ${b.duration}s)`);
+      }
+    } catch (e) { console.log("  · 배경영상 건너뜀(타이포로 진행):", e.message); }
+  }
+
+  const fonts = await loadFontsForPost(cards, renderOpts.credit || ""); // 출처 글자도 폰트에 포함(깨짐 방지)
 
   // 나레이션 + 카드 길이
   const offsets = []; let acc = 0;
@@ -92,12 +109,18 @@ async function buildReel(post) {
   for (let c = 0; c < total; c++) {
     const cdir = path.join(work, `c${c}`); fs.mkdirSync(cdir, { recursive: true });
     for (let f = 0; f < ENTER_FRAMES; f++) {
-      const png = await renderFrame(post, cards, c, total, f / FPS, fonts, pal);
+      const png = await renderFrame(post, cards, c, total, f / FPS, fonts, pal, renderOpts);
       fs.writeFileSync(path.join(cdir, `${String(f).padStart(3, "0")}.png`), png);
     }
     const hold = (cards[c].dur - ENTER_FRAMES / FPS).toFixed(3);
     const clip = path.join(work, `clip${c}.mp4`);
-    sh(`ffmpeg -y -framerate ${FPS} -i "${cdir}/%03d.png" -vf "tpad=stop_mode=clone:stop_duration=${hold},format=yuv420p,fps=${FPS}" -c:v libx264 -preset medium -crf 18 "${clip}"`);
+    if (brollFile) {
+      // 배경 영상 위에 투명 카드 프레임을 얹는다. 카드마다 배경 시작점을 옮겨 장면 변화를 준다.
+      const off = brollDur > cards[c].dur ? (offsets[c] % (brollDur - cards[c].dur)).toFixed(2) : 0;
+      sh(`ffmpeg -y -ss ${off} -stream_loop -1 -i "${brollFile}" -framerate ${FPS} -i "${cdir}/%03d.png" -filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=${FPS}[bg];[1:v]tpad=stop_mode=clone:stop_duration=${hold},format=rgba[ov];[bg][ov]overlay=0:0,format=yuv420p[v]" -map "[v]" -t ${cards[c].dur.toFixed(3)} -c:v libx264 -preset medium -crf 20 "${clip}"`);
+    } else {
+      sh(`ffmpeg -y -framerate ${FPS} -i "${cdir}/%03d.png" -vf "tpad=stop_mode=clone:stop_duration=${hold},format=yuv420p,fps=${FPS}" -c:v libx264 -preset medium -crf 18 "${clip}"`);
+    }
     clips.push(clip);
   }
   fs.writeFileSync(path.join(work, "list.txt"), clips.map((c) => `file '${c}'`).join("\n"));
@@ -122,11 +145,17 @@ async function buildReel(post) {
   // 썸네일 = 첫 장(훅 카드) 고정 — 세 플랫폼 표지를 동일한 첫 장면으로 통일
   let thumb = null;
   try {
-    const png = await renderFrame(post, cards, 0, total, 5, fonts, pal); // t=5 → 완전히 안착한 첫 장
-    const thumbPng = path.join(work, "thumb.png");
-    fs.writeFileSync(thumbPng, png);
     thumb = path.join(work, "thumb.jpg");
-    sh(`ffmpeg -y -i "${thumbPng}" -q:v 2 "${thumb}"`);
+    if (brollFile) {
+      // 배경영상형은 완성 영상의 훅 구간(첫 카드 후반)에서 한 장 추출 → 배경까지 담긴 표지
+      const at = Math.min(cards[0].dur - 0.3, ENTER_FRAMES / FPS + 0.6).toFixed(2);
+      sh(`ffmpeg -y -ss ${at} -i "${final}" -vframes 1 -q:v 2 "${thumb}"`);
+    } else {
+      const png = await renderFrame(post, cards, 0, total, 5, fonts, pal, renderOpts); // t=5 → 완전히 안착한 첫 장
+      const thumbPng = path.join(work, "thumb.png");
+      fs.writeFileSync(thumbPng, png);
+      sh(`ffmpeg -y -i "${thumbPng}" -q:v 2 "${thumb}"`);
+    }
   } catch (e) { console.log("  · 썸네일 렌더 건너뜀:", e.message); thumb = null; }
 
   // 게시 (자격증명 있을 때만) — 유입 최적화: 훅 첫줄 + 명확한 CTA + 태그(10~30개)

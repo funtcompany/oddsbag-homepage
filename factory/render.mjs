@@ -135,8 +135,9 @@ async function loadFont(text, weight) {
   const m = css.match(/src:\s*url\((https:\/\/[^)]+)\)/);
   return await (await fetch(m[1])).arrayBuffer();
 }
-export async function loadFontsForPost(cards) {
-  const text = cards.map((c) => (c.label || "") + c.title + (c.body || "")).join("") + "ODDSBAG@oddsbag_official오즈백매거진전체글프로필링크0123456789/·무슨 일이냐면 한 줄 정리";
+export async function loadFontsForPost(cards, extra = "") {
+  const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,-·:/&'()% "; // 출처·영문 이름 대비
+  const text = cards.map((c) => (c.label || "") + c.title + (c.body || "")).join("") + "ODDSBAG@oddsbag_official오즈백매거진전체글프로필링크0123456789/·무슨 일이냐면 한 줄 정리영상출처" + latin + extra;
   const [bold, mid] = await Promise.all([loadFont(text, 900), loadFont(text, 500)]);
   return [{ name: "Noto", data: bold, weight: 900, style: "normal" }, { name: "Noto", data: mid, weight: 500, style: "normal" }];
 }
@@ -145,19 +146,24 @@ async function emojiSvg(seg) { try { const r = await fetch(`https://cdnjs.cloudf
 
 const el = (type, style, children) => ({ type, props: { style, children } });
 
-function frame(post, card, idx, total, t, pal) {
+function frame(post, card, idx, total, t, pal, opts = {}) {
   const p = pal;
+  const broll = !!opts.transparent;            // B-roll 배경(영상이 뒤에서 비침) 모드
   const big = card.kind === "hook";
-  const photoBg = big && post.cover;
+  const photoBg = big && post.cover && !broll;
+  const overlayDark = photoBg || broll;         // 어두운 그라디언트 + 흰 글자
   const titleSize = big ? (card.title.length > 24 ? 92 : card.title.length > 14 ? 108 : 122) : card.kind === "quote" || card.kind === "cta" ? 76 : 68;
   const eLabel = easeOut(t / 0.4), eTitle = easeOut((t - 0.08) / 0.42), eBody = easeOut((t - 0.18) / 0.42), eEmoji = easeOut((t - 0.02) / 0.5);
-  const ink = photoBg ? "#ffffff" : p.ink, sub = photoBg ? "rgba(255,255,255,.85)" : p.sub;
+  const ink = overlayDark ? "#ffffff" : p.ink, sub = overlayDark ? "rgba(255,255,255,.88)" : p.sub;
   const kids = [];
 
   if (photoBg) {
     kids.push(el("img", { position: "absolute", top: 0, left: 0, width: W, height: H, objectFit: "cover" }, ""));
     kids[kids.length - 1].props.src = post.cover;
     kids.push(el("div", { position: "absolute", top: 0, left: 0, width: W, height: H, background: "linear-gradient(180deg, rgba(10,6,20,0.45) 0%, rgba(10,6,20,0.92) 100%)" }, ""));
+  } else if (broll) {
+    // 배경 영상은 ffmpeg가 뒤에 깔고, 여기서는 가독성용 어두운 그라디언트만 얹는다(투명 PNG로 출력).
+    kids.push(el("div", { position: "absolute", top: 0, left: 0, width: W, height: H, background: "linear-gradient(180deg, rgba(8,5,16,0.62) 0%, rgba(8,5,16,0.45) 42%, rgba(8,5,16,0.86) 100%)" }, ""));
   }
   // 진행바
   const seg = [];
@@ -182,11 +188,13 @@ function frame(post, card, idx, total, t, pal) {
   // 제목 블록을 화면 상단~중앙에 배치(썸네일·가독성). 훅/본문 모두 위쪽으로.
   kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 40 : 20, paddingLeft: 84, paddingRight: 84, paddingBottom: 360 }, body));
   kids.push(el("div", { display: "flex", position: "absolute", bottom: 90, left: 84, fontSize: 32, fontWeight: 800, color: sub }, "@oddsbag_official"));
+  // 배경영상 출처 표기(화면). 저작권 안전: 소스 크레딧을 항상 화면에 남긴다.
+  if (broll && opts.credit) kids.push(el("div", { display: "flex", position: "absolute", bottom: 94, right: 84, fontSize: 23, fontWeight: 600, color: "rgba(255,255,255,.62)" }, opts.credit));
 
-  return el("div", { width: W, height: H, display: "flex", flexDirection: "column", background: p.bg, position: "relative", fontFamily: "Noto" }, kids);
+  return el("div", { width: W, height: H, display: "flex", flexDirection: "column", background: broll ? "transparent" : p.bg, position: "relative", fontFamily: "Noto" }, kids);
 }
 
-export async function renderFrame(post, cards, idx, total, t, fonts, pal) {
-  const svg = await satori(frame(post, cards[idx], idx, total, t, pal), { width: W, height: H, fonts, loadAdditionalAsset: async (code, s) => (code === "emoji" ? emojiSvg(s) : "") });
+export async function renderFrame(post, cards, idx, total, t, fonts, pal, opts = {}) {
+  const svg = await satori(frame(post, cards[idx], idx, total, t, pal, opts), { width: W, height: H, fonts, loadAdditionalAsset: async (code, s) => (code === "emoji" ? emojiSvg(s) : "") });
   return new Resvg(svg, { fitTo: { mode: "width", value: W } }).render().asPng();
 }
