@@ -150,7 +150,8 @@ async function buildReel(post) {
   fc += `[1:a]highpass=f=60,volume=0.22,afade=t=in:st=0:d=0.8[bg];`;
   fc += `[bg][voice]amix=inputs=2:normalize=0,alimiter=limit=0.95,afade=t=out:st=${(totalDur - 0.6).toFixed(2)}:d=0.6[a]`;
   const final = path.join(OUT, `${slug}.mp4`);
-  sh(`ffmpeg -y ${inputs.join(" ")} -filter_complex "${fc}" -map 0:v -map "[a]" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a aac -b:a 160k -shortest "${final}"`);
+  // 용량 최소화(≈5MB): 배경영상형도 무료 호스팅에 빠르게 올라가 인스타가 확실히 받아가게. 모바일 화질엔 충분.
+  sh(`ffmpeg -y ${inputs.join(" ")} -filter_complex "${fc}" -map 0:v -map "[a]" -c:v libx264 -preset medium -crf 26 -maxrate 2200k -bufsize 4400k -pix_fmt yuv420p -c:a aac -b:a 128k -shortest "${final}"`);
   console.log(`  ✅ 완성: ${final} (${totalDur.toFixed(1)}초)`);
 
   // 썸네일 = 첫 장(훅 카드) 고정 — 세 플랫폼 표지를 동일한 첫 장면으로 통일

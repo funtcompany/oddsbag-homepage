@@ -26,7 +26,7 @@ async function toTmpfiles(buf, ext, type) {
     method: "POST",
     headers: { "Content-Type": `multipart/form-data; boundary=${boundary}`, "User-Agent": UA },
     body,
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(120000),
   });
   const j = await r.json();
   const page = j?.data?.url?.trim() || "";
@@ -42,7 +42,7 @@ async function toUguu(buf, ext, type) {
     method: "POST",
     headers: { "Content-Type": `multipart/form-data; boundary=${boundary}`, "User-Agent": UA },
     body,
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(120000),
   });
   const j = await r.json();
   return j?.files?.[0]?.url?.trim() || "";
@@ -56,7 +56,7 @@ async function toCatbox(buf, ext, type) {
     method: "POST",
     headers: { "Content-Type": `multipart/form-data; boundary=${boundary}`, "User-Agent": UA },
     body,
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(120000),
   });
   return (await r.text()).trim();
 }
@@ -69,7 +69,7 @@ async function to0x0(buf, ext, type) {
     method: "POST",
     headers: { "Content-Type": `multipart/form-data; boundary=${boundary}`, "User-Agent": UA },
     body,
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(120000),
   });
   return (await r.text()).trim();
 }
