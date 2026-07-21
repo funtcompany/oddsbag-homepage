@@ -36,11 +36,19 @@ export function paletteFor(slug, mood) { const list = PALETTES[mood] ?? PALETTES
 export const bgmStyleFor = (cat) => ({ "IT·테크": "synthwave", "트렌드": "synthwave", "스포츠": "energetic", "경제": "newsy", "사회": "newsy", "문화·연예": "lofi" }[cat] || "lofi");
 
 // ---- 카드 시퀀스 (홈페이지 buildCards 와 동일) ----
+// 릴스 카드용 본문 발췌: 예산(n자) 안에서 '완결된 문장'까지만 담는다. 단어/문장 중간은 절대 안 자른다.
 function clip(s, n = 150) {
   const t = s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
   if (t.length <= n) return t;
-  const cut = t.slice(0, n); const dot = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("다"), cut.lastIndexOf("요"));
-  return dot > n * 0.55 ? cut.slice(0, dot + 1) : cut + "…";
+  // 문장 끝(. ! ? 뒤 공백)으로 분리 — '다'가 단어 중간에 있어도 안 자르도록 진짜 종결부호만 사용
+  const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+  let out = "";
+  for (const sen of sentences) {
+    if (out && (out + " " + sen).length > n) break; // 다음 문장 넣으면 예산 초과 → 여기까지(완결)
+    out = out ? out + " " + sen : sen;
+  }
+  // 첫 문장 하나도 예산을 넘으면, 그 문장만은 통째로 보여준다(중간에 안 자름)
+  return (out || sentences[0]).trim();
 }
 function parseSections(body) {
   const out = []; let cur = null;
@@ -59,7 +67,7 @@ export function buildCards(post) {
   const secs = parseSections(post.body);
   const closing = secs.find((s) => s.heading.includes("한 줄 정리"));
   // 숏폼(20~40초) 최적화: 핵심 포인트 3개 + 본문 짧게(낭독·가독성 둘 다 개선)
-  secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, 3).forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading, body: clip(s.text, 90) }));
+  secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, 3).forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading, body: clip(s.text, 120) }));
   if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 100) });
   cards.push({ kind: "cta", label: "@oddsbag_official", title: "전체 글은\n오즈백 매거진에서", body: "프로필 링크 → oddsbag.co.kr" });
   return cards.slice(0, 6);
