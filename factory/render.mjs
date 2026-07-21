@@ -208,11 +208,12 @@ function frame(post, card, idx, total, t, pal, opts = {}) {
         wrapLines(sen, 46, 0).map((ln) => el("div", { display: "flex", fontSize: 46, fontWeight: 500, color: sub, lineHeight: 1.48 }, ln))));
     body.push(el("div", { display: "flex", flexDirection: "column", marginTop: 34, opacity: eBody, transform: `translateY(${(1 - eBody) * 36}px)` }, groups));
   }
-  // 제목 블록을 화면 상단~중앙에 배치(썸네일·가독성). 훅/본문 모두 위쪽으로.
-  kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 40 : 20, paddingLeft: 84, paddingRight: 84, paddingBottom: 360 }, body));
-  kids.push(el("div", { display: "flex", position: "absolute", bottom: 90, left: 84, fontSize: 32, fontWeight: 800, color: sub }, "@oddsbag_official"));
-  // 배경영상 출처 표기(화면). 저작권 안전: 소스 크레딧을 항상 화면에 남긴다.
-  if (broll && opts.credit) kids.push(el("div", { display: "flex", position: "absolute", bottom: 94, right: 84, fontSize: 23, fontWeight: 600, color: "rgba(255,255,255,.62)" }, opts.credit));
+  // 제목 블록을 화면 상단~중앙에 배치(썸네일·가독성). 아래쪽 여백을 크게 둬서 SNS UI와 안 겹치게.
+  kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 40 : 20, paddingLeft: 84, paddingRight: 84, paddingBottom: 500 }, body));
+  // 하단 문구 = SNS 안전영역: 좌측 정렬 + 하단 20%(우측 버튼·계정명) 위로 올림. 계정명+출처를 한 덩어리로.
+  const footer = [el("div", { display: "flex", fontSize: 30, fontWeight: 800, color: sub }, "@oddsbag_official")];
+  if (broll && opts.credit) footer.push(el("div", { display: "flex", fontSize: 23, fontWeight: 600, color: overlayDark ? "rgba(255,255,255,.6)" : sub, marginTop: 10 }, opts.credit));
+  kids.push(el("div", { display: "flex", flexDirection: "column", position: "absolute", bottom: 400, left: 84, maxWidth: 760 }, footer));
 
   return el("div", { width: W, height: H, display: "flex", flexDirection: "column", background: broll ? "transparent" : p.bg, position: "relative", fontFamily: "Noto" }, kids);
 }
