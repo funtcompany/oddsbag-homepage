@@ -79,19 +79,28 @@ async function to0x0(buf, ext, type) {
 //  · 0x0/catbox = 메타 호환은 좋으나 CI(깃허브) IP를 자주 차단 → 예비
 //  · tmpfiles = 업로드는 잘 되나 다운로드 주소를 메타가 거부(ERROR) → 최후 예비
 const HOSTS = [["uguu", toUguu], ["0x0", to0x0], ["catbox", toCatbox], ["tmpfiles", toTmpfiles]];
+// 인스타(메타) 전용: tmpfiles 제외 — 메타가 tmpfiles 주소를 거부(인코딩 ERROR)하기 때문.
+const META_HOSTS = [["uguu", toUguu], ["0x0", to0x0], ["catbox", toCatbox]];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function uploadPublic(filePath) {
+// metaSafe: 인스타용(메타 호환 호스트만). 실패 시 throw → 호출부가 인스타를 건너뛴다.
+export async function uploadPublic(filePath, { metaSafe = false } = {}) {
   const ext = (filePath.split(".").pop() || "mp4").toLowerCase();
   const type = MIME[ext] || "application/octet-stream";
   const buf = fs.readFileSync(filePath);
+  const list = metaSafe ? META_HOSTS : HOSTS;
   const errs = [];
-  for (const [name, fn] of HOSTS) {
-    try {
-      const url = await fn(buf, ext, type);
-      if (VALID.test(url)) { console.log(`  · 공개 호스팅 성공(${name}): ${url}`); return url; }
-      errs.push(`${name}: ${url.slice(0, 80) || "빈 응답"}`);
-    } catch (e) {
-      errs.push(`${name}: ${e.message}`);
+  for (const [name, fn] of list) {
+    for (let attempt = 0; attempt < 2; attempt++) { // 일시적 실패(특히 uguu 연속 업로드 제한) 대비 1회 재시도
+      try {
+        const url = await fn(buf, ext, type);
+        if (VALID.test(url)) { console.log(`  · 공개 호스팅 성공(${name}): ${url}`); return url; }
+        errs.push(`${name}: ${url.slice(0, 80) || "빈 응답"}`);
+        break;
+      } catch (e) {
+        errs.push(`${name}#${attempt}: ${e.message}`);
+        if (attempt === 0) await sleep(3000);
+      }
     }
   }
   throw new Error("공개 호스팅 전부 실패 — " + errs.join(" | "));

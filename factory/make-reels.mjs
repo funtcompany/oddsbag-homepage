@@ -183,9 +183,14 @@ async function buildReel(post) {
   }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }
   try {
-    const url = await uploadPublic(final);
+    // 인스타는 메타 호환 호스트(uguu 등, tmpfiles 제외)에만 올린다. 영상 실패면 인스타 자체를 건너뛴다.
+    const url = await uploadPublic(final, { metaSafe: true });
     let coverUrl;
-    if (thumb) { try { coverUrl = await uploadPublic(thumb); } catch (e) { console.log("  · 인스타 커버 업로드 건너뜀:", e.message); } }
+    if (thumb) {
+      await new Promise((r) => setTimeout(r, 4000)); // uguu 연속 업로드 제한 회피
+      try { coverUrl = await uploadPublic(thumb, { metaSafe: true }); }
+      catch (e) { console.log("  · 인스타 커버 생략(첫 프레임 사용):", e.message); } // 커버 실패해도 릴스는 올린다
+    }
     await postReel(url, igCaption, coverUrl, igTags);
   }
   catch (e) { console.log("  · 인스타 건너뜀:", e.message); }
