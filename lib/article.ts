@@ -9,7 +9,7 @@
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
-const MIN_CHARS = 350; // 이보다 짧으면 '읽지 못했다'고 본다
+const MIN_CHARS = 800; // 이보다 짧으면 '제대로 못 읽었다'고 본다 (메뉴·관련기사 잡동사니로 AI가 창작하는 것 방지 — 못 읽으면 건너뛴다)
 const MAX_CHARS = 4000;
 
 function stripHtml(html: string): string {

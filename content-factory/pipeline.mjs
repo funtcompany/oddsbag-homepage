@@ -201,6 +201,13 @@ export async function runCollection(opts) {
       await sadd(K_SEEN, issueKey(issue.title));
       made++;
 
+      // 가짜뉴스 위험 high 는 검수함에도 쌓지 않고 즉시 폐기한다.
+      // (원문 대비 창작이 심한 환각 글 — 사람이 봐도 살릴 수 없어 적체만 됨. 발행은 절대 안 하고 버린다.)
+      if (review.fakeRisk === "high") {
+        out.discarded = (out.discarded ?? 0) + 1;
+        continue;
+      }
+
       const passed = autoPublish && review.verdict === "publish";
 
       // 4) 커버 사진 (없으면 타이포 디자인으로 감)
