@@ -230,12 +230,17 @@ export async function ask(system, user, opt = {}) {
       console.warn("Cerebras 실패 → Claude로 대체:", e.message);
     }
   }
-  // 4) NVIDIA (텍스트 전용, 무료·무제한 — Cerebras 없거나 실패 시 받아준다)
+  // 4) NVIDIA (텍스트 전용, 무료·무제한 — 일시적 혼잡 시 잠깐 쉬고 재시도)
   if (NVIDIA_KEY && !hasImages) {
-    try {
-      return await askNvidia(system, user, opt);
-    } catch (e) {
-      console.warn("NVIDIA 실패 → Claude로 대체:", e.message);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await askNvidia(system, user, opt);
+      } catch (e) {
+        const busy = /ResourceExhausted|Service Unavailable|worker|limit reached|429|503|timed? ?out/i.test(e.message);
+        if (busy && attempt < 2) { await _sleep(8000); continue; } // 혼잡 → 8초 쉬고 재시도
+        console.warn("NVIDIA 실패 → Claude로 대체:", e.message);
+        break;
+      }
     }
   }
   // 5) Claude (최후 예비)

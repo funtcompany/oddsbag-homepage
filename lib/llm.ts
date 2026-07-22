@@ -184,12 +184,18 @@ export async function ask(system: string, user: string, opt: AskOptions = {}): P
       console.warn("Cerebras 실패 → 대체 엔진:", (e as Error).message);
     }
   }
-  // NVIDIA (텍스트 전용, 무료·무제한 — Cerebras 없거나 실패 시 받아준다)
+  // NVIDIA (텍스트 전용, 무료·무제한 — 일시적 혼잡 시 잠깐 쉬고 재시도)
   if (NVIDIA_KEY && !hasImages) {
-    try {
-      return await askNvidia(system, user, opt);
-    } catch (e) {
-      console.warn("NVIDIA 실패 → Claude로 대체:", (e as Error).message);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await askNvidia(system, user, opt);
+      } catch (e) {
+        const msg = (e as Error).message;
+        const busy = /ResourceExhausted|Service Unavailable|worker|limit reached|429|503|timed? ?out/i.test(msg);
+        if (busy && attempt < 2) { await new Promise((r) => setTimeout(r, 8000)); continue; }
+        console.warn("NVIDIA 실패 → Claude로 대체:", msg);
+        break;
+      }
     }
   }
   return askClaude(system, user, opt);
