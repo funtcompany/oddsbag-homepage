@@ -8,15 +8,17 @@ const GROQ_KEY = process.env.GROQ_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY;
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b"; // 한국어 우수 + 무료 한도 넉넉(20b가 120b보다 여유)
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b"; // (무료 크레딧 활성 시) 텍스트 전용
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct"; // NVIDIA NIM 무료·텍스트 전용
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free"; // 무료 모델 자동 라우팅
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || OPENROUTER_KEY || CLAUDE_KEY);
 
 // ---- Groq (주력: 무료 한도 넉넉·빠름·한국어 우수). 텍스트 전용(이미지 미지원) ----
 async function askGroq(system, user, opt) {
@@ -157,6 +159,36 @@ async function askCerebras(system, user, opt) {
   return text;
 }
 
+// ---- OpenRouter (무료 모델 여러 개를 한 키로 자동 라우팅, 텍스트 전용) ----
+async function askOpenRouter(system, user, opt) {
+  if (!OPENROUTER_KEY) throw new Error("OPENROUTER_API_KEY 없음");
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://oddsbag.co.kr",
+      "X-Title": "ODDSBAG",
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages,
+      max_tokens: opt.maxTokens ?? 2200,
+      temperature: opt.careful ? 0.2 : 0.7,
+    }),
+    signal: AbortSignal.timeout(90000),
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!res.ok || !data.choices) throw new Error(`OpenRouter: ${JSON.stringify(data).slice(0, 120)}`);
+  const text = (data.choices[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("OpenRouter: 빈 응답");
+  return text;
+}
+
 // ---- NVIDIA NIM (무료·기한무제한, 텍스트 전용). 콜드스타트로 느릴 수 있어 타임아웃 넉넉히 ----
 async function askNvidia(system, user, opt) {
   if (!NVIDIA_KEY) throw new Error("NVIDIA_API_KEY 없음");
@@ -243,6 +275,18 @@ export async function ask(system, user, opt = {}) {
       }
     }
   }
-  // 5) Claude (최후 예비)
+  // 5) OpenRouter (무료 모델 자동 라우팅 — NVIDIA까지 소진/실패 시 받아준다)
+  if (OPENROUTER_KEY && !hasImages) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await askOpenRouter(system, user, opt);
+      } catch (e) {
+        if (/429|rate limit|Service Unavailable|timed? ?out/i.test(e.message) && attempt < 1) { await _sleep(6000); continue; }
+        console.warn("OpenRouter 실패 → Claude로 대체:", e.message);
+        break;
+      }
+    }
+  }
+  // 6) Claude (최후 예비)
   return askClaude(system, user, opt);
 }

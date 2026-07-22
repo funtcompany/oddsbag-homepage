@@ -7,14 +7,16 @@
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY;
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b"; // (무료 크레딧 활성 시) 텍스트 전용
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct"; // NVIDIA NIM 무료·텍스트 전용
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free"; // 무료 모델 자동 라우팅
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || OPENROUTER_KEY || CLAUDE_KEY);
 
 export interface AskOptions {
   maxTokens?: number;
@@ -140,6 +142,36 @@ async function askCerebras(system: string, user: string, opt: AskOptions): Promi
   return text;
 }
 
+// ---- OpenRouter (무료 모델 여러 개를 한 키로 자동 라우팅, 텍스트 전용) ----
+async function askOpenRouter(system: string, user: string, opt: AskOptions): Promise<string> {
+  if (!OPENROUTER_KEY) throw new Error("OPENROUTER_API_KEY 없음");
+  const messages: { role: string; content: string }[] = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://oddsbag.co.kr",
+      "X-Title": "ODDSBAG",
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages,
+      max_tokens: opt.maxTokens ?? 2200,
+      temperature: opt.careful ? 0.2 : 0.7,
+    }),
+    signal: AbortSignal.timeout(90000),
+    cache: "no-store",
+  });
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  if (!res.ok || !data.choices) throw new Error(`OpenRouter: ${JSON.stringify(data).slice(0, 120)}`);
+  const text = (data.choices[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("OpenRouter: 빈 응답");
+  return text;
+}
+
 // ---- NVIDIA NIM (무료·기한무제한, 텍스트 전용) ----
 async function askNvidia(system: string, user: string, opt: AskOptions): Promise<string> {
   if (!NVIDIA_KEY) throw new Error("NVIDIA_API_KEY 없음");
@@ -193,9 +225,17 @@ export async function ask(system: string, user: string, opt: AskOptions = {}): P
         const msg = (e as Error).message;
         const busy = /ResourceExhausted|Service Unavailable|worker|limit reached|429|503|timed? ?out/i.test(msg);
         if (busy && attempt < 2) { await new Promise((r) => setTimeout(r, 8000)); continue; }
-        console.warn("NVIDIA 실패 → Claude로 대체:", msg);
+        console.warn("NVIDIA 실패 → 대체 엔진:", msg);
         break;
       }
+    }
+  }
+  // OpenRouter (무료 모델 자동 라우팅 — 앞 엔진 모두 소진/실패 시 받아준다)
+  if (OPENROUTER_KEY && !hasImages) {
+    try {
+      return await askOpenRouter(system, user, opt);
+    } catch (e) {
+      console.warn("OpenRouter 실패 → Claude로 대체:", (e as Error).message);
     }
   }
   return askClaude(system, user, opt);
