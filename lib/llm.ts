@@ -6,13 +6,15 @@
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
+const NVIDIA_KEY = process.env.NVIDIA_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "llama-3.3-70b"; // 무료 하루 100만 토큰·초고속(텍스트 전용)
+const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b"; // (무료 크레딧 활성 시) 텍스트 전용
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct"; // NVIDIA NIM 무료·텍스트 전용
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GEMINI_KEY || CEREBRAS_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || CLAUDE_KEY);
 
 export interface AskOptions {
   maxTokens?: number;
@@ -138,6 +140,31 @@ async function askCerebras(system: string, user: string, opt: AskOptions): Promi
   return text;
 }
 
+// ---- NVIDIA NIM (무료·기한무제한, 텍스트 전용) ----
+async function askNvidia(system: string, user: string, opt: AskOptions): Promise<string> {
+  if (!NVIDIA_KEY) throw new Error("NVIDIA_API_KEY 없음");
+  const messages: { role: string; content: string }[] = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${NVIDIA_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: NVIDIA_MODEL,
+      messages,
+      max_tokens: opt.maxTokens ?? 2200,
+      temperature: opt.careful ? 0.2 : 0.7,
+    }),
+    signal: AbortSignal.timeout(90000),
+    cache: "no-store",
+  });
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  if (!res.ok || !data.choices) throw new Error(`NVIDIA: ${JSON.stringify(data).slice(0, 120)}`);
+  const text = (data.choices[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("NVIDIA: 빈 응답");
+  return text;
+}
+
 // ---- 공용 진입점 ----
 export async function ask(system: string, user: string, opt: AskOptions = {}): Promise<string> {
   const hasImages = (opt.images?.length ?? 0) > 0;
@@ -154,7 +181,15 @@ export async function ask(system: string, user: string, opt: AskOptions = {}): P
     try {
       return await askCerebras(system, user, opt);
     } catch (e) {
-      console.warn("Cerebras 실패 → Claude로 대체:", (e as Error).message);
+      console.warn("Cerebras 실패 → 대체 엔진:", (e as Error).message);
+    }
+  }
+  // NVIDIA (텍스트 전용, 무료·무제한 — Cerebras 없거나 실패 시 받아준다)
+  if (NVIDIA_KEY && !hasImages) {
+    try {
+      return await askNvidia(system, user, opt);
+    } catch (e) {
+      console.warn("NVIDIA 실패 → Claude로 대체:", (e as Error).message);
     }
   }
   return askClaude(system, user, opt);

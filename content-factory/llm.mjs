@@ -7,14 +7,16 @@
 const GROQ_KEY = process.env.GROQ_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
+const NVIDIA_KEY = process.env.NVIDIA_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b"; // 한국어 우수 + 무료 한도 넉넉(20b가 120b보다 여유)
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "llama-3.3-70b"; // 무료 하루 100만 토큰·초고속(텍스트 전용)
+const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b"; // (무료 크레딧 활성 시) 텍스트 전용
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct"; // NVIDIA NIM 무료·텍스트 전용
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CEREBRAS_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || CLAUDE_KEY);
 
 // ---- Groq (주력: 무료 한도 넉넉·빠름·한국어 우수). 텍스트 전용(이미지 미지원) ----
 async function askGroq(system, user, opt) {
@@ -155,6 +157,31 @@ async function askCerebras(system, user, opt) {
   return text;
 }
 
+// ---- NVIDIA NIM (무료·기한무제한, 텍스트 전용). 콜드스타트로 느릴 수 있어 타임아웃 넉넉히 ----
+async function askNvidia(system, user, opt) {
+  if (!NVIDIA_KEY) throw new Error("NVIDIA_API_KEY 없음");
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${NVIDIA_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: NVIDIA_MODEL,
+      messages,
+      max_tokens: opt.maxTokens ?? 2200,
+      temperature: opt.careful ? 0.2 : 0.7,
+    }),
+    signal: AbortSignal.timeout(90000),
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!res.ok || !data.choices) throw new Error(`NVIDIA: ${JSON.stringify(data).slice(0, 120)}`);
+  const text = (data.choices[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("NVIDIA: 빈 응답");
+  return text;
+}
+
 // ---- 공용 진입점 ----
 // 무료 AI 한도(분당 요청/토큰) 준수: 호출 간 최소 간격 + 한도 초과 시 잠깐 쉬고 재시도.
 let _lastCall = 0, _lastGroq = 0;
@@ -203,6 +230,14 @@ export async function ask(system, user, opt = {}) {
       console.warn("Cerebras 실패 → Claude로 대체:", e.message);
     }
   }
-  // 4) Claude (최후 예비)
+  // 4) NVIDIA (텍스트 전용, 무료·무제한 — Cerebras 없거나 실패 시 받아준다)
+  if (NVIDIA_KEY && !hasImages) {
+    try {
+      return await askNvidia(system, user, opt);
+    } catch (e) {
+      console.warn("NVIDIA 실패 → Claude로 대체:", e.message);
+    }
+  }
+  // 5) Claude (최후 예비)
   return askClaude(system, user, opt);
 }
