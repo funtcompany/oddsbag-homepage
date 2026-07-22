@@ -5,12 +5,14 @@
 // 사장님은 아무것도 안 해도 되고, 로그에 어느 엔진을 썼는지 남는다.
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "llama-3.3-70b"; // 무료 하루 100만 토큰·초고속(텍스트 전용)
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GEMINI_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GEMINI_KEY || CEREBRAS_KEY || CLAUDE_KEY);
 
 export interface AskOptions {
   maxTokens?: number;
@@ -112,14 +114,47 @@ async function askClaude(system: string, user: string, opt: AskOptions): Promise
   return data.content?.map((c) => c.text ?? "").join("").trim() ?? "";
 }
 
+// ---- Cerebras (무료 대용량·초고속, 텍스트 전용) ----
+async function askCerebras(system: string, user: string, opt: AskOptions): Promise<string> {
+  if (!CEREBRAS_KEY) throw new Error("CEREBRAS_API_KEY 없음");
+  const messages: { role: string; content: string }[] = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${CEREBRAS_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: CEREBRAS_MODEL,
+      messages,
+      max_tokens: opt.maxTokens ?? 2200,
+      temperature: opt.careful ? 0.2 : 0.7,
+    }),
+    cache: "no-store",
+  });
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  if (!res.ok || !data.choices) throw new Error(`Cerebras: ${JSON.stringify(data).slice(0, 120)}`);
+  const text = (data.choices[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("Cerebras: 빈 응답");
+  return text;
+}
+
 // ---- 공용 진입점 ----
 export async function ask(system: string, user: string, opt: AskOptions = {}): Promise<string> {
+  const hasImages = (opt.images?.length ?? 0) > 0;
   if (GEMINI_KEY) {
     try {
       return await askGemini(system, user, opt);
     } catch (e) {
-      // 크레딧 소진·장애 → Claude로 자동 대체 (서비스는 멈추지 않는다)
-      console.warn("Gemini 실패 → Claude로 대체:", (e as Error).message);
+      // 크레딧 소진·장애 → 대체 엔진 (서비스는 멈추지 않는다)
+      console.warn("Gemini 실패 → 대체 엔진:", (e as Error).message);
+    }
+  }
+  // Cerebras (텍스트 전용, 무료 대용량 — Gemini 한도 소진 시 받아준다)
+  if (CEREBRAS_KEY && !hasImages) {
+    try {
+      return await askCerebras(system, user, opt);
+    } catch (e) {
+      console.warn("Cerebras 실패 → Claude로 대체:", (e as Error).message);
     }
   }
   return askClaude(system, user, opt);

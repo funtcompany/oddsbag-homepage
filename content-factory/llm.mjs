@@ -6,13 +6,15 @@
 
 const GROQ_KEY = process.env.GROQ_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b"; // 한국어 우수 + 무료 한도 넉넉(20b가 120b보다 여유)
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "llama-3.3-70b"; // 무료 하루 100만 토큰·초고속(텍스트 전용)
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CEREBRAS_KEY || CLAUDE_KEY);
 
 // ---- Groq (주력: 무료 한도 넉넉·빠름·한국어 우수). 텍스트 전용(이미지 미지원) ----
 async function askGroq(system, user, opt) {
@@ -128,6 +130,31 @@ async function askClaude(system, user, opt) {
   return data.content?.map((c) => c.text ?? "").join("").trim() ?? "";
 }
 
+// ---- Cerebras (무료 대용량·초고속, 텍스트 전용) ----
+async function askCerebras(system, user, opt) {
+  if (!CEREBRAS_KEY) throw new Error("CEREBRAS_API_KEY 없음");
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${CEREBRAS_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: CEREBRAS_MODEL,
+      messages,
+      max_tokens: opt.maxTokens ?? 2200,
+      temperature: opt.careful ? 0.2 : 0.7,
+    }),
+    signal: AbortSignal.timeout(60000),
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!res.ok || !data.choices) throw new Error(`Cerebras: ${JSON.stringify(data).slice(0, 120)}`);
+  const text = (data.choices[0]?.message?.content ?? "").trim();
+  if (!text) throw new Error("Cerebras: 빈 응답");
+  return text;
+}
+
 // ---- 공용 진입점 ----
 // 무료 AI 한도(분당 요청/토큰) 준수: 호출 간 최소 간격 + 한도 초과 시 잠깐 쉬고 재시도.
 let _lastCall = 0, _lastGroq = 0;
@@ -168,6 +195,14 @@ export async function ask(system, user, opt = {}) {
       }
     }
   }
-  // 3) Claude (최후 예비)
+  // 3) Cerebras (텍스트 전용, 무료 대용량 — Groq·Gemini 한도 소진 시 받아준다)
+  if (CEREBRAS_KEY && !hasImages) {
+    try {
+      return await askCerebras(system, user, opt);
+    } catch (e) {
+      console.warn("Cerebras 실패 → Claude로 대체:", e.message);
+    }
+  }
+  // 4) Claude (최후 예비)
   return askClaude(system, user, opt);
 }
