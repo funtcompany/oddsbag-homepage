@@ -1,0 +1,48 @@
+name: 오즈백 릴스 샘플 (게시 안 함)
+
+# 검토용 샘플 1개만 렌더 → 아티팩트로 다운로드. 인스타/페북/유튜브에 올리지 않는다.
+# (게시 자격증명을 넘기지 않으므로 make-reels 가 게시를 자동으로 건너뛴다)
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "만들 샘플 수"
+        default: "1"
+
+concurrency:
+  group: oddsbag-reels-sample
+  cancel-in-progress: false
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: ffmpeg 설치
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: 렌더링 라이브러리 설치
+        working-directory: factory
+        run: npm ci
+      - name: 샘플 제작 (게시 없음)
+        working-directory: factory
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }}
+          ODDS_VOICE: ${{ secrets.ODDS_VOICE }}
+          USE_BROLL: "1"
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          MARK_DONE: "0" # 샘플이라 '제작완료' 표시 안 함 (실제 릴스 파이프라인에 영향 없음)
+          REEL_LIMIT: ${{ github.event.inputs.limit || '1' }}
+        run: node make-reels.mjs
+      - name: 샘플 영상 업로드 (다운로드용)
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-sample
+          path: factory/out/*.mp4
+          if-no-files-found: warn
+          retention-days: 7
