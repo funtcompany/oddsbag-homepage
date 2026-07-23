@@ -24,46 +24,52 @@ const OUT_H = 1800;
 const OG_W = 1200; // 링크 공유용 (카톡/페북/트위터)
 const OG_H = 630;
 
-// ---- 무드별 팔레트 (게시물마다 고정) ----
-type Pal = { bg: string; ink: string; sub: string; accent: string; onAccent: string; glow: string; isLight?: boolean };
-// 【브랜드 규칙】 브랜드는 '색을 꽉 채우는 것'이 아니라 '일관된 자리'로 지킨다.
-//  · 고정: 왼쪽 레일, ODDSBAG O 마크(딥퍼플+네온옐로), 레이아웃, 서체
-//  · 변화: 바탕은 단색이 아닌 그라디언트, 포인트색은 무드별 따뜻한 톤
-// 퍼플+옐로만 꽉 채우면 브랜드는 보이지만 촌스럽고 감성이 죽는다.
-// 바탕을 깊은 그라디언트로 깔고 포인트를 크림·골드·코랄로 바꿔 모던하게 간다.
-// sub(설명글) 색은 대비를 올려 폰에서도 또렷하게 읽히도록 밝게 잡았다.
+// ---- 무드별 팔레트 ----
+// 【디자인 방향】 요즘 한국 카드뉴스 문법을 따른다.
+//  · 바탕은 밝다 (오프화이트/크림). 어두운 배경 + 반투명 유리 패널은 예전 스타일이다.
+//  · 글자는 거의 검정에 가까운 잉크색으로 아주 크고 굵게 — 대비가 최대라 폰에서 제일 잘 읽힌다.
+//  · 색은 '한 가지 진한 포인트색'만 쓴다. 표지는 그 색으로 꽉 채우고, 본문 장은 흰 바탕에 포인트만.
+//  · 형광펜 하이라이트로 핵심 단어를 짚는다 (한국 카드뉴스의 대표 문법).
+// 브랜드는 색 도배가 아니라 O 마크와 레이아웃으로 지킨다.
+type Pal = {
+  bg: string; // 본문 장 바탕 (밝음)
+  ink: string; // 큰 제목
+  sub: string; // 설명글
+  accent: string; // 포인트색 (표지 바탕 · 번호칩 · 하이라이트)
+  onAccent: string; // 포인트색 위 글자
+  hi: string; // 형광펜 색 (포인트색의 옅은 버전)
+};
 const PALETTES: Record<string, Pal[]> = {
-  // 시사·진중 — 잉크 플럼에 뮤트 골드
+  // 시사·진중 — 코발트블루
   serious: [
-    { bg: "linear-gradient(155deg,#151022 0%,#211932 52%,#2C2038 100%)", ink: "#F6F2FA", sub: "#C7BCD6", accent: "#E8C88C", onAccent: "#1B1428", glow: "rgba(232,200,140,0.13)" },
-    { bg: "linear-gradient(155deg,#12111F 0%,#1E1B30 52%,#2A2440 100%)", ink: "#F4F3FA", sub: "#C2BDD4", accent: "#DFC69B", onAccent: "#191627", glow: "rgba(223,198,155,0.13)" },
+    { bg: "#F5F4F0", ink: "#14131A", sub: "#5B5865", accent: "#1F4FD8", onAccent: "#FFFFFF", hi: "#C9D8FF" },
+    { bg: "#F3F4F6", ink: "#15171C", sub: "#585C68", accent: "#123B8F", onAccent: "#FFFFFF", hi: "#C2D4F5" },
   ],
-  // 신뢰·정보 — 딥 네이비에 차분한 라이트블루
+  // 신뢰·정보 — 딥그린
   trust: [
-    { bg: "linear-gradient(155deg,#101427 0%,#1A2140 52%,#232B4E 100%)", ink: "#F1F4FC", sub: "#B9C2DF", accent: "#BFD4FF", onAccent: "#141A33", glow: "rgba(191,212,255,0.14)" },
-    { bg: "linear-gradient(155deg,#0F1826 0%,#18293C 52%,#1F3348 100%)", ink: "#EFF6FA", sub: "#B2C6D4", accent: "#A9DCD2", onAccent: "#12222C", glow: "rgba(169,220,210,0.14)" },
+    { bg: "#F3F6F3", ink: "#131815", sub: "#525E57", accent: "#0E7A5F", onAccent: "#FFFFFF", hi: "#B6E7D6" },
+    { bg: "#F5F5F1", ink: "#16181A", sub: "#565B5E", accent: "#1B6B8C", onAccent: "#FFFFFF", hi: "#BEE2EE" },
   ],
-  // 활기·역동 — 자주빛 바탕에 살구 코랄
+  // 활기·역동 — 토마토 레드
   energetic: [
-    { bg: "linear-gradient(155deg,#1F1130 0%,#381C46 52%,#4A2450 100%)", ink: "#FBF3F6", sub: "#D9C3D4", accent: "#FFB894", onAccent: "#2B1330", glow: "rgba(255,184,148,0.16)" },
-    { bg: "linear-gradient(155deg,#231331 0%,#3D1E45 52%,#54294B 100%)", ink: "#FCF4F4", sub: "#DCC5CE", accent: "#FFC7A6", onAccent: "#2E1631", glow: "rgba(255,199,166,0.16)" },
+    { bg: "#FBF6F2", ink: "#1A1512", sub: "#665C55", accent: "#F0472A", onAccent: "#FFFFFF", hi: "#FFD0C4" },
+    { bg: "#FAF6F0", ink: "#1B1610", sub: "#665D50", accent: "#E2701A", onAccent: "#FFFFFF", hi: "#FFDCB8" },
   ],
-  // 감성·부드러움 — 따뜻한 종이 톤 (밝은 카드)
+  // 감성·부드러움 — 로즈
   soft: [
-    { bg: "linear-gradient(155deg,#FBF7F2 0%,#F4EDF3 55%,#EFE8F2 100%)", ink: "#241A33", sub: "#5F5570", accent: "#7A4FB0", onAccent: "#FFFFFF", glow: "rgba(122,79,176,0.10)", isLight: true },
-    { bg: "linear-gradient(155deg,#FAF6F1 0%,#F2EDE6 55%,#EDE6DC 100%)", ink: "#251E1A", sub: "#63594F", accent: "#B07A3E", onAccent: "#FFFFFF", glow: "rgba(176,122,62,0.10)", isLight: true },
+    { bg: "#FAF5F5", ink: "#1B1417", sub: "#6A5C61", accent: "#C2437A", onAccent: "#FFFFFF", hi: "#FBCEE0" },
+    { bg: "#F8F5F2", ink: "#1A1614", sub: "#655C56", accent: "#A75B45", onAccent: "#FFFFFF", hi: "#F6D2C6" },
   ],
-  // 트렌디·힙 — 야간 플럼에 크림
+  // 트렌디·힙 — 오즈백 딥퍼플
   trendy: [
-    { bg: "linear-gradient(155deg,#121022 0%,#1F1936 52%,#2B2142 100%)", ink: "#F7F4FB", sub: "#C6BDD8", accent: "#F3D9B0", onAccent: "#1A142B", glow: "rgba(243,217,176,0.14)" },
-    { bg: "linear-gradient(155deg,#151124 0%,#241A3A 52%,#332448 100%)", ink: "#F8F5FC", sub: "#CBC1DC", accent: "#F0C9A8", onAccent: "#1D1630", glow: "rgba(240,201,168,0.14)" },
+    { bg: "#F7F4FB", ink: "#171326", sub: "#5E5670", accent: "#5B2D8E", onAccent: "#FFFFFF", hi: "#DCC9F5" },
+    { bg: "#F6F5FA", ink: "#161425", sub: "#5C586C", accent: "#3B2C9E", onAccent: "#FFFFFF", hi: "#CFCCF7" },
   ],
 };
 
-// 브랜드 고정값 — 어떤 무드에서도 이 두 색은 그대로 (로고 마크·왼쪽 레일)
+// 브랜드 고정값 — O 마크는 어떤 무드에서도 그대로
 const BRAND_PURPLE = "#5B2D8E";
 const BRAND_YELLOW = "#FFE600";
-
 function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -114,35 +120,30 @@ function render(
 ) {
   const W = og ? OG_W : 1080;
   const H = og ? OG_H : 1350;
-  const big = card.kind === "hook";
-  const titleSize =
-    (big
-      ? card.title.length > 26
-        ? 78
-        : card.title.length > 16
-          ? 96
-          : 112
-      : card.kind === "quote" || card.kind === "cta"
-        ? 62
-        : 58) * (og ? 0.62 : 1);
-
-  const photoBg = big && hasPhoto;
-  // 본문 카드에 붙는 순번 (01, 02 …) — 큰 고스트 숫자의 소재
+  const big = card.kind === "hook"; // 표지
+  const last = idx === total - 1;
+  const photoBg = big && Boolean(hasPhoto);
+  // 표지는 포인트색으로 꽉 채운다 (사진이 있으면 사진 + 어두운 오버레이)
+  const cover = big;
   const stepNo = card.kind === "point" && card.label ? card.label.replace(/[^0-9]/g, "") : "";
 
-  // 밝은 배경(soft 팔레트)에서는 반투명 흰색 패널이 안 보이므로 어두운 톤으로 뒤집는다
-  // 밝은 배경 팔레트인지 — 색코드 비교로 추측하지 않고 팔레트에 명시된 값을 쓴다
-  const light = card.kind !== "hook" && p.isLight === true;
-  // 바탕이 그라디언트로 바뀌면서 패널이 안 보였다 → 대비를 올려 '읽는 영역'이 분명히 잡히게
-  const veil = light ? "rgba(43,26,82,0.055)" : "rgba(255,255,255,0.085)";
-  const veilLine = light ? "rgba(43,26,82,0.14)" : "rgba(255,255,255,0.20)";
-  const ghost = light ? "rgba(91,45,142,0.09)" : "rgba(255,255,255,0.07)";
-  const bodyInk = photoBg ? "rgba(255,255,255,.9)" : p.sub;
-  const titleInk = photoBg ? "#fff" : p.ink;
-  const PAD = og ? 56 : 84;
+  const ink = cover ? "#FFFFFF" : p.ink;
+  const sub = cover ? "rgba(255,255,255,.86)" : p.sub;
+  const PAD = og ? 56 : 92;
 
-  // 레이아웃은 1080×1350 좌표로 그리고, 바깥에서 1440×1800 으로 확대한다.
-  // (satori 는 벡터로 그리므로 확대해도 글자가 뭉개지지 않는다 → 인스타 원본 화질)
+  const titleSize =
+    (big
+      ? card.title.length > 30
+        ? 88
+        : card.title.length > 18
+          ? 104
+          : 124
+      : card.kind === "quote"
+        ? 76
+        : card.kind === "cta"
+          ? 72
+          : 66) * (og ? 0.6 : 1);
+
   const cardEl = (
     <div
       style={{
@@ -150,12 +151,12 @@ function render(
         height: H,
         display: "flex",
         flexDirection: "column",
-        background: p.bg,
+        background: cover ? p.accent : p.bg,
         position: "relative",
         fontFamily: "Noto",
       }}
     >
-      {/* 배경 1 — 사진 (훅 카드) */}
+      {/* 표지에 사진이 있으면 사진 + 어두운 그라디언트 (글자 대비 확보) */}
       {photoBg ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -172,120 +173,55 @@ function render(
               left: 0,
               width: W,
               height: H,
-              background: "linear-gradient(180deg, rgba(10,6,20,0.45) 0%, rgba(10,6,20,0.78) 52%, rgba(10,6,20,0.96) 100%)",
+              background:
+                "linear-gradient(180deg, rgba(12,10,16,0.35) 0%, rgba(12,10,16,0.72) 55%, rgba(12,10,16,0.94) 100%)",
             }}
           />
         </>
-      ) : (
-        // 배경 2 — 사진이 없을 때: 무드색 빛 두 겹으로 깊이를 만든다
-        <>
-          <div
-            style={{
-              position: "absolute",
-              top: -H * 0.2,
-              right: -W * 0.28,
-              width: W * 1.15,
-              height: W * 1.15,
-              borderRadius: W,
-              background: `radial-gradient(circle, ${p.glow} 0%, rgba(0,0,0,0) 70%)`,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: -H * 0.2,
-              left: -W * 0.3,
-              width: W * 1.05,
-              height: W * 1.05,
-              borderRadius: W,
-              background: light
-                ? "radial-gradient(circle, rgba(91,45,142,0.10) 0%, rgba(0,0,0,0) 70%)"
-                : "radial-gradient(circle, rgba(140,95,215,0.26) 0%, rgba(0,0,0,0) 70%)",
-            }}
-          />
-        </>
-      )}
+      ) : null}
 
-      {/* 왼쪽 브랜드 레일 — 무드가 바뀌어도 이건 고정 (오즈백임을 알아보게) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: 12,
-          height: H,
-          background: `linear-gradient(180deg, ${BRAND_YELLOW} 0%, ${BRAND_PURPLE} 100%)`,
-        }}
-      />
-
-      {/* ── 상단: 진행 세그먼트 + 로고 + 분야 ── */}
+      {/* ── 상단 ── */}
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          padding: og ? `34px ${PAD}px 0 ${PAD}px` : `56px ${PAD}px 0 ${PAD}px`,
+          alignItems: "center",
+          padding: og ? `34px ${PAD}px 0 ${PAD}px` : `62px ${PAD}px 0 ${PAD}px`,
           position: "relative",
         }}
       >
-        {/* 몇 장짜리인지 한눈에 — 끝까지 넘겨보게 만드는 장치 */}
+        {/* O 마크 — 무드가 바뀌어도 항상 같은 자리, 같은 색 */}
+        <div
+          style={{
+            display: "flex",
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: cover ? "#FFFFFF" : BRAND_PURPLE,
+            color: cover ? p.accent : BRAND_YELLOW,
+            fontSize: 29,
+            fontWeight: 900,
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 13,
+          }}
+        >
+          O
+        </div>
+        <div style={{ fontSize: 29, fontWeight: 900, color: ink, letterSpacing: -1 }}>ODDSBAG</div>
+        <div style={{ flex: 1 }} />
         {og ? null : (
-          <div style={{ display: "flex", width: W - PAD * 2, marginBottom: 34 }}>
-            {Array.from({ length: total }).map((_, s) => (
-              <div
-                key={s}
-                style={{
-                  display: "flex",
-                  // flex:1 은 확대 래퍼 안에서 폭이 잘못 계산돼 막대가 중간에 끊긴다 → 폭을 직접 계산
-                  width: (W - PAD * 2 - 8 * (total - 1)) / total,
-                  height: 6,
-                  borderRadius: 6,
-                  marginRight: s === total - 1 ? 0 : 8,
-                  background: s <= idx ? p.accent : light ? "rgba(43,26,82,0.16)" : "rgba(255,255,255,0.20)",
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        <div style={{ display: "flex", alignItems: "center" }}>
-          {/* O 마크 — 브랜드 퍼플 바탕에 네온옐로. 무드와 무관하게 항상 같다 */}
           <div
             style={{
               display: "flex",
-              width: 46,
-              height: 46,
-              borderRadius: 13,
-              background: BRAND_PURPLE,
-              color: BRAND_YELLOW,
-              fontSize: 30,
-              fontWeight: 900,
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 14,
+              fontSize: 25,
+              fontWeight: 800,
+              color: cover ? "rgba(255,255,255,.8)" : p.sub,
+              letterSpacing: 0.5,
             }}
           >
-            O
+            {`${String(idx + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`}
           </div>
-          <div style={{ fontSize: 30, fontWeight: 900, color: titleInk, letterSpacing: -1 }}>
-            ODDSBAG
-          </div>
-          <div style={{ flex: 1 }} />
-          {category && !og ? (
-            <div
-              style={{
-                display: "flex",
-                fontSize: 24,
-                fontWeight: 800,
-                color: p.accent,
-                border: `2px solid ${p.accent}`,
-                borderRadius: 999,
-                padding: "6px 20px",
-              }}
-            >
-              {category}
-            </div>
-          ) : null}
-        </div>
+        )}
       </div>
 
       {/* ── 본문 ── */}
@@ -295,164 +231,140 @@ function render(
           flexDirection: "column",
           flex: 1,
           justifyContent: big ? "flex-end" : "center",
-          padding: og ? `0 ${PAD}px 46px ${PAD}px` : `28px ${PAD}px 118px ${PAD}px`,
+          // 아래 여백이 크면 글이 위로 붕 뜬다 → 하단 바 자리만 남기고 줄인다
+          padding: og ? `0 ${PAD}px 44px ${PAD}px` : `0 ${PAD}px 108px ${PAD}px`,
           position: "relative",
         }}
       >
-        {/* 사진 없는 훅 카드 — 큰 이모지를 가운데 원 안에 넣어 빈 공간을 채운다 */}
+        {/* 표지: 사진이 없으면 큰 이모지. 위를 비우고 아래로 몰아 쌓는 구성(요즘 카드뉴스 문법) */}
         {big && !photoBg && emoji ? (
           <div
             style={{
               display: "flex",
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
+              fontSize: og ? 150 : 250,
+              marginBottom: 26,
+              lineHeight: 1,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: og ? 220 : 460,
-                height: og ? 220 : 460,
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.05)",
-                border: `3px solid ${veilLine}`,
-                fontSize: og ? 130 : 250,
-              }}
-            >
-              {emoji}
-            </div>
+            {emoji}
           </div>
         ) : null}
 
-        {/* 훅이 아닌 카드는 '패널' 안에 담는다 — 텅 빈 배경에 글자만 떠 있던 문제를 없앤다 */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            position: "relative",
-            overflow: "hidden", // 고스트 숫자가 패널 밖으로 삐져나오지 않게
-            // 내용이 짧은 카드도 아래가 휑해 보이지 않게 최소 높이를 준다
-            minHeight: big || og ? 0 : 640,
-            justifyContent: "center",
-            padding: big || og ? "0" : "56px 52px 58px 52px",
-            borderRadius: big || og ? 0 : 36,
-            background: big || og ? "transparent" : veil,
-            border: big || og ? "none" : `2px solid ${veilLine}`,
-          }}
-        >
-          {/* 큰 고스트 숫자 — 패널 안 오른쪽 위에 깔아 빈 면을 디자인으로 채운다 */}
-          {stepNo && !og ? (
-            <div
-              style={{
-                display: "flex",
-                position: "absolute",
-                top: -70,
-                right: -20,
-                fontSize: 360,
-                fontWeight: 900,
-                color: ghost,
-                letterSpacing: -18,
-              }}
-            >
-              {stepNo}
-            </div>
-          ) : null}
-
-          {card.label ? (
-            <div
-              style={{
-                display: "flex",
-                alignSelf: "flex-start",
-                background: card.kind === "point" ? p.accent : "transparent",
-                color: card.kind === "point" ? p.onAccent : p.accent,
-                fontSize: card.kind === "point" ? 28 : 26,
-                fontWeight: 900,
-                padding: card.kind === "point" ? "8px 22px" : "8px 22px",
-                border: card.kind === "point" ? "none" : `2px solid ${p.accent}`,
-                borderRadius: 999,
-                letterSpacing: 1,
-                marginBottom: 24,
-              }}
-            >
-              {card.label}
-            </div>
-          ) : null}
-
-          {/* 줄바꿈(\n)은 satori 의 pre-wrap 이 공백으로 뭉개므로 직접 줄로 나눠 그린다 */}
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {card.title.split("\n").map((line, li) => (
-              <div
-                key={li}
-                style={{
-                  display: "flex",
-                  fontSize: titleSize,
-                  fontWeight: 900,
-                  color: titleInk,
-                  lineHeight: 1.22,
-                  letterSpacing: -2.5,
-                  wordBreak: "keep-all", // ★ 한글이 단어 중간에서 잘리지 않게 (가독성 최우선)
-                }}
-              >
-                {line}
-              </div>
-            ))}
+        {/* 번호 — 큰 사각 칩. 본문 장의 첫인상을 만든다 */}
+        {stepNo && !og ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 98,
+              height: 98,
+              borderRadius: 26,
+              background: p.accent,
+              color: p.onAccent,
+              fontSize: 52,
+              fontWeight: 900,
+              letterSpacing: -2,
+              marginBottom: 34,
+            }}
+          >
+            {stepNo}
           </div>
+        ) : null}
 
-          {/* 제목과 설명을 갈라주는 짧은 액센트 선 */}
-          {card.body ? (
+        {/* 라벨 — 번호가 없는 장에만 (무슨 일이냐면 · 한 줄 정리 · CTA) */}
+        {card.label && !stepNo ? (
+          <div
+            style={{
+              display: "flex",
+              alignSelf: "flex-start",
+              background: cover ? "rgba(255,255,255,.18)" : p.accent,
+              color: cover ? "#FFFFFF" : p.onAccent,
+              fontSize: 27,
+              fontWeight: 900,
+              padding: "11px 26px",
+              borderRadius: 999,
+              letterSpacing: 0.5,
+              marginBottom: 28,
+            }}
+          >
+            {card.label}
+          </div>
+        ) : null}
+
+        {/* 제목 — 줄바꿈은 직접 나눠 그린다 (satori 의 pre-wrap 이 공백으로 뭉갠다) */}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {card.title.split("\n").map((line, li) => (
             <div
+              key={li}
               style={{
                 display: "flex",
-                width: 84,
-                height: 7,
-                borderRadius: 7,
-                background: p.accent,
-                marginTop: 30,
-                marginBottom: 30,
+                fontSize: titleSize,
+                fontWeight: 900,
+                color: ink,
+                lineHeight: 1.2,
+                letterSpacing: -3,
+                wordBreak: "keep-all", // ★ 한글이 단어 중간에서 잘리지 않게
               }}
-            />
-          ) : null}
+            >
+              {line}
+            </div>
+          ))}
+        </div>
 
-          {card.body ? (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {card.body.split(/(?<=[.!?])\s+/).filter(Boolean).map((sen, i) => (
+        {/* 형광펜 — 제목 아래 짧게 그어 시선을 잡는다 (한국 카드뉴스 대표 문법) */}
+        {!cover ? (
+          <div
+            style={{
+              display: "flex",
+              width: 132,
+              height: 18,
+              borderRadius: 3,
+              background: p.hi,
+              marginTop: 22,
+              marginBottom: card.body ? 30 : 0,
+            }}
+          />
+        ) : null}
+
+        {card.body ? (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {card.body
+              .split(/(?<=[.!?])\s+/)
+              .filter(Boolean)
+              .map((sen, i) => (
                 <div
                   key={i}
                   style={{
                     display: "flex",
-                    fontSize: 38,
+                    fontSize: 40,
                     fontWeight: 500,
-                    color: bodyInk,
-                    lineHeight: 1.55,
-                    marginBottom: 16,
-                    wordBreak: "keep-all", // ★ 한글 단어 중간 잘림 방지
+                    color: sub,
+                    lineHeight: 1.6,
+                    marginBottom: 18,
+                    wordBreak: "keep-all",
                   }}
                 >
                   {sen}
                 </div>
               ))}
-            </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
-        {/* 훅 카드 하단 안내 */}
+        {/* 표지 하단 안내 */}
         {big && !og ? (
           <div
             style={{
               display: "flex",
               alignItems: "center",
               alignSelf: "flex-start",
-              marginTop: 40,
-              fontSize: 28,
+              marginTop: 44,
+              fontSize: 29,
               fontWeight: 900,
-              color: p.onAccent,
-              background: p.accent,
+              color: p.accent,
+              background: "#FFFFFF",
               borderRadius: 999,
-              padding: "14px 30px",
+              padding: "16px 34px",
             }}
           >
             {`${total}장 전부 보기 →`}
@@ -466,22 +378,37 @@ function render(
           style={{
             display: "flex",
             position: "absolute",
-            bottom: 48,
+            bottom: 54,
             left: PAD,
             width: W - PAD * 2,
             alignItems: "center",
           }}
         >
-          {/* 마지막 CTA 카드는 본문에 이미 계정명이 크게 들어가므로 아래에 또 쓰지 않는다 */}
-          <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: bodyInk, letterSpacing: 0.5 }}>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 27,
+              fontWeight: 800,
+              color: cover ? "rgba(255,255,255,.82)" : p.sub,
+              letterSpacing: 0.3,
+            }}
+          >
             {card.kind === "cta" ? "" : "@oddsbag_official"}
           </div>
           <div style={{ flex: 1 }} />
-          <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: p.accent }}>
-            {idx === total - 1 ? "팔로우하고 미리 받기" : "저장해두기 📌"}
+          <div
+            style={{
+              display: "flex",
+              fontSize: 27,
+              fontWeight: 900,
+              color: cover ? "#FFFFFF" : p.accent,
+            }}
+          >
+            {last ? "팔로우하고 미리 받기" : "저장해두기"}
           </div>
         </div>
       )}
+
     </div>
   );
 
@@ -494,7 +421,7 @@ function render(
         height: OUT_H,
         display: "flex",
         overflow: "hidden",
-        background: p.bg,
+        background: cover ? p.accent : p.bg,
       }}
     >
       <div style={{ display: "flex", transform: `scale(${OUT_W / W})`, transformOrigin: "left top" }}>
@@ -503,7 +430,6 @@ function render(
     </div>
   );
 }
-
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ slug: string }> },
