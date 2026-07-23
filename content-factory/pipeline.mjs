@@ -7,6 +7,7 @@
 // 원칙: 속도보다 신뢰. 가짜뉴스 위험이 조금이라도 있으면 절대 자동 발행하지 않는다.
 
 import { collectAllIssues } from "./aggregate.mjs";
+import { pickEvergreenIssues } from "./evergreen.mjs";
 import { generateDraft } from "./ai.mjs";
 import { reviewDraft, reviseDraft } from "./quality.mjs";
 import { getLessons, recordReview } from "./learn.mjs";
@@ -145,19 +146,37 @@ export async function runCollection(opts) {
   // 분야 쏠림 방지: 최근 분포를 반영해 적게 나간 분야부터 번갈아 뽑도록 재배치
   const ordered = balanceByCategory(fresh, await recentCategoryCounts());
 
+  // 새 뉴스가 부족하면 에버그린/시즌 주제로 채운다.
+  // (실시간 이슈가 없는 시간대에도 콘텐츠가 끊기지 않게 하는 안전망)
+  const need = Math.min(limit, room) - ordered.length;
+  if (need > 0) {
+    const ever = pickEvergreenIssues(seen, need);
+    if (ever.length) {
+      ordered.push(...ever);
+      console.log(`에버그린 주제 ${ever.length}건 투입 (새 뉴스 부족)`);
+    }
+  }
+
   for (const issue of ordered) {
     if (made >= Math.min(limit, room) || Date.now() > deadline) break;
     try {
-      // 0) 원문 기사를 실제로 읽는다.
-      //    못 읽으면 AI가 나머지를 상상해서 채우게 되므로 — 그 이슈는 아예 쓰지 않는다.
-      const src = await resolveSourceText(issue);
-      if (!src) {
-        out.unreadable++;
-        await sadd(K_SEEN, issueKey(issue.title)); // 다음 회차에 또 시도하지 않게
-        continue;
+      // 0) 근거 확보.
+      //    · 뉴스 이슈  → 원문 기사를 실제로 읽는다. 못 읽으면 상상해서 쓰게 되므로 건너뛴다.
+      //    · 에버그린   → 주제에 붙어있는 '검증된 사실(facts)'을 근거로 쓴다. (지어내기 차단은 동일)
+      let context, sourceUrl;
+      if (issue.facts) {
+        context = issue.facts;
+        sourceUrl = issue.ref?.url ?? issue.link ?? undefined;
+      } else {
+        const src = await resolveSourceText(issue);
+        if (!src) {
+          out.unreadable++;
+          await sadd(K_SEEN, issueKey(issue.title)); // 다음 회차에 또 시도하지 않게
+          continue;
+        }
+        context = `${src.text}${issue.extra ? "\n(참고: " + issue.extra + ")" : ""}`;
+        sourceUrl = src.url;
       }
-      const context = `${src.text}${issue.extra ? "\n(참고: " + issue.extra + ")" : ""}`;
-      const sourceUrl = src.url;
 
       // 1) 작성 (원문 사실만 사용) — 형식이 깨지면 한 번 더 시도
       let draft;
@@ -236,7 +255,12 @@ export async function runCollection(opts) {
         imageCredit: cover?.credit,
         readMinutes: Math.max(2, Math.round(draft.body.length / 400)),
         tags: draft.tags,
-        sources: [{ title: `원문 보기 (${issue.source})`, url: sourceUrl }],
+        sources: [
+          {
+            title: issue.ref?.title ? `참고 — ${issue.ref.title}` : `원문 보기 (${issue.source})`,
+            url: sourceUrl,
+          },
+        ],
         createdAt: new Date().toISOString(),
         quality: {
           score: review.score,

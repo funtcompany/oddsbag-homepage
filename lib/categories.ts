@@ -52,6 +52,14 @@ export const categories: Category[] = [
     gradient: "from-amber-500 to-orange-700",
     accent: "text-orange-700 bg-orange-100",
   },
+  {
+    // 실시간 이슈가 아닌 '계속 찾아보는 정보' — PC 꿀팁, 생활정보, 시즌 일정
+    slug: "tips",
+    label: "꿀팁",
+    emoji: "💡",
+    gradient: "from-oddsbag-purple to-oddsbag-purple-dark",
+    accent: "text-oddsbag-purple bg-oddsbag-purple/10",
+  },
 ];
 
 export const getCategoryByLabel = (label: string): Category | undefined =>
