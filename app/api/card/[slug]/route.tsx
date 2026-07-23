@@ -21,26 +21,29 @@ const OG_H = 630;
 
 // ---- 무드별 팔레트 (게시물마다 고정) ----
 type Pal = { bg: string; ink: string; sub: string; accent: string; onAccent: string };
+// 【브랜드 규칙】 오즈백 = 딥퍼플(#5B2D8E) 바탕 + 네온옐로(#FFE600) 포인트.
+// 예전엔 무드마다 틸·민트·핑크·오렌지·그린이 섞여 브랜드가 보이지 않았다.
+// → 배경은 전부 퍼플/잉크 계열로, 포인트는 옐로로 통일. 변화는 명도로만 준다.
 const PALETTES: Record<string, Pal[]> = {
   serious: [
-    { bg: "#14181f", ink: "#ffffff", sub: "#9aa7b8", accent: "#ffd23f", onAccent: "#14181f" },
-    { bg: "#1b2029", ink: "#ffffff", sub: "#a2adbd", accent: "#7dd3fc", onAccent: "#14181f" },
+    { bg: "#1e1730", ink: "#ffffff", sub: "#b0a5c6", accent: "#ffe600", onAccent: "#1e1730" },
+    { bg: "#241a3a", ink: "#ffffff", sub: "#b3a6cf", accent: "#ffe600", onAccent: "#241a3a" },
   ],
   trust: [
-    { bg: "#0f2f4a", ink: "#ffffff", sub: "#9fc3dd", accent: "#ffe066", onAccent: "#0f2f4a" },
-    { bg: "#10394d", ink: "#ffffff", sub: "#a6cbd8", accent: "#5eead4", onAccent: "#08303f" },
+    { bg: "#2a1b4d", ink: "#ffffff", sub: "#bcaee0", accent: "#ffe600", onAccent: "#2a1b4d" },
+    { bg: "#33215e", ink: "#ffffff", sub: "#c3b6e6", accent: "#ffe600", onAccent: "#33215e" },
   ],
   energetic: [
-    { bg: "#c2185b", ink: "#ffffff", sub: "#ffd0e2", accent: "#ffe600", onAccent: "#8c1043" },
-    { bg: "#d94f2b", ink: "#ffffff", sub: "#ffd8cb", accent: "#ffe600", onAccent: "#8a2f16" },
+    { bg: "#5b2d8e", ink: "#ffffff", sub: "#ded0f5", accent: "#ffe600", onAccent: "#3b1b60" },
+    { bg: "#4a2585", ink: "#ffffff", sub: "#d8c8f2", accent: "#ffe600", onAccent: "#2b1350" },
   ],
   soft: [
-    { bg: "#f3ecff", ink: "#2c1a52", sub: "#6b5a90", accent: "#7b4fb5", onAccent: "#ffffff" },
-    { bg: "#fff1e8", ink: "#4a2618", sub: "#8a6553", accent: "#e0603a", onAccent: "#ffffff" },
+    { bg: "#f3ecff", ink: "#2c1a52", sub: "#6b5a90", accent: "#5b2d8e", onAccent: "#ffffff" },
+    { bg: "#faf7f2", ink: "#241a3a", sub: "#6f6684", accent: "#5b2d8e", onAccent: "#ffffff" },
   ],
   trendy: [
     { bg: "#1c1530", ink: "#ffffff", sub: "#b3a6cf", accent: "#ffe600", onAccent: "#1c1530" },
-    { bg: "#241a3d", ink: "#ffffff", sub: "#bcaee0", accent: "#4ade80", onAccent: "#123021" },
+    { bg: "#241a3d", ink: "#ffffff", sub: "#bcaee0", accent: "#ffe600", onAccent: "#241a3d" },
   ],
 };
 
