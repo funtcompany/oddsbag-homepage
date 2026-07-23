@@ -25,45 +25,49 @@ const OG_W = 1200; // 링크 공유용 (카톡/페북/트위터)
 const OG_H = 630;
 
 // ---- 무드별 팔레트 ----
-// 【디자인 방향】 요즘 한국 카드뉴스 문법을 따른다.
-//  · 바탕은 밝다 (오프화이트/크림). 어두운 배경 + 반투명 유리 패널은 예전 스타일이다.
-//  · 글자는 거의 검정에 가까운 잉크색으로 아주 크고 굵게 — 대비가 최대라 폰에서 제일 잘 읽힌다.
-//  · 색은 '한 가지 진한 포인트색'만 쓴다. 표지는 그 색으로 꽉 채우고, 본문 장은 흰 바탕에 포인트만.
-//  · 형광펜 하이라이트로 핵심 단어를 짚는다 (한국 카드뉴스의 대표 문법).
+// 【디자인 방향】 국내 상위 카드뉴스의 문법을 따른다.
+//  · 바탕은 따뜻한 크림색. 차가운 흰색보다 인쇄물 같고 눈이 편하다.
+//  · 얇은 라운드 프레임을 안쪽에 둘러 '한 장의 인쇄물'처럼 보이게 한다.
+//  · 제목은 아주 크고 굵은 잉크색, 그중 핵심 단어 하나만 포인트색으로 물들인다.
+//  · 본문은 흰 카드에 담아 띄우고, 오른쪽에 큰 번호를 세운다.
+//  · 라벨은 자간을 넓게 벌린 작은 글씨로 (정보의 격이 올라간다).
 // 브랜드는 색 도배가 아니라 O 마크와 레이아웃으로 지킨다.
 type Pal = {
-  bg: string; // 본문 장 바탕 (밝음)
+  bg: string; // 바탕 (크림)
+  card: string; // 본문 카드 (거의 흰색)
   ink: string; // 큰 제목
   sub: string; // 설명글
-  accent: string; // 포인트색 (표지 바탕 · 번호칩 · 하이라이트)
-  onAccent: string; // 포인트색 위 글자
-  hi: string; // 형광펜 색 (포인트색의 옅은 버전)
+  faint: string; // 라벨·페이지 표시
+  line: string; // 프레임·구분선
+  accent: string; // 포인트색
+  onAccent: string;
+  ghost: string; // 큰 번호 (연한 포인트색)
 };
 const PALETTES: Record<string, Pal[]> = {
-  // 시사·진중 — 코발트블루
+  // 시사·진중 — 잉크 블루
   serious: [
-    { bg: "#F5F4F0", ink: "#14131A", sub: "#5B5865", accent: "#1F4FD8", onAccent: "#FFFFFF", hi: "#C9D8FF" },
-    { bg: "#F3F4F6", ink: "#15171C", sub: "#585C68", accent: "#123B8F", onAccent: "#FFFFFF", hi: "#C2D4F5" },
+    { bg: "#F4F2EC", card: "#FDFCFA", ink: "#191713", sub: "#5F5A52", faint: "#A79F93", line: "#DCD5C8", accent: "#2B4C8C", onAccent: "#FFFFFF", ghost: "#C6D2E6" },
+    { bg: "#F2F2EF", card: "#FDFDFC", ink: "#17181A", sub: "#5C5E60", faint: "#A3A5A6", line: "#D8D9D5", accent: "#1F4FD8", onAccent: "#FFFFFF", ghost: "#C8D6F2" },
   ],
-  // 신뢰·정보 — 딥그린
+  // 신뢰·정보 — 세이지 그린
   trust: [
-    { bg: "#F3F6F3", ink: "#131815", sub: "#525E57", accent: "#0E7A5F", onAccent: "#FFFFFF", hi: "#B6E7D6" },
-    { bg: "#F5F5F1", ink: "#16181A", sub: "#565B5E", accent: "#1B6B8C", onAccent: "#FFFFFF", hi: "#BEE2EE" },
+    { bg: "#F2F4EE", card: "#FCFDFB", ink: "#171A15", sub: "#565C51", faint: "#9FA695", line: "#D7DCCE", accent: "#4A7A56", onAccent: "#FFFFFF", ghost: "#CBDCCE" },
+    { bg: "#F1F4F3", card: "#FCFDFD", ink: "#151A19", sub: "#535C5A", faint: "#9AA5A2", line: "#D3DBD9", accent: "#1E7A6B", onAccent: "#FFFFFF", ghost: "#C2DCD6" },
   ],
-  // 활기·역동 — 토마토 레드
+  // 활기·역동 — 테라코타
   energetic: [
-    { bg: "#FBF6F2", ink: "#1A1512", sub: "#665C55", accent: "#F0472A", onAccent: "#FFFFFF", hi: "#FFD0C4" },
-    { bg: "#FAF6F0", ink: "#1B1610", sub: "#665D50", accent: "#E2701A", onAccent: "#FFFFFF", hi: "#FFDCB8" },
+    { bg: "#F8F2EA", card: "#FFFDFA", ink: "#1C1611", sub: "#645A4F", faint: "#AC9E8C", line: "#E4D7C6", accent: "#C4643C", onAccent: "#FFFFFF", ghost: "#EED7C6" },
+    { bg: "#F9F1EC", card: "#FFFCFA", ink: "#1D1512", sub: "#665750", faint: "#B09B92", line: "#E7D6CE", accent: "#D2553A", onAccent: "#FFFFFF", ghost: "#F3D2C7" },
   ],
-  // 감성·부드러움 — 로즈
+  // 감성·부드러움 — 더스티 로즈
   soft: [
-    { bg: "#FAF5F5", ink: "#1B1417", sub: "#6A5C61", accent: "#C2437A", onAccent: "#FFFFFF", hi: "#FBCEE0" },
-    { bg: "#F8F5F2", ink: "#1A1614", sub: "#655C56", accent: "#A75B45", onAccent: "#FFFFFF", hi: "#F6D2C6" },
+    { bg: "#F7F1F1", card: "#FFFCFC", ink: "#1B1416", sub: "#645257", faint: "#AE979C", line: "#E5D3D5", accent: "#A8506A", onAccent: "#FFFFFF", ghost: "#EDCFD8" },
+    { bg: "#F6F2EE", card: "#FFFDFB", ink: "#1A1512", sub: "#615751", faint: "#A99C92", line: "#E1D6CC", accent: "#96613F", onAccent: "#FFFFFF", ghost: "#E8D5C4" },
   ],
-  // 트렌디·힙 — 오즈백 딥퍼플
+  // 트렌디·힙 — 오즈백 퍼플
   trendy: [
-    { bg: "#F7F4FB", ink: "#171326", sub: "#5E5670", accent: "#5B2D8E", onAccent: "#FFFFFF", hi: "#DCC9F5" },
-    { bg: "#F6F5FA", ink: "#161425", sub: "#5C586C", accent: "#3B2C9E", onAccent: "#FFFFFF", hi: "#CFCCF7" },
+    { bg: "#F5F2F7", card: "#FDFCFE", ink: "#191524", sub: "#5C5468", faint: "#A79EB4", line: "#DED6E6", accent: "#5B2D8E", onAccent: "#FFFFFF", ghost: "#D9CBEC" },
+    { bg: "#F4F3F8", card: "#FDFDFE", ink: "#17162A", sub: "#585670", faint: "#A29FB8", line: "#DAD8E6", accent: "#3B2C9E", onAccent: "#FFFFFF", ghost: "#CFCCF0" },
   ],
 };
 
@@ -72,58 +76,54 @@ const BRAND_PURPLE = "#5B2D8E";
 const BRAND_YELLOW = "#FFE600";
 
 // ---- 배경 질감 ----
-// 완전한 단색은 밋밋하고 값싸 보인다. 배경에 재질감을 깔아 인쇄물 같은 밀도를 만든다.
-// 외부 이미지 없이 SVG 데이터 URI로 처리한다.
-// ⚠️ 고운 노이즈는 PNG 압축이 안 먹어 파일이 10배 가까이 커진다(2.8MB) → 결이 굵은 쪽을 쓴다.
-const svgUrl = (inner: string, w: number, h = w) =>
-  `url("data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${inner}</svg>`,
-  )}")`;
-
-// 종이 결 — feTurbulence 로 만든 구름 무늬.
-// 【용량 핵심】 노이즈를 그대로 쓰면 PNG 압축이 안 먹어 2MB까지 커진다.
-// feComponentTransfer 의 discrete 로 명암을 몇 단계로 뭉쳐주면(양자화)
-// 같은 값이 넓게 반복돼 압축이 다시 먹는다. 눈에는 종이 결 그대로 보인다.
-// · 타일을 카드 전체 크기(1080)로 잡아 반복 이음새가 안 보이게 한다
-// · 결은 곱게(주파수 높게). 굵게 하면 종이가 아니라 위장무늬처럼 보인다
-// · 명암은 3단계로만 뭉쳐 압축이 먹게 하고, 불투명도를 아주 낮춰 은은하게 깐다
-const paperTex = (freq: number, seed: number) =>
-  svgUrl(
-    `<filter id="g">` +
-      `<feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="1" seed="${seed}" stitchTiles="stitch"/>` +
-      `<feColorMatrix type="saturate" values="0"/>` +
-      `<feComponentTransfer>` +
-      `<feFuncR type="discrete" tableValues="0 .5 1"/>` +
-      `<feFuncG type="discrete" tableValues="0 .5 1"/>` +
-      `<feFuncB type="discrete" tableValues="0 .5 1"/>` +
-      `<feFuncA type="discrete" tableValues="1"/>` +
-      `</feComponentTransfer></filter>` +
-      `<rect width="1080" height="1350" filter="url(#g)"/>`,
-    1080,
-    1350,
-  );
-
-// 글마다 조금씩 다른 결을 쓴다 (seed·굵기가 달라 무늬가 겹치지 않는다)
-const PAPER_VARIANTS = [
-  { url: paperTex(0.42, 3), onLight: 0.1, onCover: 0.1 },
-  { url: paperTex(0.55, 11), onLight: 0.095, onCover: 0.095 },
-  { url: paperTex(0.34, 29), onLight: 0.105, onCover: 0.1 },
-  { url: paperTex(0.68, 47), onLight: 0.09, onCover: 0.09 },
-  { url: paperTex(0.48, 61), onLight: 0.1, onCover: 0.095 },
+// 단색 배경은 밋밋하고 값싸 보인다. 실제 종이를 찍은 사진을 바탕에 깔고
+// 그 위에 바탕색을 덮어 '색이 입혀진 종이'로 만든다.
+// (SVG 노이즈로도 해봤지만, 눈에 보일 만큼 올리면 용량이 3~14배로 뛰고
+//  용량을 맞추려 낮추면 질감이 안 느껴졌다. 사진이 확실하고 오히려 가볍다.)
+// 출처: Pexels (상업적 이용 무료, 출처 표기 불필요)
+const PAPERS = [
+  "/textures/p5506216.jpg", // 수채화지 — 곱고 균일한 결
+  "/textures/p20818860.jpg", // 구겨진 종이 — 접힌 자국과 굴곡
+  "/textures/p6485437.jpg", // 리넨 — 직조 결
 ];
-// 비교·미리보기용으로 남겨두는 다른 재질
-const TEX_GRID = svgUrl(`<g fill="none" stroke="#000" stroke-width="1.4"><path d="M0 0H72M0 0V72"/></g>`, 72);
-const TEX_DOT = svgUrl(`<circle cx="9" cy="9" r="2.6" fill="#000"/>`, 26);
-const TEXTURES: Record<string, { url: string; onLight: number; onCover: number }> = {
-  grid: { url: TEX_GRID, onLight: 0.075, onCover: 0.14 },
-  dot: { url: TEX_DOT, onLight: 0.07, onCover: 0.13 },
-};
+const WASH_LIGHT = 0.88; // 크림 바탕을 덮는 정도 (낮출수록 질감이 세게 드러난다)
+const WASH_COVER = 0.9; // 포인트색으로 꽉 채운 표지
+const paperFor = (slug: string) => PAPERS[hash(slug + "tex") % PAPERS.length];
 
-// 기본은 종이 결. 글(slug)마다 다른 변형이 걸린다.
-function textureFor(key: string, slug: string) {
-  if (key === "none") return null;
-  if (TEXTURES[key]) return TEXTURES[key];
-  return PAPER_VARIANTS[hash(slug + "tex") % PAPER_VARIANTS.length];
+// ---- 제목 줄바꿈 ----
+// 자동 줄바꿈에 맡기면 컬러 단어를 span 으로 나누는 순간 그 경계에서 줄이 끊긴다
+// (예: "…윈도우 기능" / "5" 처럼 숫자만 뚝 떨어짐).
+// 그래서 줄을 직접 나눈 뒤 각 줄은 줄바꿈 없이 그린다.
+function wrapTitle(text: string, maxChars: number): string[] {
+  const out: string[] = [];
+  for (const para of text.split("\n")) {
+    let cur = "";
+    for (const word of para.split(" ")) {
+      const next = cur ? `${cur} ${word}` : word;
+      if (next.length <= maxChars || !cur) {
+        cur = next;
+      } else {
+        out.push(cur);
+        cur = word;
+      }
+    }
+    if (cur) out.push(cur);
+  }
+  return out;
+}
+
+// 포인트색으로 물들일 한 덩어리를 고른다.
+// "N가지"·"N개" 같은 숫자 표현이 있으면 그것을, 없으면 마지막 줄의 마지막 낱말.
+function findHighlight(lines: string[]): { line: number; hit: string } | null {
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/\d+\s*(가지|개|종|위|년|월|일|시간|분|%|만원|원)?/);
+    if (m && m[0].trim()) return { line: i, hit: m[0] };
+  }
+  const li = lines.length - 1;
+  const words = (lines[li] ?? "").trim().split(" ");
+  if (words.length > 1) return { line: li, hit: words[words.length - 1] };
+  if (lines.length > 1 && words[0]) return { line: li, hit: words[0] };
+  return null;
 }
 function hash(s: string): number {
   let h = 2166136261;
@@ -172,35 +172,57 @@ function render(
   og = false,
   emoji = "",
   category = "",
-  texKey = "paper",
   slug = "",
+  origin = "",
 ) {
-  const tex = textureFor(texKey, slug);
   const W = og ? OG_W : 1080;
   const H = og ? OG_H : 1350;
-  const big = card.kind === "hook"; // 표지
+  const cover = card.kind === "hook"; // 표지
   const last = idx === total - 1;
-  const photoBg = big && Boolean(hasPhoto);
-  // 표지는 포인트색으로 꽉 채운다 (사진이 있으면 사진 + 어두운 오버레이)
-  const cover = big;
+  const photoBg = cover && Boolean(hasPhoto);
   const stepNo = card.kind === "point" && card.label ? card.label.replace(/[^0-9]/g, "") : "";
 
+  // 표지는 포인트색으로 꽉 채우고, 나머지는 크림 바탕
+  const ground = cover ? p.accent : p.bg;
   const ink = cover ? "#FFFFFF" : p.ink;
-  const sub = cover ? "rgba(255,255,255,.86)" : p.sub;
-  const PAD = og ? 56 : 92;
+  const sub = cover ? "rgba(255,255,255,.88)" : p.sub;
+  const faint = cover ? "rgba(255,255,255,.7)" : p.faint;
+  const line = cover ? "rgba(255,255,255,.34)" : p.line;
+  const hitColor = cover ? "rgba(255,255,255,.62)" : p.accent;
+
+  const PAD = og ? 54 : 96; // 프레임 안쪽 여백
+  const FRAME = og ? 26 : 44; // 프레임이 카드 가장자리에서 떨어진 거리
 
   const titleSize =
-    (big
+    (cover
       ? card.title.length > 30
-        ? 88
+        ? 82
         : card.title.length > 18
-          ? 104
-          : 124
+          ? 96
+          : 112
       : card.kind === "quote"
-        ? 76
+        ? 70
         : card.kind === "cta"
-          ? 72
-          : 66) * (og ? 0.6 : 1);
+          ? 68
+          : 62) * (og ? 0.6 : 1);
+
+  const sentences = card.body ? card.body.split(/(?<=[.!?])\s+/).filter(Boolean) : [];
+
+  // 한 줄에 들어가는 글자 수를 폭에서 역산해 줄을 직접 나눈다 (한글 한 글자 ≈ 글자크기).
+  // 글자를 조금씩 줄여가며 '마지막 줄에 한두 글자만 남는' 어색한 배치를 피한다.
+  const maxLines = cover ? 3 : 3;
+  let fitSize = titleSize;
+  let titleLines = wrapTitle(card.title, Math.max(6, Math.floor((W - PAD * 2) / (titleSize * 0.97))));
+  for (let sz = titleSize; sz >= titleSize * 0.66; sz -= 4) {
+    const L = wrapTitle(card.title, Math.max(6, Math.floor((W - PAD * 2) / (sz * 0.97))));
+    const orphan = L.length > 1 && L[L.length - 1].length <= 2;
+    if (L.length <= maxLines && !orphan) {
+      fitSize = sz;
+      titleLines = L;
+      break;
+    }
+  }
+  const hl = findHighlight(titleLines);
 
   const cardEl = (
     <div
@@ -209,60 +231,37 @@ function render(
         height: H,
         display: "flex",
         flexDirection: "column",
-        background: cover ? p.accent : p.bg,
+        background: og ? ground : "transparent", // 확대 모드에선 바깥 레이어가 바탕을 칠한다
         position: "relative",
         fontFamily: "Noto",
       }}
     >
-      {/* ── 배경 질감 ── 단색으로 두지 않고 종이 결 + 은은한 얼룩을 깐다 */}
-      {!photoBg ? (
+      {/* 바탕 질감은 확대 바깥 레이어에서 그린다 (아래 return 참고).
+          OG 이미지는 확대를 쓰지 않으므로 여기서 직접 깐다. */}
+      {!photoBg && origin && og ? (
         <>
-          {/* 빛이 스민 듯한 얼룩 (인쇄 종이의 불균일함) */}
-          <div
-            style={{
-              position: "absolute",
-              top: -H * 0.15,
-              left: -W * 0.2,
-              width: W * 1.05,
-              height: W * 1.05,
-              borderRadius: W,
-              background: cover
-                ? "radial-gradient(circle, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 68%)"
-                : "radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 68%)",
-            }}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`${origin}${paperFor(slug)}`}
+            width={W}
+            height={H}
+            style={{ position: "absolute", top: 0, left: 0, width: W, height: H }}
           />
           <div
             style={{
               position: "absolute",
-              bottom: -H * 0.16,
-              right: -W * 0.22,
-              width: W * 0.95,
-              height: W * 0.95,
-              borderRadius: W,
-              background: cover
-                ? "radial-gradient(circle, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0) 68%)"
-                : "radial-gradient(circle, rgba(120,105,80,0.10) 0%, rgba(120,105,80,0) 68%)",
+              top: 0,
+              left: 0,
+              width: W,
+              height: H,
+              background: ground,
+              opacity: WASH_LIGHT,
             }}
           />
-          {/* 재질감 — 전면에 아주 옅게 깔아 밀도를 만든다 */}
-          {tex ? (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: W,
-                height: H,
-                backgroundImage: tex.url,
-                backgroundRepeat: "repeat",
-                opacity: cover ? tex.onCover : tex.onLight,
-              }}
-            />
-          ) : null}
         </>
       ) : null}
 
-      {/* 표지에 사진이 있으면 사진 + 어두운 그라디언트 (글자 대비 확보) */}
+      {/* 표지에 사진이 있으면 사진 + 어두운 그라디언트 */}
       {photoBg ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -280,51 +279,67 @@ function render(
               width: W,
               height: H,
               background:
-                "linear-gradient(180deg, rgba(12,10,16,0.35) 0%, rgba(12,10,16,0.72) 55%, rgba(12,10,16,0.94) 100%)",
+                "linear-gradient(180deg, rgba(12,10,16,0.32) 0%, rgba(12,10,16,0.7) 52%, rgba(12,10,16,0.93) 100%)",
             }}
           />
         </>
       ) : null}
 
-      {/* ── 상단 ── */}
+      {/* ── 얇은 라운드 프레임 — 한 장의 인쇄물처럼 보이게 하는 장치 ── */}
+      {og ? null : (
+        <div
+          style={{
+            position: "absolute",
+            top: FRAME,
+            left: FRAME,
+            width: W - FRAME * 2,
+            height: H - FRAME * 2,
+            border: `2px solid ${line}`,
+            borderRadius: 30,
+          }}
+        />
+      )}
+
+      {/* ── 상단 라벨 줄 — 자간을 넓게 벌린 작은 글씨 ── */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          padding: og ? `34px ${PAD}px 0 ${PAD}px` : `62px ${PAD}px 0 ${PAD}px`,
+          padding: og ? `${FRAME + 26}px ${PAD}px 0 ${PAD}px` : `${FRAME + 48}px ${PAD}px 0 ${PAD}px`,
           position: "relative",
         }}
       >
-        {/* O 마크 — 무드가 바뀌어도 항상 같은 자리, 같은 색 */}
         <div
           style={{
             display: "flex",
-            width: 44,
-            height: 44,
-            borderRadius: 12,
+            width: 34,
+            height: 34,
+            borderRadius: 10,
             background: cover ? "#FFFFFF" : BRAND_PURPLE,
             color: cover ? p.accent : BRAND_YELLOW,
-            fontSize: 29,
+            fontSize: 22,
             fontWeight: 900,
             alignItems: "center",
             justifyContent: "center",
-            marginRight: 13,
+            marginRight: 14,
           }}
         >
           O
         </div>
-        <div style={{ fontSize: 29, fontWeight: 900, color: ink, letterSpacing: -1 }}>ODDSBAG</div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 23,
+            fontWeight: 800,
+            color: faint,
+            letterSpacing: 3.4,
+          }}
+        >
+          {`ODDSBAG${category ? "  ·  " + category : ""}`}
+        </div>
         <div style={{ flex: 1 }} />
         {og ? null : (
-          <div
-            style={{
-              display: "flex",
-              fontSize: 25,
-              fontWeight: 800,
-              color: cover ? "rgba(255,255,255,.8)" : p.sub,
-              letterSpacing: 0.5,
-            }}
-          >
+          <div style={{ display: "flex", fontSize: 23, fontWeight: 800, color: faint, letterSpacing: 3.4 }}>
             {`${String(idx + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`}
           </div>
         )}
@@ -336,189 +351,179 @@ function render(
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          justifyContent: big ? "flex-end" : "center",
-          // 아래 여백이 크면 글이 위로 붕 뜬다 → 하단 바 자리만 남기고 줄인다
-          padding: og ? `0 ${PAD}px 44px ${PAD}px` : `0 ${PAD}px 108px ${PAD}px`,
+          // 표지는 가운데로 모아 쌓는다 (아래로만 붙이면 위쪽이 크게 빈다)
+          justifyContent: cover ? "center" : "flex-start",
+          padding: og ? `24px ${PAD}px 40px ${PAD}px` : `56px ${PAD}px ${FRAME + 96}px ${PAD}px`,
           position: "relative",
         }}
       >
-        {/* 표지: 사진이 없으면 큰 이모지. 위를 비우고 아래로 몰아 쌓는 구성(요즘 카드뉴스 문법) */}
-        {big && !photoBg && emoji ? (
-          <div
-            style={{
-              display: "flex",
-              fontSize: og ? 150 : 250,
-              marginBottom: 26,
-              lineHeight: 1,
-            }}
-          >
+        {/* 표지: 사진이 없으면 큰 이모지 */}
+        {cover && !photoBg && emoji ? (
+          <div style={{ display: "flex", fontSize: og ? 140 : 300, marginBottom: 40, lineHeight: 1 }}>
             {emoji}
           </div>
         ) : null}
 
-        {/* 번호 — 큰 사각 칩. 본문 장의 첫인상을 만든다 */}
-        {stepNo && !og ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 98,
-              height: 98,
-              borderRadius: 26,
-              background: p.accent,
-              color: p.onAccent,
-              fontSize: 52,
-              fontWeight: 900,
-              letterSpacing: -2,
-              marginBottom: 34,
-            }}
-          >
-            {stepNo}
-          </div>
-        ) : null}
-
-        {/* 라벨 — 번호가 없는 장에만 (무슨 일이냐면 · 한 줄 정리 · CTA) */}
-        {card.label && !stepNo ? (
-          <div
-            style={{
-              display: "flex",
-              alignSelf: "flex-start",
-              background: cover ? "rgba(255,255,255,.18)" : p.accent,
-              color: cover ? "#FFFFFF" : p.onAccent,
-              fontSize: 27,
-              fontWeight: 900,
-              padding: "11px 26px",
-              borderRadius: 999,
-              letterSpacing: 0.5,
-              marginBottom: 28,
-            }}
-          >
-            {card.label}
-          </div>
-        ) : null}
-
-        {/* 제목 — 줄바꿈은 직접 나눠 그린다 (satori 의 pre-wrap 이 공백으로 뭉갠다) */}
+        {/* 제목 — 줄을 직접 나누고, 핵심 한 덩어리만 포인트색으로 물들인다 */}
         <div style={{ display: "flex", flexDirection: "column" }}>
-          {card.title.split("\n").map((line, li) => (
-            <div
-              key={li}
-              style={{
-                display: "flex",
-                fontSize: titleSize,
-                fontWeight: 900,
-                color: ink,
-                lineHeight: 1.2,
-                letterSpacing: -3,
-                wordBreak: "keep-all", // ★ 한글이 단어 중간에서 잘리지 않게
-              }}
-            >
-              {line}
-            </div>
-          ))}
+          {titleLines.map((raw, li) => {
+            const isHit = hl && hl.line === li;
+            const at = isHit ? raw.indexOf(hl.hit) : -1;
+            const pre = at > 0 ? raw.slice(0, at) : at === 0 ? "" : raw;
+            const hit = at >= 0 ? hl!.hit : "";
+            const post = at >= 0 ? raw.slice(at + hl!.hit.length) : "";
+            return (
+              <div
+                key={li}
+                style={{
+                  display: "flex",
+                  fontSize: fitSize,
+                  fontWeight: 900,
+                  lineHeight: 1.24,
+                  letterSpacing: -2.6,
+                  color: ink,
+                }}
+              >
+                {pre ? (
+                  <span style={{ color: ink, marginRight: pre.endsWith(" ") ? fitSize * 0.26 : 0 }}>
+                    {pre.trimEnd()}
+                  </span>
+                ) : null}
+                {hit ? <span style={{ color: hitColor }}>{hit}</span> : null}
+                {post ? (
+                  <span style={{ color: ink, marginLeft: post.startsWith(" ") ? fitSize * 0.26 : 0 }}>
+                    {post.trimStart()}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
 
-        {/* 형광펜 — 제목 아래 짧게 그어 시선을 잡는다 (한국 카드뉴스 대표 문법) */}
+        {/* 제목 아래 얇은 구분선 */}
         {!cover ? (
+          <div style={{ display: "flex", width: "100%", height: 2, background: line, marginTop: 34, marginBottom: 34 }} />
+        ) : null}
+
+        {/* 본문 — 흰 카드에 담고 오른쪽에 큰 번호를 세운다 */}
+        {sentences.length ? (
           <div
             style={{
               display: "flex",
-              width: 132,
-              height: 18,
-              borderRadius: 3,
-              background: p.hi,
-              marginTop: 22,
-              marginBottom: card.body ? 30 : 0,
+              alignItems: "flex-start",
+              background: cover ? "rgba(255,255,255,.14)" : p.card,
+              border: `2px solid ${cover ? "rgba(255,255,255,.22)" : p.line}`,
+              borderRadius: 26,
+              padding: "40px 40px 42px 40px",
             }}
-          />
-        ) : null}
-
-        {card.body ? (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {card.body
-              .split(/(?<=[.!?])\s+/)
-              .filter(Boolean)
-              .map((sen, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    fontSize: 40,
-                    fontWeight: 500,
-                    color: sub,
-                    lineHeight: 1.6,
-                    marginBottom: 18,
-                    wordBreak: "keep-all",
-                  }}
-                >
-                  {sen}
+          >
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+              {sentences.map((sen, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", marginBottom: i === sentences.length - 1 ? 0 : 24 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      width: 13,
+                      height: 13,
+                      borderRadius: 13,
+                      background: cover ? "#FFFFFF" : p.accent,
+                      marginTop: 17,
+                      marginRight: 20,
+                    }}
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      flex: 1,
+                      fontSize: 37,
+                      fontWeight: 500,
+                      color: sub,
+                      lineHeight: 1.56,
+                      wordBreak: "keep-all",
+                    }}
+                  >
+                    {sen}
+                  </div>
                 </div>
               ))}
+            </div>
+            {/* 큰 번호 — 오른쪽에 세워 카드에 리듬을 준다 */}
+            {stepNo ? (
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 108,
+                  fontWeight: 900,
+                  color: p.ghost,
+                  letterSpacing: -4,
+                  marginLeft: 26,
+                  lineHeight: 1,
+                }}
+              >
+                {stepNo}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
         {/* 표지 하단 안내 */}
-        {big && !og ? (
+        {cover && !og ? (
           <div
             style={{
               display: "flex",
               alignItems: "center",
               alignSelf: "flex-start",
-              marginTop: 44,
-              fontSize: 29,
-              fontWeight: 900,
-              color: p.accent,
-              background: "#FFFFFF",
+              marginTop: 40,
+              padding: "16px 32px",
               borderRadius: 999,
-              padding: "16px 34px",
+              background: "#FFFFFF",
+              color: p.accent,
+              fontSize: 28,
+              fontWeight: 900,
             }}
           >
-            {`${total}장 전부 보기 →`}
+            {`${total}장 전부 보기  →`}
           </div>
         ) : null}
       </div>
 
-      {/* ── 하단 ── */}
+      {/* ── 하단: 페이지 표시 + 점 인디케이터 ── */}
       {og ? null : (
         <div
           style={{
             display: "flex",
-            position: "absolute",
-            bottom: 54,
-            left: PAD,
-            width: W - PAD * 2,
+            flexDirection: "column",
             alignItems: "center",
+            position: "absolute",
+            bottom: FRAME + 34,
+            left: 0,
+            width: W,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              fontSize: 27,
-              fontWeight: 800,
-              color: cover ? "rgba(255,255,255,.82)" : p.sub,
-              letterSpacing: 0.3,
-            }}
-          >
-            {card.kind === "cta" ? "" : "@oddsbag_official"}
+          <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: faint, letterSpacing: 3, marginBottom: 16 }}>
+            {last ? "@oddsbag_official  ·  팔로우하고 미리 받기" : `${String(idx + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`}
           </div>
-          <div style={{ flex: 1 }} />
-          <div
-            style={{
-              display: "flex",
-              fontSize: 27,
-              fontWeight: 900,
-              color: cover ? "#FFFFFF" : p.accent,
-            }}
-          >
-            {last ? "팔로우하고 미리 받기" : "저장해두기"}
+          <div style={{ display: "flex" }}>
+            {Array.from({ length: total }).map((_, s) => (
+              <div
+                key={s}
+                style={{
+                  display: "flex",
+                  width: s === idx ? 26 : 10,
+                  height: 10,
+                  borderRadius: 10,
+                  marginRight: s === total - 1 ? 0 : 9,
+                  background: s === idx ? (cover ? "#FFFFFF" : p.accent) : line,
+                }}
+              />
+            ))}
           </div>
         </div>
       )}
-
     </div>
   );
 
-  // OG(링크 공유용)는 원래 크기 그대로, 인스타 카드만 1440×1800 으로 확대해 내보낸다
+  // OG(링크 공유용)는 원래 크기, 인스타 카드는 1440×1800 으로 확대해 내보낸다
   if (og) return cardEl;
   return (
     <div
@@ -527,10 +532,43 @@ function render(
         height: OUT_H,
         display: "flex",
         overflow: "hidden",
-        background: cover ? p.accent : p.bg,
+        background: ground,
+        position: "relative",
       }}
     >
-      <div style={{ display: "flex", transform: `scale(${OUT_W / W})`, transformOrigin: "left top" }}>
+      {/* 종이 질감 — 확대 바깥에서 출력 크기 그대로 깔아야 카드 전체를 덮는다 */}
+      {!photoBg && origin ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`${origin}${paperFor(slug)}`}
+            width={OUT_W}
+            height={OUT_H}
+            style={{ position: "absolute", top: 0, left: 0, width: OUT_W, height: OUT_H }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: OUT_W,
+              height: OUT_H,
+              background: ground,
+              opacity: cover ? WASH_COVER : WASH_LIGHT,
+            }}
+          />
+        </>
+      ) : null}
+      <div
+        style={{
+          display: "flex",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          transform: `scale(${OUT_W / W})`,
+          transformOrigin: "left top",
+        }}
+      >
         {cardEl}
       </div>
     </div>
@@ -557,7 +595,7 @@ export async function GET(
     (card.body ?? "") +
     (card.label ?? "") +
     (post.category ?? "") +
-    "ODDSBAG@oddsbag_official장 전부 보기저장해두기팔로우하고미리받는0123456789/→·";
+    "ODDSBAG@oddsbag_official장 전부 보기팔로우하고미리받기0123456789/→·";
   const [bold, normal] = await Promise.all([loadFont(text, 900), loadFont(text, 500)]);
 
   const fonts = [
@@ -575,8 +613,8 @@ export async function GET(
       og,
       post.emoji ?? "",
       post.category ?? "",
-      req.nextUrl.searchParams.get("tex") ?? "paper", // 질감 미리보기용 (기본 종이 결)
       post.slug, // 글마다 다른 종이 결이 걸리도록
+      req.nextUrl.origin, // 종이 질감 이미지를 satori 가 받아올 절대 주소
     ),
     {
       width: og ? OG_W : OUT_W,
