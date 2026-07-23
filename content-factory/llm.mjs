@@ -87,8 +87,6 @@ async function askGemini(system, user, opt, key) {
         generationConfig: {
           maxOutputTokens: opt.maxTokens ?? 2200,
           temperature: opt.careful ? 0.2 : 0.7,
-          // 심사가 아니면 추론 과정을 끄고 바로 답하게 한다 (빠르고 싸다)
-          thinkingConfig: { thinkingBudget: opt.careful ? 1024 : 0 },
         },
         safetySettings: [
           // 뉴스 매거진이라 시사·사건 내용이 정상적으로 다뤄져야 한다
