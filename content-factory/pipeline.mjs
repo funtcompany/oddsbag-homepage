@@ -146,15 +146,15 @@ export async function runCollection(opts) {
   // 분야 쏠림 방지: 최근 분포를 반영해 적게 나간 분야부터 번갈아 뽑도록 재배치
   const ordered = balanceByCategory(fresh, await recentCategoryCounts());
 
-  // 새 뉴스가 부족하면 에버그린/시즌 주제로 채운다.
-  // (실시간 이슈가 없는 시간대에도 콘텐츠가 끊기지 않게 하는 안전망)
-  const need = Math.min(limit, room) - ordered.length;
-  if (need > 0) {
-    const ever = pickEvergreenIssues(seen, need);
-    if (ever.length) {
-      ordered.push(...ever);
-      console.log(`에버그린 주제 ${ever.length}건 투입 (새 뉴스 부족)`);
-    }
+  // 에버그린/시즌 주제는 '뉴스가 없을 때만'이 아니라 매 회차 최소 1편씩 섞는다.
+  // 뉴스는 하루 지나면 죽지만 꿀팁·생활정보는 검색 유입이 계속 쌓이는 자산이라
+  // 꾸준히 내보내는 게 중요하다. (뉴스가 부족하면 그만큼 더 채운다)
+  const cap = Math.min(limit, room);
+  const everWant = Math.max(1, cap - ordered.length);
+  const ever = pickEvergreenIssues(seen, everWant);
+  if (ever.length) {
+    ordered.splice(1, 0, ...ever); // 앞쪽에 끼워 이번 회차에 확실히 처리되게
+    console.log(`에버그린 주제 ${ever.length}건 투입`);
   }
 
   for (const issue of ordered) {
