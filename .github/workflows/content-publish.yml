@@ -22,6 +22,7 @@ jobs:
       - name: 발행 실행
         working-directory: content-factory
         env:
+          SOCIAL_DAILY_CAP: "20" # 인스타·페북 하루 게시 상한
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
