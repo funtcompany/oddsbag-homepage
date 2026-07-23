@@ -15,7 +15,7 @@ const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b"; // 한국어 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b"; // (무료 크레딧 활성 시) 텍스트 전용
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct"; // NVIDIA NIM 무료·텍스트 전용
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free"; // 무료 모델 자동 라우팅
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free"; // 무료 지시형 모델
 const CLAUDE_MODEL = "claude-sonnet-5";
 
 export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || OPENROUTER_KEY || CLAUDE_KEY);
