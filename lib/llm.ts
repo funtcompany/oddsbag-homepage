@@ -167,7 +167,7 @@ async function askOpenRouter(system: string, user: string, opt: AskOptions): Pro
       max_tokens: opt.maxTokens ?? 2200,
       temperature: opt.careful ? 0.2 : 0.7,
     }),
-    signal: AbortSignal.timeout(90000),
+    signal: AbortSignal.timeout(180000), // 느리지만 무제한이라 넉넉히 기다린다
     cache: "no-store",
   });
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
@@ -192,7 +192,7 @@ async function askNvidia(system: string, user: string, opt: AskOptions): Promise
       max_tokens: opt.maxTokens ?? 2200,
       temperature: opt.careful ? 0.2 : 0.7,
     }),
-    signal: AbortSignal.timeout(90000),
+    signal: AbortSignal.timeout(180000), // 느리지만 무제한이라 넉넉히 기다린다
     cache: "no-store",
   });
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
