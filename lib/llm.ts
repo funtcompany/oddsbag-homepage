@@ -205,18 +205,20 @@ async function askNvidia(system: string, user: string, opt: AskOptions): Promise
 // ---- 공용 진입점 ----
 export async function ask(system: string, user: string, opt: AskOptions = {}): Promise<string> {
   const hasImages = (opt.images?.length ?? 0) > 0;
-  // Gemini (키 여러 개면 소진 시 다음 키로 자동 로테이션)
-  for (const gkey of GEMINI_KEYS) {
-    try {
-      return await askGemini(system, user, opt, gkey);
-    } catch (e) {
-      const msg = (e as Error).message;
-      if (/quota|RESOURCE_EXHAUSTED|429|rate limit|too many/i.test(msg)) {
-        console.warn("Gemini 키 소진 → 다음 키로:", msg.slice(0, 50));
-        continue;
+  // Gemini (키 로테이션. 429는 '순간 몰림'인 경우가 많아 한 바퀴 막히면 쉬었다 재시도)
+  let geminiDead = false;
+  for (let round = 0; round < 2 && !geminiDead; round++) {
+    if (round > 0) await new Promise((r) => setTimeout(r, 20000));
+    for (const gkey of GEMINI_KEYS) {
+      try {
+        return await askGemini(system, user, opt, gkey);
+      } catch (e) {
+        const msg = (e as Error).message;
+        if (/quota|RESOURCE_EXHAUSTED|429|rate limit|too many/i.test(msg)) continue;
+        console.warn("Gemini 실패 → 대체 엔진:", msg);
+        geminiDead = true;
+        break;
       }
-      console.warn("Gemini 실패 → 대체 엔진:", msg);
-      break;
     }
   }
   // Cerebras (텍스트 전용, 무료 대용량 — Gemini 한도 소진 시 받아준다)

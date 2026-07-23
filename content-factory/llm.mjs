@@ -244,17 +244,27 @@ export async function ask(system, user, opt = {}) {
       }
     }
   }
-  // 2) Gemini (키 여러 개면 소진 시 다음 키로 자동 로테이션. 비전 포함, 또는 Groq 실패 시)
-  for (const gkey of GEMINI_KEYS) {
-    const wait = MIN_GAP_MS - (Date.now() - _lastCall);
-    if (wait > 0) await _sleep(wait);
-    _lastCall = Date.now();
-    try {
-      return await askGemini(system, user, opt, gkey);
-    } catch (e) {
-      if (_isQuota(e.message)) { console.warn("Gemini 키 소진 → 다음 키로:", e.message.slice(0, 50)); continue; }
-      console.warn("Gemini 실패 → 다음 엔진:", e.message);
-      break;
+  // 2) Gemini (키 여러 개면 다음 키로 로테이션. 비전 포함, 또는 Groq 실패 시)
+  //    429는 '하루 한도'가 아니라 '순간 몰림(분당 제한)'인 경우가 많다.
+  //    그래서 키를 한 바퀴 다 돌아 막히면 버리지 말고, 잠깐 쉬었다가 한 번 더 돈다.
+  let geminiDead = false;
+  for (let round = 0; round < 2 && !geminiDead; round++) {
+    if (round > 0) {
+      console.warn("Gemini 키 한 바퀴 모두 막힘 — 20초 쉬고 재시도");
+      await _sleep(20000);
+    }
+    for (const gkey of GEMINI_KEYS) {
+      const wait = MIN_GAP_MS - (Date.now() - _lastCall);
+      if (wait > 0) await _sleep(wait);
+      _lastCall = Date.now();
+      try {
+        return await askGemini(system, user, opt, gkey);
+      } catch (e) {
+        if (_isQuota(e.message)) continue; // 이 키는 지금 막힘 → 다음 키
+        console.warn("Gemini 실패 → 다음 엔진:", e.message);
+        geminiDead = true; // 한도가 아닌 진짜 오류면 다음 엔진으로
+        break;
+      }
     }
   }
   // 3) Cerebras (텍스트 전용, 무료 대용량 — Groq·Gemini 한도 소진 시 받아준다)
