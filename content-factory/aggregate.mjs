@@ -12,8 +12,12 @@ import { categories } from "./categories.mjs";
 async function collectNaver() {
   const out = [];
   for (const cat of categories) {
+    // 꿀팁은 실시간 뉴스가 아니라 에버그린 주제로 따로 만든다 (네이버 검색 대상 아님)
+    if (cat.slug === "tips") continue;
     try {
-      const news = await searchNews(cat.label, 2);
+      // 분야당 3건 — 원문을 못 읽어 버려지는 비율이 높아, 여유 있게 뽑아야
+      // 스포츠·문화 같은 분야가 매 회차 0건으로 말라붙지 않는다
+      const news = await searchNews(cat.label, 3);
       for (const n of news) {
         out.push({
           source: "naver",

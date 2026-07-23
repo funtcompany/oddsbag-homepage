@@ -58,6 +58,27 @@ async function nextSlot() {
 }
 
 // ---- 분야(카테고리) 균형 ----
+// 목표 비중. 최근 발행분에서 이 비중을 넘긴 분야는 이번 회차에 새로 쓰지 않는다.
+// (꿀팁은 근거가 항상 확보돼 성공률이 높아 그냥 두면 혼자 다 차지한다 —
+//  실제로 최근 25건 중 18건(72%)이 꿀팁이었다. 그래서 상한을 둔다.)
+const TARGET_SHARE = {
+  "꿀팁": 0.3,
+  "사회": 0.2,
+  "경제": 0.2,
+  "IT·테크": 0.2,
+  "문화·연예": 0.2,
+  "스포츠": 0.2,
+  "트렌드": 0.2,
+};
+const SHARE_WINDOW = 20; // 최근 20건 기준으로 판단
+
+// 최근 분포에서 이미 목표 비중을 넘긴 분야인가
+function isOverShare(category, counts, total) {
+  if (total < 8) return false; // 표본이 적으면 제한하지 않는다
+  const share = (counts[category] ?? 0) / total;
+  return share >= (TARGET_SHARE[category] ?? 0.2);
+}
+
 // 매 회차 앞쪽에 몰린 사회·경제만 뽑히는 쏠림을 막는다.
 // 최근에 적게 나간 분야를 먼저, 6개 분야를 번갈아(라운드로빈) 뽑아
 // 시간이 지날수록 분야 비중이 비슷하게 유지되도록 이슈 순서를 재배치한다.
@@ -92,8 +113,9 @@ function balanceByCategory(issues, recent) {
 }
 
 // 최근 발행 + 예약 대기 글의 분야별 개수 (균형 기준)
-async function recentCategoryCounts(window = 40) {
+async function recentCategoryCounts(window = SHARE_WINDOW) {
   const counts = {};
+  let total = 0;
   try {
     const published = await getPublishedRaw();
     const recent = [...published]
@@ -104,11 +126,12 @@ async function recentCategoryCounts(window = 40) {
     const queued = await getQueued();
     for (const p of [...recent, ...queued]) {
       counts[p.category] = (counts[p.category] ?? 0) + 1;
+      total++;
     }
   } catch {
     /* 분포를 못 읽으면 균형 없이 수집된 순서대로 진행 */
   }
-  return counts;
+  return { counts, total };
 }
 
 export async function runCollection(opts) {
@@ -144,21 +167,54 @@ export async function runCollection(opts) {
   let made = 0;
 
   // 분야 쏠림 방지: 최근 분포를 반영해 적게 나간 분야부터 번갈아 뽑도록 재배치
-  const ordered = balanceByCategory(fresh, await recentCategoryCounts());
+  const { counts: recentCounts, total: recentTotal } = await recentCategoryCounts();
+  const ordered = balanceByCategory(fresh, recentCounts);
+  console.log(
+    `최근 ${recentTotal}건 분야 분포: ` +
+      Object.entries(recentCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([c, n]) => `${c} ${n}`)
+        .join(" / "),
+  );
 
-  // 에버그린/시즌 주제는 '뉴스가 없을 때만'이 아니라 매 회차 최소 1편씩 섞는다.
-  // 뉴스는 하루 지나면 죽지만 꿀팁·생활정보는 검색 유입이 계속 쌓이는 자산이라
-  // 꾸준히 내보내는 게 중요하다. (뉴스가 부족하면 그만큼 더 채운다)
+  // 에버그린/시즌 주제(꿀팁)는 검색 유입이 쌓이는 자산이라 꾸준히 내보낸다.
+  // 다만 근거(facts)가 항상 확보돼 성공률이 높은 탓에 그냥 두면 혼자 다 차지한다.
+  // → 최근 비중이 목표치를 넘었으면 이번 회차엔 넣지 않는다.
   const cap = Math.min(limit, room);
-  const everWant = Math.max(1, cap - ordered.length);
-  const ever = pickEvergreenIssues(seen, everWant);
+  const tipsOver = isOverShare("꿀팁", recentCounts, recentTotal);
+  const everWant = tipsOver ? 0 : Math.max(1, cap - ordered.length);
+  const ever = everWant > 0 ? pickEvergreenIssues(seen, everWant) : [];
   if (ever.length) {
     ordered.splice(1, 0, ...ever); // 앞쪽에 끼워 이번 회차에 확실히 처리되게
     console.log(`에버그린 주제 ${ever.length}건 투입`);
+  } else if (tipsOver) {
+    console.log("꿀팁 비중이 목표(30%)를 넘어 이번 회차는 뉴스 위주로 진행");
+  }
+
+  // 이번 회차에 쓴 분야를 세어, 한 회차가 한 분야로 채워지는 것도 막는다
+  const madeByCategory = {};
+  const liveCounts = () => {
+    const m = { ...recentCounts };
+    for (const [c, n] of Object.entries(madeByCategory)) m[c] = (m[c] ?? 0) + n;
+    return m;
+  };
+
+  // 안전장치: 모든 분야가 이미 목표치 이상이면 균형 제한을 끈다.
+  // (안 그러면 전부 건너뛰어 이번 회차에 한 건도 못 쓰는 상황이 생긴다)
+  const balanceOn = ordered.some(
+    (it) => !isOverShare(it.category, recentCounts, recentTotal),
+  );
+  if (!balanceOn && ordered.length) {
+    console.log("모든 분야가 목표 비중 이상 — 이번 회차는 균형 제한 없이 진행");
   }
 
   for (const issue of ordered) {
     if (made >= Math.min(limit, room) || Date.now() > deadline) break;
+    // 이미 목표 비중을 넘긴 분야는 건너뛴다 (seen 처리하지 않아 다음 회차에 다시 기회를 준다)
+    if (balanceOn && isOverShare(issue.category, liveCounts(), recentTotal + made)) {
+      console.log(`  · ${issue.category} 비중 초과 — 건너뜀: ${issue.title.slice(0, 24)}`);
+      continue;
+    }
     try {
       // 0) 근거 확보.
       //    · 뉴스 이슈  → 원문 기사를 실제로 읽는다. 못 읽으면 상상해서 쓰게 되므로 건너뛴다.
@@ -219,6 +275,9 @@ export async function runCollection(opts) {
       );
       await sadd(K_SEEN, issueKey(issue.title));
       made++;
+      // 최종 분야는 AI가 내용 기준으로 다시 정한다(수집 때 붙인 분야와 다를 수 있다).
+      // 균형 계산은 '실제로 나가는 분야' 기준이어야 하므로 draft.category 로 센다.
+      madeByCategory[draft.category] = (madeByCategory[draft.category] ?? 0) + 1;
 
       // 가짜뉴스 위험 high 는 검수함에도 쌓지 않고 즉시 폐기한다.
       // (원문 대비 창작이 심한 환각 글 — 사람이 봐도 살릴 수 없어 적체만 됨. 발행은 절대 안 하고 버린다.)
