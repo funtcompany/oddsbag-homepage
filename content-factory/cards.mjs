@@ -1,14 +1,19 @@
-// 인스타그램 캐러셀 카드 구성 (5~10장)
+// 인스타그램 캐러셀 카드 구성 (최대 10장)
 //
-// 사진이 없어도 밀리지 않게 — 타이포그래피와 레이아웃 자체를 강점으로.
-// 본문의 '## 소제목' 구조를 그대로 카드로 쪼갠다.
+// 【원칙】 정보는 이 게시물 안에서 끝난다.
+//   홈페이지로 넘어가야 알 수 있는 '티저'로 만들지 않는다. (링크 전환율은 낮다)
+//   제목이 "숨은 기능 7가지"면 7가지가 카드 안에 전부 들어있어야 한다.
+//   그래서 요점(POINT) 카드를 최우선으로 채우고, 마지막은 저장·팔로우 유도로 닫는다.
 //
 //  1장  HOOK   — 스크롤 멈추게 하는 한 줄 (썸네일)
 //  2장  INTRO  — 무슨 일인지 한 문단
-//  3~n  POINT  — 소제목 + 핵심 문장
-//  끝장 CTA    — 전체 글 보기
+//  3~n  POINT  — 소제목 + 핵심 문장 (자리 되는 만큼 전부)
+//  끝장 CTA    — 저장 + 팔로우 (홈페이지 유입에 기대지 않는다)
+//
+// ※ 인스타 API 캐러셀 상한이 10장이라 10장에 맞춰 구성한다.
 
-const MAX_BODY = 150;
+const MAX_BODY = 180; // 정보를 담아야 하므로 조금 넉넉히 (가독성 한계 안에서)
+const MAX_CARDS = 10; // 인스타 그래프 API 캐러셀 상한
 
 // 큰 정밀 숫자를 읽기 좋게 반올림: "1463만2347점" → "약 1,463만 점" (눈으로도, TTS로도 편하게)
 export function humanizeNum(s) {
@@ -67,7 +72,10 @@ export function buildCards(post) {
   const closing = sections.find((s) => s.heading.includes("한 줄 정리"));
   const points = sections.filter((s) => !s.heading.includes("한 줄 정리"));
 
-  points.slice(0, 6).forEach((s, i) => {
+  // 정보가 잘리면 안 되므로 요점 카드를 최우선으로 채운다.
+  // (마지막 CTA 1장은 항상 확보 — 그 나머지를 전부 요점에 쓴다)
+  const roomForPoints = MAX_CARDS - cards.length - 1;
+  points.slice(0, roomForPoints).forEach((s, i) => {
     cards.push({
       kind: "point",
       label: String(i + 1).padStart(2, "0"),
@@ -76,28 +84,35 @@ export function buildCards(post) {
     });
   });
 
-  // 4) 오즈백 한 줄 정리 → 인용 카드
-  if (closing?.text) {
+  // 4) 오즈백 한 줄 정리 — 요점을 다 넣고도 자리가 남을 때만
+  if (closing?.text && cards.length < MAX_CARDS - 1) {
     cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 120) });
   }
 
-  // 5) CTA
+  // 5) 마무리 — 저장 + 팔로우(미리 알림). 홈페이지 유입에 기대지 않는다.
   cards.push({
     kind: "cta",
     label: "@oddsbag_official",
-    title: "전체 글은\n오즈백 매거진에서",
-    body: "프로필 링크 → oddsbag.co.kr",
+    title: "저장해두면\n필요할 때 바로 꺼내 봅니다",
+    body: "팔로우하면 다음 정보·일정을 미리 알려드려요",
   });
 
-  // 인스타 캐러셀 최대 10장
-  return cards.slice(0, 10);
+  return cards.slice(0, MAX_CARDS);
 }
 
 // 인스타 캡션 — 본문은 깔끔하게 (해시태그는 첫 댓글+대댓글로 분리)
-//  캡션에 태그를 몰아넣으면 지저분해 보인다. 그래서 캡션은 훅+요약+링크 안내만,
+//  캡션에 태그를 몰아넣으면 지저분해 보인다. 그래서 캡션은 훅+요약+행동유도만,
 //  해시태그 30개는 buildHashtags 로 뽑아 대댓글에 붙인다 (social.ts).
+//  【원칙】 링크로 넘기지 않는다 — 정보는 게시물 안에서 끝나고, CTA는 저장·팔로우다.
 export function buildCaption(post) {
-  return [post.hook || post.title, "", post.summary, "", "전체 글 → 프로필 링크 (oddsbag.co.kr)"]
+  return [
+    post.hook || post.title,
+    "",
+    post.summary,
+    "",
+    "📌 저장해두면 필요할 때 바로 꺼내 볼 수 있어요",
+    "🔔 팔로우하면 다음 정보·일정을 미리 알려드려요 → @oddsbag_official",
+  ]
     .filter((l) => l !== undefined)
     .join("\n")
     .slice(0, 2100);

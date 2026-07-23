@@ -108,7 +108,8 @@ async function buildReel(post) {
     acc += cards[i].dur;
   }
   // 숏폼 상한(기본 40초): 초과하면 뒤쪽 포인트/정리 카드부터 덜어낸다(훅·무슨일이냐·CTA는 유지)
-  const MAX_SEC = Number(process.env.MAX_REEL_SEC || 40);
+  // 정보가 영상 안에서 끝나야 하므로 길이를 넉넉히 (릴스·쇼츠 모두 60초 이내 안전)
+  const MAX_SEC = Number(process.env.MAX_REEL_SEC || 58);
   while (acc > MAX_SEC && cards.length > 3) {
     let idx = -1;
     for (let i = cards.length - 2; i >= 2; i--) { if (["point", "quote"].includes(cards[i].kind)) { idx = i; break; } }
@@ -179,9 +180,10 @@ async function buildReel(post) {
   // 게시 (자격증명 있을 때만) — 유입 최적화: 훅 첫줄 + 명확한 CTA + 태그(10~30개)
   const lead = (post.hook || post.title).trim();
   const igTags = hashtags(post, 30); // 인스타는 첫 댓글에 30개
-  const igCaption = `${lead}\n\n👉 전체 내용은 프로필 링크에서 (oddsbag.co.kr)\n📌 오즈백 팔로우하고 매일 이슈 받아보기`;
-  const ytDesc = `${lead}\n\n👉 oddsbag.co.kr 에서 전체 글 보기\n📌 @oddsbag_official 구독\n\n${hashtags(post, 15)}`;
-  const fbCaption = `${lead}\n\n👉 전체 글 보기 → oddsbag.co.kr\n📌 오즈백 페이지 팔로우\n\n${hashtags(post, 15)}`;
+  // 【원칙】 링크로 넘기지 않는다 — 내용은 영상 안에서 끝내고, CTA는 저장·구독(미리 알림)이다.
+  const igCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 팔로우하면 다음 정보·일정을 미리 알려드려요 → @oddsbag_official`;
+  const ytDesc = `${lead}\n\n🔔 구독하면 다음 정보·일정을 미리 알려드려요\n\n${hashtags(post, 15)}`;
+  const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 미리 알림 받기\n\n${hashtags(post, 15)}`;
   try {
     const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
     if (thumb && vid) { try { await setThumbnail(vid, thumb); } catch (e) { console.log("  · 유튜브 썸네일 건너뜀:", e.message); } }
