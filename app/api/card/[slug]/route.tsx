@@ -242,6 +242,7 @@ function render(
             lineHeight: 1.22,
             letterSpacing: -2.5,
             whiteSpace: "pre-wrap",
+            wordBreak: "keep-all", // ★ 한글이 단어 중간에서 잘리지 않게 (가독성 최우선)
           }}
         >
           {card.title}
@@ -259,6 +260,7 @@ function render(
                   color: photoBg ? "rgba(255,255,255,.85)" : p.sub,
                   lineHeight: 1.55,
                   marginBottom: 16,
+                  wordBreak: "keep-all", // ★ 한글 단어 중간 잘림 방지
                 }}
               >
                 {sen}

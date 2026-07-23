@@ -31,36 +31,39 @@ interface Ground {
   t: string;
   light: boolean;
 }
+// 【브랜드 규칙】 오즈백은 '딥퍼플 바탕 + 네온옐로 포인트'다.
+// 예전엔 무드마다 핑크·오렌지·틸 배경을 섞어 써서 브랜드가 흐려졌다.
+// → 배경은 전부 퍼플/잉크 계열로 통일하고, 변화는 명도·그라디언트로만 준다.
 const MOOD_GROUNDS: Record<string, Ground[]> = {
   serious: [
-    { bg: "#1f2430", t: "#fff", light: true },
-    { bg: "#242a3d", t: "#fff", light: true },
-    { bg: "#2b2733", t: "#fff", light: true },
+    { bg: "#241a3a", t: "#fff", light: true },
+    { bg: "#1e1730", t: "#fff", light: true },
+    { bg: "#2b2340", t: "#fff", light: true },
   ],
   trust: [
-    { bg: "#0f3d5c", t: "#fff", light: true },
-    { bg: "#123f3a", t: "#fff", light: true },
-    { bg: "#17325c", t: "#fff", light: true },
+    { bg: "#2a1b4d", t: "#fff", light: true },
+    { bg: "#33215e", t: "#fff", light: true },
+    { bg: "#241a3a", t: "#fff", light: true },
   ],
   energetic: [
-    { bg: "linear-gradient(140deg,#ff5e6c,#c2185b)", t: "#fff", light: true },
-    { bg: "#1a1340", t: "#fff", light: true },
-    { bg: "linear-gradient(150deg,#ff8a3d,#e0473c)", t: "#fff", light: true },
+    { bg: "linear-gradient(140deg,#5b2d8e,#8a4bd6)", t: "#fff", light: true },
+    { bg: "#3b1b60", t: "#fff", light: true },
+    { bg: "linear-gradient(150deg,#4a2585,#2b1350)", t: "#fff", light: true },
   ],
   soft: [
-    { bg: "#efe6ff", t: "#3a1e6e", light: false },
-    { bg: "#ffe9dd", t: "#7a3b2e", light: false },
-    { bg: "#e5f3ee", t: "#1f5c47", light: false },
+    { bg: "#f3ecff", t: "#3a1e6e", light: false },
+    { bg: "#faf7f2", t: "#3a1e6e", light: false },
+    { bg: "#ece4fb", t: "#33215e", light: false },
   ],
   trendy: [
-    { bg: "linear-gradient(140deg,#6a2cff,#b06bff)", t: "#fff", light: true },
-    { bg: "#12121c", t: "#fff", light: true },
-    { bg: "linear-gradient(150deg,#0f2b5c,#7b2df5)", t: "#fff", light: true },
+    { bg: "linear-gradient(140deg,#5b2d8e,#b06bff)", t: "#fff", light: true },
+    { bg: "#17102a", t: "#fff", light: true },
+    { bg: "linear-gradient(150deg,#3b1b60,#7b2df5)", t: "#fff", light: true },
   ],
   culture: [
     { bg: "#2a1240", t: "#fff", light: true },
-    { bg: "#3a1030", t: "#fff", light: true },
-    { bg: "#141a3a", t: "#fff", light: true },
+    { bg: "#33184f", t: "#fff", light: true },
+    { bg: "#241a3a", t: "#fff", light: true },
   ],
 };
 const MOOD_LABEL: Record<string, string> = {
@@ -78,14 +81,17 @@ const CATEGORY_MOOD: Record<string, string> = {
   "IT·테크": "trendy",
   "문화·연예": "soft",
   트렌드: "soft",
+  꿀팁: "trust", // 정보성 — 차분하고 신뢰감 있게
 };
 
-// ---- 계절/트렌드 → 포인트 컬러 ----
+// ---- 포인트 컬러 — 브랜드 고정 ----
+// 계절마다 다른 색(민트·오렌지 등)을 뽑으면 브랜드가 사라진다.
+// 오즈백 포인트는 네온옐로가 기본이고, 변화가 필요할 때만 라이트 퍼플을 쓴다.
 const SEASON_ACCENTS: Record<string, string[]> = {
-  spring: ["#ffbe98", "#8fd98a", "#c9b8ff", "#ff9ec7"],
-  summer: ["#ffd23f", "#2ec5ff", "#ff6b5c", "#a3e635"],
-  autumn: ["#e0912f", "#c05621", "#d4a017", "#b5651d"],
-  winter: ["#7cc4ff", "#c9a3ff", "#e2ebf7", "#ffe600"],
+  spring: ["#ffe600", "#ffe600", "#d9b3ff"],
+  summer: ["#ffe600", "#ffe600", "#d9b3ff"],
+  autumn: ["#ffe600", "#ffe600", "#d9b3ff"],
+  winter: ["#ffe600", "#ffe600", "#d9b3ff"],
 };
 function currentSeason(): keyof typeof SEASON_ACCENTS {
   const m = new Date().getMonth() + 1; // 런타임 월
