@@ -70,6 +70,61 @@ const PALETTES: Record<string, Pal[]> = {
 // 브랜드 고정값 — O 마크는 어떤 무드에서도 그대로
 const BRAND_PURPLE = "#5B2D8E";
 const BRAND_YELLOW = "#FFE600";
+
+// ---- 배경 질감 ----
+// 완전한 단색은 밋밋하고 값싸 보인다. 배경에 재질감을 깔아 인쇄물 같은 밀도를 만든다.
+// 외부 이미지 없이 SVG 데이터 URI로 처리한다.
+// ⚠️ 고운 노이즈는 PNG 압축이 안 먹어 파일이 10배 가까이 커진다(2.8MB) → 결이 굵은 쪽을 쓴다.
+const svgUrl = (inner: string, w: number, h = w) =>
+  `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${inner}</svg>`,
+  )}")`;
+
+// 종이 결 — feTurbulence 로 만든 구름 무늬.
+// 【용량 핵심】 노이즈를 그대로 쓰면 PNG 압축이 안 먹어 2MB까지 커진다.
+// feComponentTransfer 의 discrete 로 명암을 몇 단계로 뭉쳐주면(양자화)
+// 같은 값이 넓게 반복돼 압축이 다시 먹는다. 눈에는 종이 결 그대로 보인다.
+// · 타일을 카드 전체 크기(1080)로 잡아 반복 이음새가 안 보이게 한다
+// · 결은 곱게(주파수 높게). 굵게 하면 종이가 아니라 위장무늬처럼 보인다
+// · 명암은 3단계로만 뭉쳐 압축이 먹게 하고, 불투명도를 아주 낮춰 은은하게 깐다
+const paperTex = (freq: number, seed: number) =>
+  svgUrl(
+    `<filter id="g">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="1" seed="${seed}" stitchTiles="stitch"/>` +
+      `<feColorMatrix type="saturate" values="0"/>` +
+      `<feComponentTransfer>` +
+      `<feFuncR type="discrete" tableValues="0 .5 1"/>` +
+      `<feFuncG type="discrete" tableValues="0 .5 1"/>` +
+      `<feFuncB type="discrete" tableValues="0 .5 1"/>` +
+      `<feFuncA type="discrete" tableValues="1"/>` +
+      `</feComponentTransfer></filter>` +
+      `<rect width="1080" height="1350" filter="url(#g)"/>`,
+    1080,
+    1350,
+  );
+
+// 글마다 조금씩 다른 결을 쓴다 (seed·굵기가 달라 무늬가 겹치지 않는다)
+const PAPER_VARIANTS = [
+  { url: paperTex(0.42, 3), onLight: 0.1, onCover: 0.1 },
+  { url: paperTex(0.55, 11), onLight: 0.095, onCover: 0.095 },
+  { url: paperTex(0.34, 29), onLight: 0.105, onCover: 0.1 },
+  { url: paperTex(0.68, 47), onLight: 0.09, onCover: 0.09 },
+  { url: paperTex(0.48, 61), onLight: 0.1, onCover: 0.095 },
+];
+// 비교·미리보기용으로 남겨두는 다른 재질
+const TEX_GRID = svgUrl(`<g fill="none" stroke="#000" stroke-width="1.4"><path d="M0 0H72M0 0V72"/></g>`, 72);
+const TEX_DOT = svgUrl(`<circle cx="9" cy="9" r="2.6" fill="#000"/>`, 26);
+const TEXTURES: Record<string, { url: string; onLight: number; onCover: number }> = {
+  grid: { url: TEX_GRID, onLight: 0.075, onCover: 0.14 },
+  dot: { url: TEX_DOT, onLight: 0.07, onCover: 0.13 },
+};
+
+// 기본은 종이 결. 글(slug)마다 다른 변형이 걸린다.
+function textureFor(key: string, slug: string) {
+  if (key === "none") return null;
+  if (TEXTURES[key]) return TEXTURES[key];
+  return PAPER_VARIANTS[hash(slug + "tex") % PAPER_VARIANTS.length];
+}
 function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -117,7 +172,10 @@ function render(
   og = false,
   emoji = "",
   category = "",
+  texKey = "paper",
+  slug = "",
 ) {
+  const tex = textureFor(texKey, slug);
   const W = og ? OG_W : 1080;
   const H = og ? OG_H : 1350;
   const big = card.kind === "hook"; // 표지
@@ -156,6 +214,54 @@ function render(
         fontFamily: "Noto",
       }}
     >
+      {/* ── 배경 질감 ── 단색으로 두지 않고 종이 결 + 은은한 얼룩을 깐다 */}
+      {!photoBg ? (
+        <>
+          {/* 빛이 스민 듯한 얼룩 (인쇄 종이의 불균일함) */}
+          <div
+            style={{
+              position: "absolute",
+              top: -H * 0.15,
+              left: -W * 0.2,
+              width: W * 1.05,
+              height: W * 1.05,
+              borderRadius: W,
+              background: cover
+                ? "radial-gradient(circle, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 68%)"
+                : "radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 68%)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: -H * 0.16,
+              right: -W * 0.22,
+              width: W * 0.95,
+              height: W * 0.95,
+              borderRadius: W,
+              background: cover
+                ? "radial-gradient(circle, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0) 68%)"
+                : "radial-gradient(circle, rgba(120,105,80,0.10) 0%, rgba(120,105,80,0) 68%)",
+            }}
+          />
+          {/* 재질감 — 전면에 아주 옅게 깔아 밀도를 만든다 */}
+          {tex ? (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: W,
+                height: H,
+                backgroundImage: tex.url,
+                backgroundRepeat: "repeat",
+                opacity: cover ? tex.onCover : tex.onLight,
+              }}
+            />
+          ) : null}
+        </>
+      ) : null}
+
       {/* 표지에 사진이 있으면 사진 + 어두운 그라디언트 (글자 대비 확보) */}
       {photoBg ? (
         <>
@@ -460,7 +566,18 @@ export async function GET(
   ].filter(Boolean) as { name: string; data: ArrayBuffer; weight: 900 | 500; style: "normal" }[];
 
   return new ImageResponse(
-    render(card, pal, post.cover, i, cards.length, og, post.emoji ?? "", post.category ?? ""),
+    render(
+      card,
+      pal,
+      post.cover,
+      i,
+      cards.length,
+      og,
+      post.emoji ?? "",
+      post.category ?? "",
+      req.nextUrl.searchParams.get("tex") ?? "paper", // 질감 미리보기용 (기본 종이 결)
+      post.slug, // 글마다 다른 종이 결이 걸리도록
+    ),
     {
       width: og ? OG_W : OUT_W,
       height: og ? OG_H : OUT_H,
