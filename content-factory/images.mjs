@@ -4,6 +4,11 @@
 import { pickBestPhoto } from "./ai.mjs";
 import { smembers, sadd } from "./store.mjs";
 
+// 사진을 AI가 눈으로 보고 고를지 여부. 무료 AI 한도가 병목이라 기본은 끔.
+// 다시 켜려면 AI_PHOTO_PICK=on
+
+const AI_PHOTO_PICK = process.env.AI_PHOTO_PICK === "on";
+
 const KEY = process.env.PEXELS_API_KEY;
 export const imagesEnabled = Boolean(KEY);
 
@@ -91,11 +96,17 @@ export async function findCoverImage(
     const fresh = candidates.filter((c) => !used.has(c.id));
     const pool = shuffle(fresh.length ? fresh : candidates).slice(0, 6);
 
-    const idx = await pickBestPhoto(
-      title,
-      summary,
-      pool.map((c) => ({ url: c.small })),
-    );
+    // 【AI 절약】 글 1편당 AI를 4번 쓴다 — 작성 1 + 팩트체크 1 + 위험판정 1 + 사진 고르기 1.
+    // 앞의 셋은 신뢰와 직결돼 뺄 수 없지만, 사진 고르기는 '조금 더 어울리는 사진'일 뿐이다.
+    // 무료 한도가 병목일 땐 이걸 꺼서 발행량을 25% 늘리는 쪽이 낫다.
+    // (검색어 자체를 AI가 기사에 맞게 만들어 두므로 후보들은 이미 주제에 맞는 사진이다)
+    const idx = AI_PHOTO_PICK
+      ? await pickBestPhoto(
+          title,
+          summary,
+          pool.map((c) => ({ url: c.small })),
+        )
+      : 0;
     if (idx !== null && pool[idx]) {
       const chosen = pool[idx];
       try {
