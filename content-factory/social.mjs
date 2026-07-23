@@ -176,6 +176,15 @@ export async function shareEverywhere(
   const out = { errors: [] };
   if (!socialEnabled) return out;
 
+  // 【인스타 피드 정책】 꿀팁은 당분간 인스타에 올리지 않는다.
+  // 꿀팁이 피드를 도배해 매거진(뉴스)이 묻혔다. 홈페이지 발행과 검색 유입은 그대로 두고,
+  // 인스타 피드는 매거진 위주로 되돌린다. 꿀팁은 릴스로 내보낸다.
+  // (SOCIAL_TIPS=on 으로 환경변수를 주면 다시 올라간다)
+  if (post.category === "꿀팁" && process.env.SOCIAL_TIPS !== "on") {
+    out.skipped = "꿀팁은 인스타 게시 보류 (피드는 매거진 위주)";
+    return out;
+  }
+
   // 하루 한도를 넘으면 SNS만 건너뛴다 (홈페이지 발행은 그대로 유지)
   if ((await sharedToday()) >= DAILY_CAP) {
     out.capped = true;

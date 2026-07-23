@@ -86,8 +86,8 @@ const PAPERS = [
   "/textures/p20818860.jpg", // 구겨진 종이 — 접힌 자국과 굴곡
   "/textures/p6485437.jpg", // 리넨 — 직조 결
 ];
-const WASH_LIGHT = 0.88; // 크림 바탕을 덮는 정도 (낮출수록 질감이 세게 드러난다)
-const WASH_COVER = 0.9; // 포인트색으로 꽉 채운 표지
+const WASH_LIGHT = 0.76; // 크림 바탕을 덮는 정도 (낮출수록 질감이 세게 드러난다)
+const WASH_COVER = 0.84; // 포인트색으로 꽉 채운 표지 (글자 대비를 지켜야 해 덜 벗긴다)
 const paperFor = (slug: string) => PAPERS[hash(slug + "tex") % PAPERS.length];
 
 // ---- 제목 줄바꿈 ----

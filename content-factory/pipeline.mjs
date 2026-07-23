@@ -112,6 +112,23 @@ function balanceByCategory(issues, recent) {
   return out;
 }
 
+// 꿀팁 하루 생산 상한. 검색 유입 자산이라 계속 내되, 하루 1건이면 충분하다.
+const TIPS_PER_DAY = Number(process.env.TIPS_PER_DAY || 1);
+
+// 오늘 만든 꿀팁 수 (발행분 + 대기열 둘 다 센다 — 대기열에 쌓여도 결국 나가므로)
+async function countTipsToday() {
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    const published = await getPublishedRaw();
+    const queued = await getQueued();
+    return [...published, ...queued].filter(
+      (p) => p.category === "꿀팁" && (p.publishedAt ?? p.date ?? "").slice(0, 10) === day,
+    ).length;
+  } catch {
+    return 0; // 못 세면 막지 않는다 (발행이 멈추는 게 더 나쁘다)
+  }
+}
+
 // 최근 발행 + 예약 대기 글의 분야별 개수 (균형 기준)
 async function recentCategoryCounts(window = SHARE_WINDOW) {
   const counts = {};
@@ -181,12 +198,17 @@ export async function runCollection(opts) {
   // 다만 근거(facts)가 항상 확보돼 성공률이 높은 탓에 그냥 두면 혼자 다 차지한다.
   // → 최근 비중이 목표치를 넘었으면 이번 회차엔 넣지 않는다.
   const cap = Math.min(limit, room);
-  const tipsOver = isOverShare("꿀팁", recentCounts, recentTotal);
+  // 꿀팁은 하루 1건까지만 만든다. (매시간 돌면서 계속 만들어 피드를 도배했다)
+  const tipsToday = await countTipsToday();
+  const tipsCapped = tipsToday >= TIPS_PER_DAY;
+  const tipsOver = tipsCapped || isOverShare("꿀팁", recentCounts, recentTotal);
   const everWant = tipsOver ? 0 : Math.max(1, cap - ordered.length);
   const ever = everWant > 0 ? pickEvergreenIssues(seen, everWant) : [];
   if (ever.length) {
     ordered.splice(1, 0, ...ever); // 앞쪽에 끼워 이번 회차에 확실히 처리되게
     console.log(`에버그린 주제 ${ever.length}건 투입`);
+  } else if (tipsCapped) {
+    console.log(`꿀팁 오늘 ${tipsToday}건 — 하루 상한(${TIPS_PER_DAY})에 도달, 뉴스만 진행`);
   } else if (tipsOver) {
     console.log("꿀팁 비중이 목표(30%)를 넘어 이번 회차는 뉴스 위주로 진행");
   }

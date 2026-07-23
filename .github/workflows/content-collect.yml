@@ -53,6 +53,7 @@ jobs:
           COLLECT_LIMIT: "3" # 한 회차에 쓸 글 수
           QUEUE_MAX: "16" # 발행 대기열 상한 (넉넉히 쌓아둔다)
           PUBLISH_GAP_MIN: "30" # 발행 간격 30분 → 하루 최대 약 48편
+          TIPS_PER_DAY: "1" # 꿀팁 하루 생산 상한 (피드 도배 방지)
           SOCIAL_DAILY_CAP: "5" # 인스타·페북 하루 게시 상한 (몰아 올리면 스팸으로 보여 도달이 떨어진다)
           SOCIAL_GAP_MIN: "180" # SNS 게시 최소 간격(분) — 하루에 고르게 퍼뜨린다
         run: node run-collect.mjs

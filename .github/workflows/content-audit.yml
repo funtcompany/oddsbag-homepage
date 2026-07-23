@@ -22,6 +22,7 @@ jobs:
       - name: 점검 실행
         working-directory: content-factory
         env:
+          TIPS_PER_DAY: "1" # 꿀팁 하루 생산 상한 (피드 도배 방지)
           SOCIAL_DAILY_CAP: "5" # 인스타·페북 하루 게시 상한
           SOCIAL_GAP_MIN: "180" # SNS 게시 최소 간격(분)
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}

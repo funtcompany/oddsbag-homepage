@@ -21,3 +21,15 @@ export async function getJSON(key) {
   return v ? JSON.parse(v) : null;
 }
 export const redisReady = Boolean(URL && TOKEN);
+
+// 하루 단위 카운터 (유튜브 무료 한도 관리에 쓴다). 이틀 뒤 자동 삭제.
+export async function bumpDaily(key) {
+  const k = `${key}:${new Date().toISOString().slice(0, 10)}`;
+  const n = await cmd(["INCR", k]);
+  await cmd(["EXPIRE", k, 172800]);
+  return Number(n);
+}
+export async function readDaily(key) {
+  const k = `${key}:${new Date().toISOString().slice(0, 10)}`;
+  return Number((await cmd(["GET", k])) ?? 0);
+}

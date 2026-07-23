@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { smembers, sadd, srem, getJSON, redisReady } from "./redis.mjs";
+import { smembers, sadd, srem, getJSON, redisReady, bumpDaily, readDaily } from "./redis.mjs";
 import { makeMusic, writeWav, pickBgm } from "./music.mjs";
 import { uploadShort, setThumbnail, addToCategoryPlaylist } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
@@ -29,6 +29,8 @@ const COMMA_MS = Number(process.env.ODDS_COMMA_MS || 300);  // 쉼표 쉼
 const PERIOD_MS = Number(process.env.ODDS_PERIOD_MS || 500); // 문장 끝 쉼
 const LIMIT = Number(process.env.REEL_LIMIT || 1);
 const YT_PRIVACY = process.env.YT_PRIVACY || "public";
+// 유튜브 무료 한도(10,000 units/일) ÷ 릴스 1개당 약 1,701 units = 5개가 안전 상한
+const YT_DAILY_CAP = Number(process.env.YT_DAILY_CAP || 5);
 const OUT = path.resolve("out");
 fs.mkdirSync(OUT, { recursive: true });
 const K_PUB = "posts:published", DONE = "reels:done";
@@ -184,8 +186,15 @@ async function buildReel(post) {
   const igCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 팔로우하면 다음 정보·일정을 미리 알려드려요 → @oddsbag_official`;
   const ytDesc = `${lead}\n\n🔔 구독하면 다음 정보·일정을 미리 알려드려요\n\n${hashtags(post, 15)}`;
   const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 미리 알림 받기\n\n${hashtags(post, 15)}`;
+  // 유튜브는 무료 한도(하루 10,000 units)가 병목이다. 릴스 1개당 약 1,700 units 를 쓰므로
+  // 하루 5개가 상한이다. 그 이상은 유튜브만 건너뛰고 인스타·페북에는 그대로 올린다.
+  const ytToday = await readDaily("yt:uploads").catch(() => 0);
+  const ytRoom = ytToday < YT_DAILY_CAP;
+  if (!ytRoom) console.log(`  · 유튜브 오늘 ${ytToday}개 — 무료 한도라 이번 건은 인스타·페북만`);
   try {
+    if (!ytRoom) throw new Error(`유튜브 하루 상한(${YT_DAILY_CAP}) 도달`);
     const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
+    await bumpDaily("yt:uploads").catch(() => {});
     if (thumb && vid) { try { await setThumbnail(vid, thumb); } catch (e) { console.log("  · 유튜브 썸네일 건너뜀:", e.message); } }
     if (vid) { try { await addToCategoryPlaylist(vid, post.category); } catch (e) { console.log("  · 재생목록 건너뜀:", e.message); } }
   }
