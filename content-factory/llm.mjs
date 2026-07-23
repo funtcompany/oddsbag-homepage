@@ -5,13 +5,19 @@
 // 사장님은 아무것도 안 해도 되고, 로그에 어느 엔진을 썼는지 남는다.
 
 const GROQ_KEY = process.env.GROQ_API_KEY;
-// 여러 개면 하나 소진 시 다음 키로 자동 로테이션 (구글 계정마다 하루 1,500회 → 개수만큼 배)
+// 여러 개면 하나 막히면 다음 키로 자동 로테이션.
+// ※ 무료 등급은 '모델별·프로젝트별 하루 요청 수'로 제한된다 (gemini-flash-latest 기준 하루 20회).
+//   그래서 계정(키)을 늘리는 만큼 하루 총량이 늘어난다.
+//   키를 더 받으면 GEMINI_API_KEY_7, _8 시크릿만 추가하면 되고 코드는 안 고쳐도 된다.
 const GEMINI_KEYS = [
   process.env.GEMINI_API_KEY,
   process.env.GEMINI_API_KEY_2,
   process.env.GEMINI_API_KEY_3,
   process.env.GEMINI_API_KEY_4,
   process.env.GEMINI_API_KEY_5,
+  process.env.GEMINI_API_KEY_6,
+  process.env.GEMINI_API_KEY_7,
+  process.env.GEMINI_API_KEY_8,
 ].filter(Boolean);
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY;
