@@ -4,19 +4,26 @@
 // 서비스가 멈추면 안 되므로, 실패 시 Claude로 자동으로 넘어간다.
 // 사장님은 아무것도 안 해도 되고, 로그에 어느 엔진을 썼는지 남는다.
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
+// 여러 개면 하나 소진 시 다음 키로 자동 로테이션 (구글 계정마다 하루 1,500회)
+const GEMINI_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3,
+  process.env.GEMINI_API_KEY_4,
+  process.env.GEMINI_API_KEY_5,
+].filter(Boolean) as string[];
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY;
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest"; // 항상 최신 flash (신·구 키 모두 호환)
 const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b"; // (무료 크레딧 활성 시) 텍스트 전용
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct"; // NVIDIA NIM 무료·텍스트 전용
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free"; // 무료 지시형 모델
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || OPENROUTER_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GEMINI_KEYS.length || CEREBRAS_KEY || NVIDIA_KEY || OPENROUTER_KEY || CLAUDE_KEY);
 
 export interface AskOptions {
   maxTokens?: number;
@@ -27,8 +34,8 @@ export interface AskOptions {
 }
 
 // ---- Gemini ----
-async function askGemini(system: string, user: string, opt: AskOptions): Promise<string> {
-  if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY 없음");
+async function askGemini(system: string, user: string, opt: AskOptions, key: string): Promise<string> {
+  if (!key) throw new Error("GEMINI_API_KEY 없음");
 
   const parts: Record<string, unknown>[] = [{ text: user }];
 
@@ -54,7 +61,7 @@ async function askGemini(system: string, user: string, opt: AskOptions): Promise
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: "POST",
-      headers: { "x-goog-api-key": GEMINI_KEY, "Content-Type": "application/json" },
+      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts }],
@@ -200,12 +207,18 @@ async function askNvidia(system: string, user: string, opt: AskOptions): Promise
 // ---- 공용 진입점 ----
 export async function ask(system: string, user: string, opt: AskOptions = {}): Promise<string> {
   const hasImages = (opt.images?.length ?? 0) > 0;
-  if (GEMINI_KEY) {
+  // Gemini (키 여러 개면 소진 시 다음 키로 자동 로테이션)
+  for (const gkey of GEMINI_KEYS) {
     try {
-      return await askGemini(system, user, opt);
+      return await askGemini(system, user, opt, gkey);
     } catch (e) {
-      // 크레딧 소진·장애 → 대체 엔진 (서비스는 멈추지 않는다)
-      console.warn("Gemini 실패 → 대체 엔진:", (e as Error).message);
+      const msg = (e as Error).message;
+      if (/quota|RESOURCE_EXHAUSTED|429|rate limit|too many/i.test(msg)) {
+        console.warn("Gemini 키 소진 → 다음 키로:", msg.slice(0, 50));
+        continue;
+      }
+      console.warn("Gemini 실패 → 대체 엔진:", msg);
+      break;
     }
   }
   // Cerebras (텍스트 전용, 무료 대용량 — Gemini 한도 소진 시 받아준다)

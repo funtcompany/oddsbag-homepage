@@ -5,20 +5,27 @@
 // 사장님은 아무것도 안 해도 되고, 로그에 어느 엔진을 썼는지 남는다.
 
 const GROQ_KEY = process.env.GROQ_API_KEY;
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
+// 여러 개면 하나 소진 시 다음 키로 자동 로테이션 (구글 계정마다 하루 1,500회 → 개수만큼 배)
+const GEMINI_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3,
+  process.env.GEMINI_API_KEY_4,
+  process.env.GEMINI_API_KEY_5,
+].filter(Boolean);
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY;
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b"; // 한국어 우수 + 무료 한도 넉넉(20b가 120b보다 여유)
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest"; // 항상 최신 flash (신·구 키 모두 호환)
 const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || "gpt-oss-120b"; // (무료 크레딧 활성 시) 텍스트 전용
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct"; // NVIDIA NIM 무료·텍스트 전용
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free"; // 무료 지시형 모델
 const CLAUDE_MODEL = "claude-sonnet-5";
 
-export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEY || CEREBRAS_KEY || NVIDIA_KEY || OPENROUTER_KEY || CLAUDE_KEY);
+export const llmEnabled = Boolean(GROQ_KEY || GEMINI_KEYS.length || CEREBRAS_KEY || NVIDIA_KEY || OPENROUTER_KEY || CLAUDE_KEY);
 
 // ---- Groq (주력: 무료 한도 넉넉·빠름·한국어 우수). 텍스트 전용(이미지 미지원) ----
 async function askGroq(system, user, opt) {
@@ -46,8 +53,8 @@ async function askGroq(system, user, opt) {
 }
 
 // ---- Gemini ----
-async function askGemini(system, user, opt) {
-  if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY 없음");
+async function askGemini(system, user, opt, key) {
+  if (!key) throw new Error("GEMINI_API_KEY 없음");
 
   const parts = [{ text: user }];
 
@@ -73,7 +80,7 @@ async function askGemini(system, user, opt) {
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: "POST",
-      headers: { "x-goog-api-key": GEMINI_KEY, "Content-Type": "application/json" },
+      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts }],
@@ -239,19 +246,17 @@ export async function ask(system, user, opt = {}) {
       }
     }
   }
-  // 2) Gemini (비전 포함, 또는 Groq 실패 시) — 무료 분당 한도 대비 throttle + 재시도
-  if (GEMINI_KEY) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const wait = MIN_GAP_MS - (Date.now() - _lastCall);
-      if (wait > 0) await _sleep(wait);
-      _lastCall = Date.now();
-      try {
-        return await askGemini(system, user, opt);
-      } catch (e) {
-        if (_isQuota(e.message) && attempt === 0) { await _sleep(15000); continue; }
-        console.warn("Gemini 실패 → Claude로 대체:", e.message);
-        break;
-      }
+  // 2) Gemini (키 여러 개면 소진 시 다음 키로 자동 로테이션. 비전 포함, 또는 Groq 실패 시)
+  for (const gkey of GEMINI_KEYS) {
+    const wait = MIN_GAP_MS - (Date.now() - _lastCall);
+    if (wait > 0) await _sleep(wait);
+    _lastCall = Date.now();
+    try {
+      return await askGemini(system, user, opt, gkey);
+    } catch (e) {
+      if (_isQuota(e.message)) { console.warn("Gemini 키 소진 → 다음 키로:", e.message.slice(0, 50)); continue; }
+      console.warn("Gemini 실패 → 다음 엔진:", e.message);
+      break;
     }
   }
   // 3) Cerebras (텍스트 전용, 무료 대용량 — Groq·Gemini 한도 소진 시 받아준다)
