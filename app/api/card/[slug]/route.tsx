@@ -93,6 +93,7 @@ function render(
   total: number,
   og = false,
   emoji = "",
+  category = "",
 ) {
   const W = og ? OG_W : 1080;
   const H = og ? OG_H : 1350;
@@ -109,6 +110,17 @@ function render(
         : 58) * (og ? 0.62 : 1);
 
   const photoBg = big && hasPhoto;
+  // 본문 카드에 붙는 순번 (01, 02 …) — 큰 고스트 숫자의 소재
+  const stepNo = card.kind === "point" && card.label ? card.label.replace(/[^0-9]/g, "") : "";
+
+  // 밝은 배경(soft 팔레트)에서는 반투명 흰색 패널이 안 보이므로 어두운 톤으로 뒤집는다
+  const light = card.kind !== "hook" && p.ink !== "#ffffff";
+  const veil = light ? "rgba(43,26,82,0.06)" : "rgba(255,255,255,0.055)";
+  const veilLine = light ? "rgba(43,26,82,0.12)" : "rgba(255,255,255,0.10)";
+  const ghost = light ? "rgba(91,45,142,0.09)" : "rgba(255,255,255,0.055)";
+  const bodyInk = photoBg ? "rgba(255,255,255,.9)" : p.sub;
+  const titleInk = photoBg ? "#fff" : p.ink;
+  const PAD = og ? 56 : 84;
 
   return (
     <div
@@ -122,7 +134,7 @@ function render(
         fontFamily: "Noto",
       }}
     >
-      {/* 사진(훅 카드에만) + 어둡게 덮기 → 글자 가독성 보장 */}
+      {/* 배경 1 — 사진 (훅 카드) */}
       {photoBg ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -139,170 +151,307 @@ function render(
               left: 0,
               width: W,
               height: H,
-              background: "linear-gradient(180deg, rgba(10,6,20,0.55) 0%, rgba(10,6,20,0.92) 100%)",
+              background: "linear-gradient(180deg, rgba(10,6,20,0.45) 0%, rgba(10,6,20,0.78) 52%, rgba(10,6,20,0.96) 100%)",
             }}
           />
         </>
-      ) : null}
+      ) : (
+        // 배경 2 — 사진이 없을 때: 단색이 아니라 빛을 넣어 깊이를 만든다
+        <>
+          <div
+            style={{
+              position: "absolute",
+              top: -H * 0.22,
+              right: -W * 0.3,
+              width: W * 1.1,
+              height: W * 1.1,
+              borderRadius: W,
+              background: light
+                ? "radial-gradient(circle, rgba(91,45,142,0.12) 0%, rgba(91,45,142,0) 70%)"
+                : "radial-gradient(circle, rgba(255,230,0,0.13) 0%, rgba(255,230,0,0) 70%)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: -H * 0.18,
+              left: -W * 0.25,
+              width: W,
+              height: W,
+              borderRadius: W,
+              background: light
+                ? "radial-gradient(circle, rgba(91,45,142,0.10) 0%, rgba(91,45,142,0) 70%)"
+                : "radial-gradient(circle, rgba(140,90,220,0.30) 0%, rgba(140,90,220,0) 70%)",
+            }}
+          />
+        </>
+      )}
 
-      {/* 액센트 바 */}
-      <div style={{ position: "absolute", top: 0, left: 0, width: 14, height: H, background: p.accent }} />
+      {/* 왼쪽 액센트 바 */}
+      <div style={{ position: "absolute", top: 0, left: 0, width: 12, height: H, background: p.accent }} />
 
-      {/* 상단 브랜드 */}
+      {/* ── 상단: 진행 세그먼트 + 로고 + 분야 ── */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          padding: og ? "38px 48px 0 56px" : "62px 70px 0 84px",
+          flexDirection: "column",
+          padding: og ? `34px ${PAD}px 0 ${PAD}px` : `56px ${PAD}px 0 ${PAD}px`,
           position: "relative",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            width: 46,
-            height: 46,
-            borderRadius: 13,
-            background: p.accent,
-            color: p.onAccent,
-            fontSize: 30,
-            fontWeight: 900,
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: 14,
-          }}
-        >
-          O
-        </div>
-        <div style={{ fontSize: 30, fontWeight: 900, color: photoBg ? "#fff" : p.ink, letterSpacing: -1 }}>
-          ODDSBAG
-        </div>
-        <div style={{ flex: 1 }} />
+        {/* 몇 장짜리인지 한눈에 — 끝까지 넘겨보게 만드는 장치 */}
         {og ? null : (
+          <div style={{ display: "flex", marginBottom: 34 }}>
+            {Array.from({ length: total }).map((_, s) => (
+              <div
+                key={s}
+                style={{
+                  display: "flex",
+                  flex: 1,
+                  height: 6,
+                  borderRadius: 6,
+                  marginRight: s === total - 1 ? 0 : 8,
+                  background: s <= idx ? p.accent : light ? "rgba(43,26,82,0.15)" : "rgba(255,255,255,0.18)",
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center" }}>
           <div
             style={{
               display: "flex",
-              fontSize: 24,
-              fontWeight: 700,
-              color: photoBg ? "rgba(255,255,255,.7)" : p.sub,
+              width: 46,
+              height: 46,
+              borderRadius: 13,
+              background: p.accent,
+              color: p.onAccent,
+              fontSize: 30,
+              fontWeight: 900,
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 14,
             }}
           >
-            {`${idx + 1} / ${total}`}
+            O
           </div>
-        )}
+          <div style={{ fontSize: 30, fontWeight: 900, color: titleInk, letterSpacing: -1 }}>
+            ODDSBAG
+          </div>
+          <div style={{ flex: 1 }} />
+          {category && !og ? (
+            <div
+              style={{
+                display: "flex",
+                fontSize: 24,
+                fontWeight: 800,
+                color: p.accent,
+                border: `2px solid ${p.accent}`,
+                borderRadius: 999,
+                padding: "6px 20px",
+              }}
+            >
+              {category}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {/* 본문 */}
+      {/* ── 본문 ── */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           flex: 1,
           justifyContent: big ? "flex-end" : "center",
-          padding: og ? "0 56px 58px 56px" : "0 84px 120px 84px",
+          padding: og ? `0 ${PAD}px 46px ${PAD}px` : `28px ${PAD}px 118px ${PAD}px`,
           position: "relative",
         }}
       >
-        {/* 사진이 없는 훅 카드 — 큰 이모지로 위쪽 여백을 채운다 */}
+        {/* 사진 없는 훅 카드 — 큰 이모지를 가운데 원 안에 넣어 빈 공간을 채운다 */}
         {big && !photoBg && emoji ? (
           <div
             style={{
               display: "flex",
               flex: 1,
               alignItems: "center",
-              fontSize: og ? 150 : 240,
+              justifyContent: "center",
+              position: "relative",
             }}
           >
-            {emoji}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: og ? 220 : 460,
+                height: og ? 220 : 460,
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.05)",
+                border: `3px solid ${veilLine}`,
+                fontSize: og ? 130 : 250,
+              }}
+            >
+              {emoji}
+            </div>
           </div>
         ) : null}
 
-        {card.label ? (
-          <div
-            style={{
-              display: "flex",
-              alignSelf: "flex-start",
-              background: card.kind === "point" ? "transparent" : p.accent,
-              color: card.kind === "point" ? p.accent : p.onAccent,
-              fontSize: card.kind === "point" ? 40 : 26,
-              fontWeight: 900,
-              padding: card.kind === "point" ? "0" : "10px 22px",
-              borderRadius: 999,
-              letterSpacing: card.kind === "point" ? 0 : 1,
-              marginBottom: 26,
-            }}
-          >
-            {card.label}
-          </div>
-        ) : null}
-
+        {/* 훅이 아닌 카드는 '패널' 안에 담는다 — 텅 빈 배경에 글자만 떠 있던 문제를 없앤다 */}
         <div
           style={{
             display: "flex",
-            fontSize: titleSize,
-            fontWeight: 900,
-            color: photoBg ? "#fff" : p.ink,
-            lineHeight: 1.22,
-            letterSpacing: -2.5,
-            whiteSpace: "pre-wrap",
-            wordBreak: "keep-all", // ★ 한글이 단어 중간에서 잘리지 않게 (가독성 최우선)
+            flexDirection: "column",
+            position: "relative",
+            overflow: "hidden", // 고스트 숫자가 패널 밖으로 삐져나오지 않게
+            // 내용이 짧은 카드도 아래가 휑해 보이지 않게 최소 높이를 준다
+            minHeight: big || og ? 0 : 640,
+            justifyContent: "center",
+            padding: big || og ? "0" : "56px 52px 58px 52px",
+            borderRadius: big || og ? 0 : 36,
+            background: big || og ? "transparent" : veil,
+            border: big || og ? "none" : `2px solid ${veilLine}`,
           }}
         >
-          {card.title}
-        </div>
+          {/* 큰 고스트 숫자 — 패널 안 오른쪽 위에 깔아 빈 면을 디자인으로 채운다 */}
+          {stepNo && !og ? (
+            <div
+              style={{
+                display: "flex",
+                position: "absolute",
+                top: -70,
+                right: -20,
+                fontSize: 360,
+                fontWeight: 900,
+                color: ghost,
+                letterSpacing: -18,
+              }}
+            >
+              {stepNo}
+            </div>
+          ) : null}
 
-        {card.body ? (
-          <div style={{ display: "flex", flexDirection: "column", marginTop: 30 }}>
-            {card.body.split(/(?<=[.!?])\s+/).filter(Boolean).map((sen, i) => (
+          {card.label ? (
+            <div
+              style={{
+                display: "flex",
+                alignSelf: "flex-start",
+                background: card.kind === "point" ? p.accent : "transparent",
+                color: card.kind === "point" ? p.onAccent : p.accent,
+                fontSize: card.kind === "point" ? 28 : 26,
+                fontWeight: 900,
+                padding: card.kind === "point" ? "8px 22px" : "8px 22px",
+                border: card.kind === "point" ? "none" : `2px solid ${p.accent}`,
+                borderRadius: 999,
+                letterSpacing: 1,
+                marginBottom: 24,
+              }}
+            >
+              {card.label}
+            </div>
+          ) : null}
+
+          {/* 줄바꿈(\n)은 satori 의 pre-wrap 이 공백으로 뭉개므로 직접 줄로 나눠 그린다 */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {card.title.split("\n").map((line, li) => (
               <div
-                key={i}
+                key={li}
                 style={{
                   display: "flex",
-                  fontSize: 38,
-                  fontWeight: 500,
-                  color: photoBg ? "rgba(255,255,255,.85)" : p.sub,
-                  lineHeight: 1.55,
-                  marginBottom: 16,
-                  wordBreak: "keep-all", // ★ 한글 단어 중간 잘림 방지
+                  fontSize: titleSize,
+                  fontWeight: 900,
+                  color: titleInk,
+                  lineHeight: 1.22,
+                  letterSpacing: -2.5,
+                  wordBreak: "keep-all", // ★ 한글이 단어 중간에서 잘리지 않게 (가독성 최우선)
                 }}
               >
-                {sen}
+                {line}
               </div>
             ))}
           </div>
-        ) : null}
+
+          {/* 제목과 설명을 갈라주는 짧은 액센트 선 */}
+          {card.body ? (
+            <div
+              style={{
+                display: "flex",
+                width: 84,
+                height: 7,
+                borderRadius: 7,
+                background: p.accent,
+                marginTop: 30,
+                marginBottom: 30,
+              }}
+            />
+          ) : null}
+
+          {card.body ? (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {card.body.split(/(?<=[.!?])\s+/).filter(Boolean).map((sen, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    fontSize: 38,
+                    fontWeight: 500,
+                    color: bodyInk,
+                    lineHeight: 1.55,
+                    marginBottom: 16,
+                    wordBreak: "keep-all", // ★ 한글 단어 중간 잘림 방지
+                  }}
+                >
+                  {sen}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         {/* 훅 카드 하단 안내 */}
         {big && !og ? (
           <div
             style={{
               display: "flex",
+              alignItems: "center",
+              alignSelf: "flex-start",
               marginTop: 40,
               fontSize: 28,
-              fontWeight: 800,
-              color: p.accent,
+              fontWeight: 900,
+              color: p.onAccent,
+              background: p.accent,
+              borderRadius: 999,
+              padding: "14px 30px",
             }}
           >
-            밀어서 보기 →
+            {`${total}장 전부 보기 →`}
           </div>
         ) : null}
       </div>
 
-      {/* 하단 워터마크 */}
-      <div
-        style={{
-          display: "flex",
-          position: "absolute",
-          bottom: og ? 30 : 52,
-          left: og ? 56 : 84,
-          fontSize: 26,
-          fontWeight: 800,
-          color: photoBg ? "rgba(255,255,255,.6)" : p.sub,
-          letterSpacing: 0.5,
-        }}
-      >
-        @oddsbag_official
-      </div>
+      {/* ── 하단 ── */}
+      {og ? null : (
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            bottom: 48,
+            left: PAD,
+            width: W - PAD * 2,
+            alignItems: "center",
+          }}
+        >
+          {/* 마지막 CTA 카드는 본문에 이미 계정명이 크게 들어가므로 아래에 또 쓰지 않는다 */}
+          <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: bodyInk, letterSpacing: 0.5 }}>
+            {card.kind === "cta" ? "" : "@oddsbag_official"}
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: p.accent }}>
+            {idx === total - 1 ? "팔로우하고 미리 받기" : "저장해두기 📌"}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -324,7 +473,11 @@ export async function GET(
 
   // 이 카드에 실제로 쓰이는 글자만 폰트로 받아온다 (수십 KB)
   const text =
-    card.title + (card.body ?? "") + (card.label ?? "") + "ODDSBAG@oddsbag_official밀어서 보기0123456789/";
+    card.title +
+    (card.body ?? "") +
+    (card.label ?? "") +
+    (post.category ?? "") +
+    "ODDSBAG@oddsbag_official장 전부 보기저장해두기팔로우하고미리받는0123456789/→·";
   const [bold, normal] = await Promise.all([loadFont(text, 900), loadFont(text, 500)]);
 
   const fonts = [
@@ -332,13 +485,16 @@ export async function GET(
     normal && { name: "Noto", data: normal, weight: 500 as const, style: "normal" as const },
   ].filter(Boolean) as { name: string; data: ArrayBuffer; weight: 900 | 500; style: "normal" }[];
 
-  return new ImageResponse(render(card, pal, post.cover, i, cards.length, og, post.emoji ?? ""), {
-    width: og ? OG_W : W,
-    height: og ? OG_H : H,
-    emoji: "noto", // 이모지를 이미지로 렌더 (폰트에 없어도 깨지지 않음)
-    fonts,
-    headers: {
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, immutable",
+  return new ImageResponse(
+    render(card, pal, post.cover, i, cards.length, og, post.emoji ?? "", post.category ?? ""),
+    {
+      width: og ? OG_W : W,
+      height: og ? OG_H : H,
+      emoji: "noto", // 이모지를 이미지로 렌더 (폰트에 없어도 깨지지 않음)
+      fonts,
+      headers: {
+        "Cache-Control": "public, max-age=86400, s-maxage=604800, immutable",
+      },
     },
-  });
+  );
 }

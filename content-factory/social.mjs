@@ -21,8 +21,24 @@ export const socialEnabled = Boolean(IG_ID && TOKEN);
 //  · 메타 API 한도(인스타 24시간 50건)에 걸리고
 //  · 팔로워가 스팸으로 느껴 언팔한다
 // 그래서 SNS만 따로 하루 한도를 둔다.
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 14);
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 5);
 const dayKey = () => `social:shared:${new Date().toISOString().slice(0, 10)}`;
+
+// 한도만으론 부족하다 — 홈페이지 발행이 몰리면 SNS도 한꺼번에 올라간다.
+// 게시 사이 최소 간격을 둬서 하루에 고르게 퍼지게 한다. (몰아 올리면 스팸으로 보이고 도달도 떨어진다)
+const MIN_GAP_MIN = Number(process.env.SOCIAL_GAP_MIN || 180);
+const K_LAST_SHARED = "social:lastSharedAt";
+
+async function tooSoon() {
+  try {
+    const last = await kvGet(K_LAST_SHARED);
+    if (!last) return 0;
+    const passed = (Date.now() - new Date(last).getTime()) / 60000;
+    return passed < MIN_GAP_MIN ? Math.ceil(MIN_GAP_MIN - passed) : 0;
+  } catch {
+    return 0; // 시각을 못 읽으면 막지 않는다
+  }
+}
 
 export async function sharedToday() {
   try {
@@ -166,6 +182,13 @@ export async function shareEverywhere(
     return out;
   }
 
+  // 직전 게시로부터 최소 간격이 안 지났으면 이번엔 올리지 않는다 (다음 회차가 다시 시도)
+  const wait = await tooSoon();
+  if (wait > 0) {
+    out.tooSoon = wait;
+    return out;
+  }
+
   try {
     out.ig = await postToInstagram(post);
   } catch (e) {
@@ -180,6 +203,7 @@ export async function shareEverywhere(
   if (out.ig || out.fb) {
     try {
       await sadd(dayKey(), post.slug);
+      await kvSet(K_LAST_SHARED, new Date().toISOString()); // 다음 게시 간격 계산 기준
     } catch {
       /* 카운트 실패가 게시를 막지는 않는다 */
     }
