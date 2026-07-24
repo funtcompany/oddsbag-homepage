@@ -51,6 +51,7 @@ jobs:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           SITE_URL: ${{ secrets.SITE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          AI_PHOTO_PICK: "on" # AI가 기사에 맞는 사진을 직접 골라준다 (하루 3편이라 비용 여유 있음)
           COLLECT_LIMIT: "1" # 한 회차에 쓸 글 수 (슬롯당 1편)
           WRITE_DAILY_CAP: "3" # 하루 작성 편수 (핵심 정책)
           WRITE_SLOTS_KST: "7,13,19" # 아침·낮·저녁에 한 편씩

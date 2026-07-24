@@ -1,0 +1,45 @@
+name: 오즈백 인스타 정리 (저노출 게시물)
+
+# 매일 1회(오전 11시 KST) — 올린 지 일주일 지났는데 노출수 20 미만인 게시물을 정리한다.
+#
+# 【안전】 기본은 '목록만 보기'다. 실제로 지우려면 PRUNE_MODE 를 delete 로 바꾼다.
+#         게시물 삭제는 되돌릴 수 없으므로, 먼저 며칠 목록만 보고 판단할 것.
+#
+# 필요한 권한 (없으면 노출수를 못 읽어 아무것도 지우지 않고 그냥 끝난다):
+#   · instagram_manage_insights  — 노출수 읽기
+#   · instagram_manage_contents  — 게시물 삭제
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "report(목록만) 또는 delete(실제 삭제)"
+        default: "report"
+
+concurrency:
+  group: oddsbag-prune
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: 인스타 정리
+        working-directory: content-factory
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          PRUNE_MIN_VIEWS: "20" # 노출수 이 미만이면 정리 대상
+          PRUNE_AGE_DAYS: "7" # 게시 후 7일 지난 글만
+          PRUNE_MAX_PER_DAY: "5" # 하루 삭제 상한 (사고 방지)
+          # 【중요】 처음엔 report 로 며칠 지켜보고, 목록이 납득되면 delete 로 바꾼다.
+          PRUNE_MODE: ${{ github.event.inputs.mode || 'report' }}
+        run: node run-prune.mjs
