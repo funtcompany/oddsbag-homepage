@@ -77,8 +77,11 @@ export async function runImprove() {
   if (socialEnabled) {
     // 이틀 안에 발행된 글만 재게시 (지난 뉴스를 뒤늦게 도배하지 않는다)
     const twoDaysAgo = Date.now() - 2 * 864e5;
+    // 'SNS를 한 번도 시도하지 않은 글'만 재게시한다.
+    // 예전엔 !p.social?.ig 로 걸렀는데, 인스타는 올라갔지만 ID 기록에 실패한 글이
+    // 영원히 "안 올라감"으로 남아 같은 글을 반복해서 다시 올렸다.
     const missing = published
-      .filter((p) => !p.social?.ig)
+      .filter((p) => !p.social)
       .filter((p) => new Date(p.publishedAt ?? p.date).getTime() > twoDaysAgo)
       .slice(0, RESHARE_PER_RUN);
     for (const post of missing) {

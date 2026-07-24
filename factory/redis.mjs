@@ -23,13 +23,16 @@ export async function getJSON(key) {
 export const redisReady = Boolean(URL && TOKEN);
 
 // 하루 단위 카운터 (유튜브 무료 한도 관리에 쓴다). 이틀 뒤 자동 삭제.
+// 하루 기준은 한국 시간. UTC로 세면 오전 9시에 날짜가 바뀌어 "하루 N개"가 어긋난다.
+const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+
 export async function bumpDaily(key) {
-  const k = `${key}:${new Date().toISOString().slice(0, 10)}`;
+  const k = `${key}:${kstDay()}`;
   const n = await cmd(["INCR", k]);
   await cmd(["EXPIRE", k, 172800]);
   return Number(n);
 }
 export async function readDaily(key) {
-  const k = `${key}:${new Date().toISOString().slice(0, 10)}`;
+  const k = `${key}:${kstDay()}`;
   return Number((await cmd(["GET", k])) ?? 0);
 }

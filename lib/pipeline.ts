@@ -31,8 +31,8 @@ function makeSlug(categorySlug: string): string {
 }
 
 // 예약 발행 간격 — 이 간격으로 하나씩 올라간다 (홈페이지가 하루 종일 살아있게)
-const GAP_MIN = Number(process.env.PUBLISH_GAP_MIN || 45);
-const QUEUE_MAX = Number(process.env.QUEUE_MAX || 12); // 대기열이 이만큼 차면 새로 쓰지 않는다 (묵은 뉴스 방지 + 비용 절약)
+const GAP_MIN = Number(process.env.PUBLISH_GAP_MIN || 300);
+const QUEUE_MAX = Number(process.env.QUEUE_MAX || 4); // 대기열이 이만큼 차면 새로 쓰지 않는다 (묵은 뉴스 방지 + 비용 절약)
 const K_NEXT_AT = "queue:nextAt";
 
 // 다음 글이 올라갈 시각을 잡는다 (약간의 랜덤을 섞어 기계적이지 않게)

@@ -37,9 +37,46 @@ function makeSlug(categorySlug) {
 }
 
 // 예약 발행 간격 — 이 간격으로 하나씩 올라간다 (홈페이지가 하루 종일 살아있게)
-const GAP_MIN = Number(process.env.PUBLISH_GAP_MIN || 45);
-const QUEUE_MAX = Number(process.env.QUEUE_MAX || 12); // 대기열이 이만큼 차면 새로 쓰지 않는다 (묵은 뉴스 방지 + 비용 절약)
+const GAP_MIN = Number(process.env.PUBLISH_GAP_MIN || 300);
+const QUEUE_MAX = Number(process.env.QUEUE_MAX || 4); // 대기열이 이만큼 차면 새로 쓰지 않는다 (묵은 뉴스 방지 + 비용 절약)
 const K_NEXT_AT = "queue:nextAt";
+
+// ---- 하루 생산량: 3편 ----
+// 예전엔 매시간 3편씩 최대 48편을 썼다. 그 결과 글 하나에 쓸 수 있는 AI 예산이 바닥나
+// 짧고 밋밋한 글이 쏟아졌다. 편수를 3편으로 줄이고, 그만큼 한 편에 더 공들인다.
+const WRITE_DAILY_CAP = Number(process.env.WRITE_DAILY_CAP || 3);
+
+// 3편을 아침·낮·저녁에 한 편씩 나눠 쓴다.
+// (새벽에 3편을 몰아 쓰면 그날 저녁 뉴스는 아예 다룰 기회가 없다)
+const WRITE_SLOTS_KST = (process.env.WRITE_SLOTS_KST || "7,13,19")
+  .split(",")
+  .map((s) => Number(s.trim()))
+  .filter((n) => Number.isFinite(n))
+  .sort((a, b) => a - b);
+
+const kstNow = () => new Date(Date.now() + 9 * 3600e3);
+const kstDay = () => kstNow().toISOString().slice(0, 10);
+const kstOf = (iso) =>
+  iso ? new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(0, 10) : "";
+
+// 지금(한국 시간)까지 열린 슬롯 수 = 오늘 지금 시점에 써도 되는 누적 최대 편수
+function allowedByNow() {
+  const h = kstNow().getUTCHours();
+  return Math.min(WRITE_DAILY_CAP, WRITE_SLOTS_KST.filter((s) => h >= s).length);
+}
+
+// 오늘(한국 시간) 이미 쓴 글 수 — 발행분 + 대기열 둘 다 센다
+async function writtenToday() {
+  const day = kstDay();
+  try {
+    const [published, queued] = await Promise.all([getPublishedRaw(), getQueued()]);
+    return [...published, ...queued].filter(
+      (p) => kstOf(p.createdAt ?? p.publishedAt ?? p.date) === day,
+    ).length;
+  } catch {
+    return 0; // 못 세면 막지 않는다
+  }
+}
 
 // 다음 글이 올라갈 시각을 잡는다 (약간의 랜덤을 섞어 기계적이지 않게)
 async function nextSlot() {
@@ -157,22 +194,36 @@ export async function runCollection(opts) {
   // 크론이 시간 초과로 죽지 않게 — 남은 건 다음 회차(30분 뒤)가 이어받는다
   const deadline = Date.now() + (opts.budgetMs ?? 540_000);
 
+  const out = {
+    queued: [],
+    published: [],
+    held: [],
+    scanned: 0,
+    unreadable: 0,
+    social: { ig: 0, fb: 0 },
+    errors: [],
+  };
+
+  // ---- 하루 3편 한도 먼저 확인 ----
+  // 수집(외부 API 호출)보다 앞에서 막아야 한도 소진 없이 그냥 끝난다.
+  const wroteToday = await writtenToday();
+  const allowedNow = allowedByNow();
+  const dailyRoom = allowedNow - wroteToday;
+  if (dailyRoom <= 0) {
+    console.log(
+      `오늘 ${wroteToday}편 작성 — 현재 시간대 상한(${allowedNow}편, 하루 ${WRITE_DAILY_CAP}편) 도달. 다음 시간대에 이어씀`,
+    );
+    out.dailyCapped = `오늘 ${wroteToday}/${WRITE_DAILY_CAP}편`;
+    return out;
+  }
+
   const issues = await collectAllIssues(opts.sources);
+  out.scanned = issues.length;
   const seen = new Set(await smembers(K_SEEN));
   const fresh = issues.filter((i) => !seen.has(issueKey(i.title)));
 
   // 학습 루프: 과거 지적사항 체크리스트를 작성 프롬프트에 주입
   const lessons = await getLessons();
-
-  const out = {
-    queued: [],
-    published: [],
-    held: [],
-    scanned: issues.length,
-    unreadable: 0,
-    social: { ig: 0, fb: 0 },
-    errors: [],
-  };
 
   // 대기열이 이미 가득 차 있으면 새 글을 쓰지 않는다 (묵은 뉴스가 쌓이는 걸 막고 API 비용도 아낀다)
   const pending = await queueSize();
@@ -180,7 +231,8 @@ export async function runCollection(opts) {
     out.errors.push(`대기열 ${pending}건 — 이번 회차는 수집만 (다 소진되면 다시 씀)`);
     return out;
   }
-  const room = Math.max(1, QUEUE_MAX - pending);
+  // 이번 회차에 쓸 수 있는 편수 = 대기열 여유 ∩ 오늘 남은 하루 한도
+  const room = Math.max(1, Math.min(QUEUE_MAX - pending, dailyRoom));
   let made = 0;
 
   // 분야 쏠림 방지: 최근 분포를 반영해 적게 나간 분야부터 번갈아 뽑도록 재배치

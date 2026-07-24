@@ -9,7 +9,7 @@ import { notionEnabled, setNotionStatus } from "@/lib/notion";
 import { shareEverywhere, socialEnabled } from "@/lib/social";
 import { revalidateTag } from "next/cache";
 
-const MAX_PER_RUN = 3; // 밀린 게 있어도 한 번에 이만큼만 (몰아치기 방지)
+const MAX_PER_RUN = Number(process.env.PUBLISH_MAX_PER_RUN || 1); // 한 회차에 올리는 글 수
 
 export interface PublishResult {
   published: { slug: string; title: string; score: number }[];

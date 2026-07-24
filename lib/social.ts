@@ -22,8 +22,11 @@ export const socialEnabled = Boolean(IG_ID && TOKEN);
 //  · 메타 API 한도(인스타 24시간 50건)에 걸리고
 //  · 팔로워가 스팸으로 느껴 언팔한다
 // 그래서 SNS만 따로 하루 한도를 둔다.
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 14);
-const dayKey = () => `social:shared:${new Date().toISOString().slice(0, 10)}`;
+// 【하루 3개 정책】 인스타 카드뉴스 2개 (+릴스 1개 = 인스타 하루 3개)
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
+// 하루 기준은 한국 시간 (UTC로 세면 오전 9시에 날짜가 바뀐다)
+const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const dayKey = () => `social:shared:${kstDay()}`;
 
 export async function sharedToday(): Promise<number> {
   try {
@@ -52,6 +55,19 @@ async function graph(
   return data;
 }
 
+// 캐러셀 컨테이너는 메타 서버에서 준비되기까지 몇 초 걸린다.
+async function waitContainerReady(id: string, tries = 15): Promise<void> {
+  for (let i = 0; i < tries; i++) {
+    const s = await graph(`/${id}`, { fields: "status_code" }, "GET");
+    if (s.status_code === "FINISHED") return;
+    if (s.status_code === "ERROR" || s.status_code === "EXPIRED") {
+      throw new Error(`인스타 컨테이너 ${s.status_code as string}`);
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  throw new Error("인스타 컨테이너 준비 시간 초과");
+}
+
 // ---- 인스타그램 캐러셀 ----
 export async function postToInstagram(post: Post): Promise<string> {
   if (!socialEnabled) throw new Error("인스타 미설정");
@@ -76,20 +92,13 @@ export async function postToInstagram(post: Post): Promise<string> {
     caption: buildCaption(post),
   });
 
-  // 3) 발행 (컨테이너 준비까지 잠깐 대기 필요할 수 있음)
-  let mediaId = "";
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const pub = await graph(`/${IG_ID}/media_publish`, {
-        creation_id: container.id as string,
-      });
-      mediaId = pub.id as string;
-      break;
-    } catch (e) {
-      if (attempt === 4) throw e;
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-  }
+  // 3) 컨테이너가 '준비 완료'가 될 때까지 기다렸다가 딱 한 번만 발행한다.
+  //    준비 여부를 안 보고 재시도하면, 실제로는 올라갔는데 실패로 기록돼 같은 글을 또 올리게 된다.
+  await waitContainerReady(container.id as string);
+  const pub = await graph(`/${IG_ID}/media_publish`, {
+    creation_id: container.id as string,
+  });
+  const mediaId = pub.id as string;
   if (!mediaId) throw new Error("인스타 발행 실패");
 
   // 4) 캡션은 깔끔하게 두고, 해시태그는 첫 댓글(이모지) → 대댓글(30개)로.

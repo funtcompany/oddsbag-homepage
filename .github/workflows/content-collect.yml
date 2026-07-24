@@ -1,9 +1,10 @@
 name: 오즈백 수집·작성·발행
 
-# 매시간 수집→작성→심사→예약. (무료 Gemini 한도에 맞춰 시간당 3건)
+# 2시간마다 깨어나되, 실제로 쓰는 건 하루 3편이다(아침 7시·낮 1시·저녁 7시 슬롯).
+# 편수를 줄인 만큼 글 한 편에 AI 예산을 더 쓴다.
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 */2 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -50,10 +51,13 @@ jobs:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           SITE_URL: ${{ secrets.SITE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          COLLECT_LIMIT: "3" # 한 회차에 쓸 글 수
-          QUEUE_MAX: "16" # 발행 대기열 상한 (넉넉히 쌓아둔다)
-          PUBLISH_GAP_MIN: "30" # 발행 간격 30분 → 하루 최대 약 48편
+          COLLECT_LIMIT: "1" # 한 회차에 쓸 글 수 (슬롯당 1편)
+          WRITE_DAILY_CAP: "3" # 하루 작성 편수 (핵심 정책)
+          WRITE_SLOTS_KST: "7,13,19" # 아침·낮·저녁에 한 편씩
+          QUEUE_MAX: "4" # 발행 대기열 상한 (묵은 뉴스 방지)
+          PUBLISH_GAP_MIN: "300" # 발행 간격 5시간 → 하루 3편이 고르게 퍼진다
+          PUBLISH_DAILY_CAP: "3" # 홈페이지 하루 발행 상한
           TIPS_PER_DAY: "1" # 꿀팁 하루 생산 상한 (피드 도배 방지)
-          SOCIAL_DAILY_CAP: "5" # 인스타·페북 하루 게시 상한 (몰아 올리면 스팸으로 보여 도달이 떨어진다)
-          SOCIAL_GAP_MIN: "180" # SNS 게시 최소 간격(분) — 하루에 고르게 퍼뜨린다
+          SOCIAL_DAILY_CAP: "2" # 인스타 카드뉴스 2개 (+릴스 1개 = 인스타 하루 3개)
+          SOCIAL_GAP_MIN: "360" # SNS 게시 최소 간격 6시간
         run: node run-collect.mjs

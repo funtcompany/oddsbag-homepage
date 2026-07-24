@@ -90,7 +90,8 @@ export async function runImprove(): Promise<ImproveResult> {
     // 이틀 안에 발행된 글만 재게시 (지난 뉴스를 뒤늦게 도배하지 않는다)
     const twoDaysAgo = Date.now() - 2 * 864e5;
     const missing = published
-      .filter((p) => !p.social?.ig)
+      // 'SNS를 한 번도 시도하지 않은 글'만 재게시 (기록 실패한 글을 반복 게시하지 않도록)
+      .filter((p) => !p.social)
       .filter((p) => new Date(p.publishedAt ?? p.date).getTime() > twoDaysAgo)
       .slice(0, RESHARE_PER_RUN);
     for (const post of missing) {

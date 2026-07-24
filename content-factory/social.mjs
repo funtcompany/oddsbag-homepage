@@ -17,16 +17,20 @@ const G = "https://graph.facebook.com/v21.0";
 
 export const socialEnabled = Boolean(IG_ID && TOKEN);
 
-// 홈페이지는 자주 발행해도 되지만, SNS는 하루에 너무 많이 올리면
-//  · 메타 API 한도(인스타 24시간 50건)에 걸리고
-//  · 팔로워가 스팸으로 느껴 언팔한다
-// 그래서 SNS만 따로 하루 한도를 둔다.
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 5);
-const dayKey = () => `social:shared:${new Date().toISOString().slice(0, 10)}`;
+// 【하루 3개 정책】 인스타에는 하루 3개만 올린다 — 카드뉴스 2 + 릴스 1.
+// 여기(카드뉴스)는 2개, 릴스 1개는 factory/make-reels.mjs 가 따로 센다.
+// 페이스북도 같은 방식으로 링크 2 + 영상 1 = 3개가 된다.
+// 많이 올린다고 도달이 늘지 않는다. 피드가 빽빽하면 오히려 언팔당한다.
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
+
+// 하루의 기준은 '한국 시간'이다. UTC로 세면 오전 9시에 날짜가 바뀌어
+// "하루 3개"가 실제로는 아침에 리셋되며 어긋난다.
+const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const dayKey = () => `social:shared:${kstDay()}`;
 
 // 한도만으론 부족하다 — 홈페이지 발행이 몰리면 SNS도 한꺼번에 올라간다.
 // 게시 사이 최소 간격을 둬서 하루에 고르게 퍼지게 한다. (몰아 올리면 스팸으로 보이고 도달도 떨어진다)
-const MIN_GAP_MIN = Number(process.env.SOCIAL_GAP_MIN || 180);
+const MIN_GAP_MIN = Number(process.env.SOCIAL_GAP_MIN || 360);
 const K_LAST_SHARED = "social:lastSharedAt";
 
 async function tooSoon() {
@@ -65,6 +69,20 @@ async function graph(
   return data;
 }
 
+// 캐러셀 컨테이너는 메타 서버에서 준비되기까지 몇 초 걸린다.
+// 준비 전에 발행을 찌르면 실패하므로, 준비될 때까지 상태를 물어보고 기다린다.
+async function waitContainerReady(id, tries = 15) {
+  for (let i = 0; i < tries; i++) {
+    const s = await graph(`/${id}`, { fields: "status_code" }, "GET");
+    if (s.status_code === "FINISHED") return;
+    if (s.status_code === "ERROR" || s.status_code === "EXPIRED") {
+      throw new Error(`인스타 컨테이너 ${s.status_code}`);
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  throw new Error("인스타 컨테이너 준비 시간 초과");
+}
+
 // ---- 인스타그램 캐러셀 ----
 export async function postToInstagram(post) {
   if (!socialEnabled) throw new Error("인스타 미설정");
@@ -89,20 +107,12 @@ export async function postToInstagram(post) {
     caption: buildCaption(post),
   });
 
-  // 3) 발행 (컨테이너 준비까지 잠깐 대기 필요할 수 있음)
-  let mediaId = "";
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const pub = await graph(`/${IG_ID}/media_publish`, {
-        creation_id: container.id,
-      });
-      mediaId = pub.id;
-      break;
-    } catch (e) {
-      if (attempt === 4) throw e;
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-  }
+  // 3) 컨테이너가 '준비 완료'가 될 때까지 기다렸다가 딱 한 번만 발행한다.
+  //    예전에는 준비 여부를 안 보고 5번 재시도했는데, 그 사이 실제로는 인스타에 올라갔는데
+  //    응답만 실패로 잡혀 "안 올라갔다"고 기록됐다. 그러면 개선 크론이 같은 글을 또 올린다.
+  await waitContainerReady(container.id);
+  const pub = await graph(`/${IG_ID}/media_publish`, { creation_id: container.id });
+  const mediaId = pub.id;
   if (!mediaId) throw new Error("인스타 발행 실패");
 
   // 4) 캡션은 깔끔하게 두고, 해시태그는 첫 댓글(이모지) → 대댓글(30개)로.

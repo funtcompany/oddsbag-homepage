@@ -29,8 +29,13 @@ const COMMA_MS = Number(process.env.ODDS_COMMA_MS || 300);  // 쉼표 쉼
 const PERIOD_MS = Number(process.env.ODDS_PERIOD_MS || 500); // 문장 끝 쉼
 const LIMIT = Number(process.env.REEL_LIMIT || 1);
 const YT_PRIVACY = process.env.YT_PRIVACY || "public";
-// 유튜브 무료 한도(10,000 units/일) ÷ 릴스 1개당 약 1,701 units = 5개가 안전 상한
-const YT_DAILY_CAP = Number(process.env.YT_DAILY_CAP || 5);
+// 【하루 3개 정책】 채널마다 하루 3개까지만.
+//  · 유튜브 쇼츠 3개 — 구독자 피드를 도배하지 않고, 무료 한도(10,000 units)에도 넉넉히 들어간다
+//  · 인스타 릴스 1개 — 인스타는 카드뉴스 2개와 합쳐 하루 3개가 된다
+//  · 페이스북 영상 1개 — 링크 게시 2개와 합쳐 하루 3개가 된다
+const YT_DAILY_CAP = Number(process.env.YT_DAILY_CAP || 3);
+const IG_REEL_CAP = Number(process.env.IG_REEL_DAILY_CAP || 1);
+const FB_VIDEO_CAP = Number(process.env.FB_VIDEO_DAILY_CAP || 1);
 const OUT = path.resolve("out");
 fs.mkdirSync(OUT, { recursive: true });
 const K_PUB = "posts:published", DONE = "reels:done";
@@ -200,6 +205,8 @@ async function buildReel(post) {
   }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }
   try {
+    const igToday = await readDaily("ig:reels").catch(() => 0);
+    if (igToday >= IG_REEL_CAP) throw new Error(`인스타 릴스 하루 상한(${IG_REEL_CAP}개) 도달`);
     // 인스타는 메타 호환 호스트(uguu 등, tmpfiles 제외)에만 올린다. 영상 실패면 인스타 자체를 건너뛴다.
     const url = await uploadPublic(final, { metaSafe: true });
     let coverUrl;
@@ -209,9 +216,15 @@ async function buildReel(post) {
       catch (e) { console.log("  · 인스타 커버 생략(첫 프레임 사용):", e.message); } // 커버 실패해도 릴스는 올린다
     }
     await postReel(url, igCaption, coverUrl, igTags);
+    await bumpDaily("ig:reels").catch(() => {});
   }
   catch (e) { console.log("  · 인스타 건너뜀:", e.message); }
-  try { await postVideo(final, fbCaption, thumb); }
+  try {
+    const fbToday = await readDaily("fb:videos").catch(() => 0);
+    if (fbToday >= FB_VIDEO_CAP) throw new Error(`페이스북 영상 하루 상한(${FB_VIDEO_CAP}개) 도달`);
+    await postVideo(final, fbCaption, thumb);
+    await bumpDaily("fb:videos").catch(() => {});
+  }
   catch (e) { console.log("  · 페이스북 건너뜀:", e.message); }
 
   fs.rmSync(work, { recursive: true, force: true });
