@@ -10,7 +10,14 @@ import { collectAllIssues } from "@/lib/aggregate";
 import { generateDraft, type DraftDraft } from "@/lib/ai";
 import { reviewDraft, reviseDraft, type Review } from "@/lib/quality";
 import { getLessons, recordReview } from "@/lib/learn";
-import { saveDraft, queuePost, queueSize, type Post } from "@/lib/posts";
+import {
+  saveDraft,
+  queuePost,
+  queueSize,
+  getPublishedRaw,
+  getQueued,
+  type Post,
+} from "@/lib/posts";
 import { categoryOf } from "@/lib/categories";
 import { sadd, smembers } from "@/lib/store";
 import { notionEnabled, addCollectedPage } from "@/lib/notion";
@@ -49,6 +56,63 @@ async function nextSlot(): Promise<Date> {
   const at = new Date(base);
   await kvSet(K_NEXT_AT, new Date(base + GAP_MIN * 60_000 + jitter).toISOString());
   return at;
+}
+
+// ---- 분야(카테고리) 균형 ----
+// 매 회차 앞쪽에 몰린 사회·경제만 뽑히는 쏠림을 막는다.
+// 최근에 적게 나간 분야를 먼저, 6개 분야를 번갈아(라운드로빈) 뽑아
+// 시간이 지날수록 분야 비중이 비슷하게 유지되도록 이슈 순서를 재배치한다.
+function balanceByCategory<T extends { category: string }>(
+  issues: T[],
+  recent: Record<string, number>,
+): T[] {
+  // 분야별로 묶는다 (수집된 순서 = 신선도 순서를 그대로 유지)
+  const groups = new Map<string, T[]>();
+  for (const it of issues) {
+    const arr = groups.get(it.category) ?? [];
+    arr.push(it);
+    groups.set(it.category, arr);
+  }
+  // 분야 순서: 최근에 적게 나간 분야 먼저 (동률이면 이번에 많이 수집된 분야 먼저)
+  const order = [...groups.keys()].sort((a, b) => {
+    const ra = recent[a] ?? 0;
+    const rb = recent[b] ?? 0;
+    if (ra !== rb) return ra - rb;
+    return groups.get(b)!.length - groups.get(a)!.length;
+  });
+  // 라운드로빈: 각 분야에서 하나씩 번갈아 뽑는다
+  const out: T[] = [];
+  for (let more = true; more; ) {
+    more = false;
+    for (const cat of order) {
+      const arr = groups.get(cat)!;
+      if (arr.length) {
+        out.push(arr.shift()!);
+        more = true;
+      }
+    }
+  }
+  return out;
+}
+
+// 최근 발행 + 예약 대기 글의 분야별 개수 (균형 기준)
+async function recentCategoryCounts(window = 40): Promise<Record<string, number>> {
+  const counts: Record<string, number> = {};
+  try {
+    const published = await getPublishedRaw();
+    const recent = [...published]
+      .sort((a, b) =>
+        (b.publishedAt ?? b.date ?? "").localeCompare(a.publishedAt ?? a.date ?? ""),
+      )
+      .slice(0, window);
+    const queued = await getQueued();
+    for (const p of [...recent, ...queued]) {
+      counts[p.category] = (counts[p.category] ?? 0) + 1;
+    }
+  } catch {
+    /* 분포를 못 읽으면 균형 없이 수집된 순서대로 진행 */
+  }
+  return counts;
 }
 
 export interface CollectResult {
@@ -98,7 +162,10 @@ export async function runCollection(opts: {
   const room = Math.max(1, QUEUE_MAX - pending);
   let made = 0;
 
-  for (const issue of fresh) {
+  // 분야 쏠림 방지: 최근 분포를 반영해 적게 나간 분야부터 번갈아 뽑도록 재배치
+  const ordered = balanceByCategory(fresh, await recentCategoryCounts());
+
+  for (const issue of ordered) {
     if (made >= Math.min(limit, room) || Date.now() > deadline) break;
     try {
       // 0) 원문 기사를 실제로 읽는다.

@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAudit } from "@/lib/audit";
 
-export const maxDuration = 800;
+export const maxDuration = 60; // 무료(Hobby) 플랜 상한 60초. NAS가 30분마다 호출.
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     }
   }
   try {
-    const r = await runAudit();
+    const r = await runAudit({ budgetMs: 50_000 });
     return NextResponse.json({
       ok: true,
       노션동기화: r.synced,

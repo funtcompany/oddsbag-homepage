@@ -21,8 +21,8 @@ import { revalidateTag } from "next/cache";
 
 const OWNER = process.env.OWNER_EMAIL || "tjdrhks2826@gmail.com";
 
-const FIX_COVERS_PER_RUN = 6;
-const RESHARE_PER_RUN = 3;
+const FIX_COVERS_PER_RUN = 3; // 무료 60초 안전 (자주 도는 대신 적게)
+const RESHARE_PER_RUN = 2;
 
 export interface ImproveResult {
   posts: number;
@@ -36,7 +36,11 @@ export interface ImproveResult {
   errors: string[];
 }
 
-export async function runImprove(): Promise<ImproveResult> {
+export async function runImprove(opts: { budgetMs?: number } = {}): Promise<ImproveResult> {
+  // 무료 플랜: 60초 안에 끝내야 한다. 보수 작업이 시간을 다 먹으면 진단·메일이 안 나가므로,
+  // 보수 루프는 여유를 남기고 멈추고 남은 시간은 진단 리포트 + 메일 발송에 쓴다.
+  const deadline = Date.now() + (opts.budgetMs ?? 240_000);
+  const fixDeadline = deadline - 15_000; // 마지막 15초는 진단·메일용으로 남겨둔다
   const out: ImproveResult = {
     posts: 0,
     drafts: 0,
@@ -66,6 +70,7 @@ export async function runImprove(): Promise<ImproveResult> {
 
   // ---- 1) 커버 사진 재탐색 ----
   for (const post of noCover.slice(0, FIX_COVERS_PER_RUN)) {
+    if (Date.now() > fixDeadline) break; // 시간 초과 — 진단·메일 시간을 남긴다
     try {
       const cover = await findCoverImage(
         post.tags?.join(" ") ?? "",
@@ -94,6 +99,7 @@ export async function runImprove(): Promise<ImproveResult> {
       .filter((p) => new Date(p.publishedAt ?? p.date).getTime() > twoDaysAgo)
       .slice(0, RESHARE_PER_RUN);
     for (const post of missing) {
+      if (Date.now() > fixDeadline) break; // 시간 초과 — 진단·메일 시간을 남긴다
       try {
         const r = await shareEverywhere(post);
         if (r.ig || r.fb) {

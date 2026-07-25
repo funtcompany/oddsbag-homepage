@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runImprove } from "@/lib/improve";
 
-export const maxDuration = 800;
+export const maxDuration = 60; // 무료(Hobby) 플랜 상한 60초. NAS가 이틀에 한 번 호출.
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
   }
   try {
-    const r = await runImprove();
+    const r = await runImprove({ budgetMs: 50_000 });
     return NextResponse.json({ ok: true, ...r });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

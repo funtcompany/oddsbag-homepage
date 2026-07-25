@@ -1,8 +1,3 @@
 {
-  "crons": [
-    { "path": "/api/cron/collect", "schedule": "*/30 * * * *" },
-    { "path": "/api/cron/publish", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/audit", "schedule": "0 0,6,12 * * *" },
-    { "path": "/api/cron/improve", "schedule": "30 3 */2 * *" }
-  ]
+  "crons": []
 }

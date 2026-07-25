@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runPublish } from "@/lib/publish";
 
-export const maxDuration = 300;
+export const maxDuration = 60; // 무료(Hobby) 플랜 상한 60초. NAS가 5분마다 호출.
 
 const CRON_SECRET = process.env.CRON_SECRET;
 

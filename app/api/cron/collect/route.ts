@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runCollection } from "@/lib/pipeline";
 import type { IssueSource } from "@/lib/sources";
 
-export const maxDuration = 800; // 수집+작성+심사+개선+SNS
+export const maxDuration = 60; // 무료(Hobby) 플랜 상한 60초. NAS가 10분마다 호출해 이어받는다.
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const SOURCES: IssueSource[] = [
@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
     }
   }
   try {
-    const r = await runCollection({ sources: SOURCES, limit: 5 });
+    // 무료 플랜: 한 번에 1건만, 45초 안에 끝낸다 (60초 상한 안전). 남은 건 다음 회차가 이어받음.
+    const r = await runCollection({ sources: SOURCES, limit: 1, budgetMs: 45_000 });
     return NextResponse.json({
       ok: true,
       예약: r.queued.length,

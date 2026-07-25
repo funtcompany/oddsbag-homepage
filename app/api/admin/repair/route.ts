@@ -7,7 +7,7 @@ import { getPublishedRaw, getQueued, getDrafts, upsertPublished, saveDraft, queu
 import { hasBrokenChars, sanitize } from "@/lib/ai";
 import { revalidateTag } from "next/cache";
 
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 const ADMIN = process.env.ADMIN_PASSWORD;

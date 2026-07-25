@@ -23,8 +23,8 @@ import { syncFromNotion } from "@/lib/sync";
 import { shareEverywhere, socialEnabled } from "@/lib/social";
 import { revalidateTag } from "next/cache";
 
-const AUDIT_PER_RUN = 8; // 회차당 재감사할 발행글 수
-const RESCUE_PER_RUN = 4; // 회차당 구조 시도할 검수함 글 수
+const AUDIT_PER_RUN = 3; // 회차당 재감사할 발행글 수 (무료 60초 안전 — 자주 도는 대신 적게)
+const RESCUE_PER_RUN = 3; // 회차당 구조 시도할 검수함 글 수
 const RECHECK_HOURS = 36; // 이 시간이 지난 발행글은 다시 감사
 
 const nowIso = () => new Date().toISOString();
@@ -42,8 +42,12 @@ export interface AuditResult {
   errors: string[];
 }
 
-export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditResult> {
+export async function runAudit(
+  opts: { share?: boolean; budgetMs?: number } = {},
+): Promise<AuditResult> {
   const share = opts.share !== false;
+  // 무료 플랜: 60초 안에 끝내야 한다. 이 시간을 넘으면 남은 건 다음 회차가 이어받는다.
+  const deadline = Date.now() + (opts.budgetMs ?? 240_000);
   const out: AuditResult = {
     synced: 0,
     audited: 0,
@@ -78,6 +82,7 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
     .slice(0, AUDIT_PER_RUN);
 
   for (const post of queue) {
+    if (Date.now() > deadline) break; // 시간 초과 — 나머지는 다음 회차로
     try {
       const review = await auditPost(post);
       out.audited++;
@@ -161,6 +166,7 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
 
   const rescuedPosts: Post[] = [];
   for (const post of rescuable) {
+    if (Date.now() > deadline) break; // 시간 초과 — 나머지는 다음 회차로
     try {
       const before = await auditPost(post);
       const fixed = await polishPost(post, before);
