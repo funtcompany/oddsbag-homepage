@@ -214,7 +214,10 @@ const REVISE_SYSTEM = `너는 '오즈백' 매거진 에디터다. 편집장의 �
 - 지적된 부분만 정확히 고친다. 멀쩡한 부분은 건드리지 않는다.
 - 원문에 없는 사실을 절대 새로 만들지 않는다. 확실하지 않으면 그 문장을 통째로 뺀다.
 - '원문에 없는 수치/인용문' 지적은 반드시 '삭제'로 처리한다. 다른 숫자로 바꾸지 마라.
-- 본문은 마크다운. '## 소제목' 2~3개, 마지막은 반드시 '## 오즈백 한 줄 정리'.
+- 본문은 마크다운. 마지막은 반드시 '## 오즈백 한 줄 정리'.
+- 원래 글의 소제목 개수와 분량을 그대로 유지한다. 지적된 곳만 고치고, 멀쩡한 절을 삭제해 글을 줄이지 마라.
+  (꿀팁 같은 긴 정보성 글을 짧게 줄이면 검색 유입과 광고 심사에서 손해다)
+- 표(| 항목 | 설명 |)가 있으면 형식을 깨지 말고 그대로 둔다.
 
 출력은 반드시 아래 형식 그대로. 다른 말 금지.
 <title>제목</title>
@@ -246,7 +249,9 @@ ${draft.body}
 
 지적사항을 반영해 다시 써라. 지정된 태그 형식으로만 출력.`;
 
-  const raw = await ask(REVISE_SYSTEM, user, { maxTokens: 2400, careful: true });
+  // 원문이 길면 고쳐 쓸 여유도 그만큼 줘야 한다 (안 그러면 뒤가 잘려 글이 짧아진다)
+  const reviseTokens = draft.body.length > 1400 ? 4200 : 2400;
+  const raw = await ask(REVISE_SYSTEM, user, { maxTokens: reviseTokens, careful: true });
   const fixed = {
     title: pick(raw, "title") || draft.title,
     summary: pick(raw, "summary") || draft.summary,

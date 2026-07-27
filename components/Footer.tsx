@@ -37,6 +37,14 @@ export default function Footer() {
             <ul className="mt-2 space-y-1 text-sm text-white/80">
               <li>
                 <Link
+                  href="/guide"
+                  className="transition hover:text-oddsbag-yellow"
+                >
+                  주제별 가이드
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/about"
                   className="transition hover:text-oddsbag-yellow"
                 >

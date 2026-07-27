@@ -16,6 +16,7 @@ import { findCoverImage } from "./images.mjs";
 import { shareEverywhere, socialEnabled } from "./social.mjs";
 import { sendEmail, emailEnabled } from "./email.mjs";
 import { ask } from "./llm.mjs";
+import { expandTipBody } from "./ai.mjs";
 import { smembers } from "./store.mjs";
 import { revalidateTag } from "./cache.mjs";
 
@@ -24,12 +25,21 @@ const OWNER = process.env.OWNER_EMAIL || "tjdrhks2826@gmail.com";
 const FIX_COVERS_PER_RUN = 6;
 const RESHARE_PER_RUN = 3;
 
+// ---- 짧은 정보성 글 보강 ----
+// 실측(2026-07-27): 발행글 161편의 본문 중앙값이 877자, 160편이 1,500자 미만이었다.
+// 이 길이로는 검색에서도 광고 심사에서도 '내용이 얕은 글'로 취급된다.
+// 새 글은 작성 단계에서 길게 쓰지만, 이미 나간 글은 여기서 조금씩 채운다.
+const EXPAND_PER_RUN = Number(process.env.EXPAND_PER_RUN || 3);
+const THIN_CHARS = Number(process.env.THIN_CHARS || 1500); // 이보다 짧으면 보강 대상
+
 export async function runImprove() {
   const out = {
     posts: 0,
     drafts: 0,
     noCover: 0,
     coversFixed: 0,
+    thin: 0,
+    expanded: 0,
     reshared: 0,
     byCategory: {},
     trend: { avg7: 0, avgPrev: 0, autoPublishRate: 0, count: 0 },
@@ -73,6 +83,33 @@ export async function runImprove() {
     }
   }
 
+  // ---- 1-2) 짧은 정보성 글 보강 ----
+  // 꿀팁만 대상으로 한다. 뉴스를 늘리려면 원문에 없는 사실이 필요해지고,
+  // 그건 이 매체가 절대 하지 않기로 한 일이다.
+  const thin = published
+    .filter((p) => p.category === "꿀팁")
+    .filter((p) => (p.body?.length ?? 0) < THIN_CHARS)
+    .filter((p) => !p.expandedAt) // 이미 보강한 글은 다시 건드리지 않는다
+    .sort((a, b) => (a.body?.length ?? 0) - (b.body?.length ?? 0)); // 짧은 것부터
+  out.thin = thin.length;
+
+  for (const post of thin.slice(0, EXPAND_PER_RUN)) {
+    try {
+      const body = await expandTipBody(post);
+      if (!body) {
+        out.errors.push(`보강 건너뜀 ${post.slug}: 결과가 기준 미달`);
+        continue;
+      }
+      post.body = body;
+      post.expandedAt = new Date().toISOString();
+      post.readMinutes = Math.max(1, Math.round(body.length / 500));
+      await upsertPublished(post);
+      out.expanded++;
+    } catch (e) {
+      out.errors.push(`보강 ${post.slug}: ${e.message}`);
+    }
+  }
+
   // ---- 2) 인스타에 못 올라간 발행글 재게시 ----
   if (socialEnabled) {
     // 이틀 안에 발행된 글만 재게시 (지난 뉴스를 뒤늦게 도배하지 않는다)
@@ -99,7 +136,7 @@ export async function runImprove() {
     }
   }
 
-  if (out.coversFixed || out.reshared) {
+  if (out.coversFixed || out.reshared || out.expanded) {
     try {
       revalidateTag("posts", "max");
     } catch {
@@ -156,6 +193,7 @@ async function suggestActions(ctx) {
 
   const user = `발행글: ${ctx.posts}건 / 검수함 대기: ${ctx.drafts}건
 사진 없는 글: ${ctx.noCover}건
+분량이 짧은 꿀팁(1,500자 미만): ${ctx.thin}건
 카테고리 분포: ${JSON.stringify(ctx.byCategory)}
 품질 점수 평균: 최근 ${ctx.trend.avg7}점 (직전 ${ctx.trend.avgPrev}점)
 자동 발행 통과율: ${ctx.trend.autoPublishRate}%
@@ -207,6 +245,7 @@ function reportHtml(r, subs) {
       ${stat("품질 점수 (최근 평균)", `${r.trend.avg7}점 &nbsp;<span style="color:${up >= 0 ? "#4ade80" : "#ff7676"};font-size:13px">${arrow}</span>`)}
       ${stat("자동 발행 통과율", `${r.trend.autoPublishRate}%`)}
       ${stat("사진 없는 글", `${r.noCover}건 (이번에 ${r.coversFixed}건 보완)`)}
+      ${stat("짧은 꿀팁 보강", `${r.thin}건 남음 (이번에 ${r.expanded}건 보강)`)}
       ${stat("인스타 재게시", `${r.reshared}건`)}
       ${stat("뉴스레터 구독자", `${subs}명`)}
     </table>

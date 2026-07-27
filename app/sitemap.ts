@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/posts";
 import { categories } from "@/lib/categories";
+import { hubs } from "@/lib/hubs";
 
 const BASE = "https://oddsbag.co.kr";
 
@@ -21,6 +22,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
+  // 주제 허브 — 여러 글을 묶는 페이지라 검색엔진이 좋아한다
+  const hubRoutes = [
+    {
+      url: `${BASE}/guide`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+    },
+    ...hubs.map((h) => ({
+      url: `${BASE}/guide/${h.slug}`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.7,
+    })),
+  ];
+
   const categoryRoutes = categories.map((c) => ({
     url: `${BASE}/category/${c.slug}`,
     changeFrequency: "daily" as const,
@@ -36,5 +53,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: i < 10 ? 0.9 : 0.7,
   }));
 
-  return [...staticRoutes, ...infoRoutes, ...categoryRoutes, ...postRoutes];
+  return [
+    ...staticRoutes,
+    ...hubRoutes,
+    ...infoRoutes,
+    ...categoryRoutes,
+    ...postRoutes,
+  ];
 }

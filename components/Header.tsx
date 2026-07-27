@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { categories } from "@/lib/categories";
+import SearchBox from "@/components/SearchBox";
 
 export default function Header() {
   return (
@@ -15,6 +16,10 @@ export default function Header() {
           </span>
         </Link>
         <div className="flex items-center gap-3">
+          {/* 검색창 — 넓은 화면에서는 헤더에 바로 둔다 */}
+          <div className="hidden w-64 md:block lg:w-72">
+            <SearchBox size="sm" placeholder="검색" />
+          </div>
           <Link
             href="/#subscribe"
             className="rounded-full bg-oddsbag-purple px-4 py-1.5 text-sm font-bold text-white transition hover:bg-oddsbag-purple-dark"
@@ -22,6 +27,11 @@ export default function Header() {
             구독
           </Link>
         </div>
+      </div>
+
+      {/* 좁은 화면(폰)에서는 한 줄 아래에 */}
+      <div className="border-t border-oddsbag-light-gray/70 px-3 py-2 md:hidden">
+        <SearchBox size="sm" placeholder="찾으시는 걸 검색해 보세요" />
       </div>
 
       {/* 카테고리 네비 (게시판 느낌) */}
@@ -32,6 +42,12 @@ export default function Header() {
             className="whitespace-nowrap rounded-full px-3 py-1 font-bold text-oddsbag-dark transition hover:bg-oddsbag-light-gray"
           >
             홈
+          </Link>
+          <Link
+            href="/guide"
+            className="whitespace-nowrap rounded-full px-3 py-1 font-bold text-oddsbag-purple transition hover:bg-oddsbag-light-gray"
+          >
+            📚 가이드
           </Link>
           {categories.map((c) => (
             <Link

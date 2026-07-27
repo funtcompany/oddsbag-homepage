@@ -109,6 +109,20 @@ function inline(text: string): ReactNode[] {
   );
 }
 
+// 본문에서 소제목만 뽑아 목차를 만든다 ('오즈백 한 줄 정리'는 뺀다)
+function tableOfContents(body: string) {
+  const out: { id: string; text: string }[] = [];
+  let n = 0;
+  for (const line of body.split("\n")) {
+    if (!line.startsWith("## ")) continue;
+    const text = line.slice(3).trim().replace(/\*\*/g, "");
+    n++;
+    if (text.includes("오즈백 한 줄") || text.includes("한 줄 정리")) continue;
+    out.push({ id: `sec-${n}`, text });
+  }
+  return out;
+}
+
 // 마크다운 본문 → 에디토리얼 요소
 function renderBody(body: string) {
   const lines = body.split("\n");
@@ -116,10 +130,12 @@ function renderBody(body: string) {
   let firstPara = true;
   let i = 0;
   let key = 0;
+  let headingNo = 0; // 목차 링크와 맞추기 위한 소제목 번호
   while (i < lines.length) {
     const line = lines[i];
     if (line.startsWith("## ")) {
       const heading = line.slice(3).trim();
+      headingNo++;
       if (heading.includes("오즈백 한 줄") || heading.includes("한 줄 정리")) {
         i++;
         const content: string[] = [];
@@ -152,7 +168,8 @@ function renderBody(body: string) {
       out.push(
         <h2
           key={key++}
-          className="mt-12 flex items-center gap-3 text-[26px] font-black leading-snug text-oddsbag-dark"
+          id={`sec-${headingNo}`}
+          className="mt-12 flex scroll-mt-28 items-center gap-3 text-[26px] font-black leading-snug text-oddsbag-dark"
           style={{ wordBreak: "keep-all" }}
         >
           <span className="mt-0.5 h-7 w-3 shrink-0 rounded bg-oddsbag-purple" />
@@ -160,6 +177,63 @@ function renderBody(body: string) {
         </h2>,
       );
       i++;
+      continue;
+    }
+    // 마크다운 표 — | 항목 | 설명 | / |---|---| / | 내용 | 내용 |
+    // 긴 정보성 글에서 조건·비교를 한눈에 보여주는 데 쓴다.
+    if (
+      line.trim().startsWith("|") &&
+      lines[i + 1] &&
+      /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])
+    ) {
+      const cells = (row: string) =>
+        row
+          .trim()
+          .replace(/^\||\|$/g, "")
+          .split("|")
+          .map((c) => c.trim());
+      const head = cells(line);
+      i += 2; // 제목 줄 + 구분선
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        rows.push(cells(lines[i]));
+        i++;
+      }
+      out.push(
+        // 폰에서 표가 넘치면 페이지 전체가 옆으로 밀린다 → 표만 따로 스크롤시킨다
+        <div key={key++} className="my-7 -mx-1 overflow-x-auto">
+          <table className="w-full min-w-[420px] border-collapse text-[16px]">
+            <thead>
+              <tr>
+                {head.map((h, j) => (
+                  <th
+                    key={j}
+                    className="border-b-2 border-oddsbag-purple bg-oddsbag-light-gray/60 px-3 py-2.5 text-left font-black text-oddsbag-dark"
+                    style={{ wordBreak: "keep-all" }}
+                  >
+                    {inline(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, j) => (
+                <tr key={j} className="border-b border-oddsbag-light-gray">
+                  {r.map((c, k) => (
+                    <td
+                      key={k}
+                      className="px-3 py-2.5 align-top leading-relaxed text-oddsbag-dark/90"
+                      style={{ wordBreak: "keep-all" }}
+                    >
+                      {inline(c)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
       continue;
     }
     if (line.startsWith("- ")) {
@@ -208,6 +282,7 @@ export default async function PostPage({
   const related = await getRelatedPosts(post, 4);
   const d = getDesign(post);
   const hasPhoto = Boolean(post.cover);
+  const toc = tableOfContents(post.body);
   // 사진 위엔 흰 글자 + 그림자, 아니면 디자인 엔진 색
   const headTitle = hasPhoto ? "#fff" : d.title;
   const headCat = hasPhoto ? d.accent : d.catColor;
@@ -282,6 +357,33 @@ export default async function PostPage({
         </header>
 
         <article className="mx-auto max-w-2xl px-4 py-9">
+          {/* 목차 — 소제목이 4개 이상인 긴 글에만. 짧은 글엔 오히려 방해가 된다. */}
+          {toc.length >= 4 && (
+            <nav
+              aria-label="목차"
+              className="mb-9 rounded-2xl border border-oddsbag-light-gray bg-oddsbag-light-gray/40 px-5 py-4"
+            >
+              <p className="text-xs font-black tracking-[0.14em] text-oddsbag-purple">
+                이 글에서 다루는 것
+              </p>
+              <ol className="mt-3 space-y-2">
+                {toc.map((t, i) => (
+                  <li key={t.id} className="flex gap-2.5 text-[15px] leading-snug">
+                    <span className="shrink-0 font-black text-oddsbag-purple/60">
+                      {i + 1}
+                    </span>
+                    <a
+                      href={`#${t.id}`}
+                      className="text-oddsbag-dark/85 transition hover:text-oddsbag-purple hover:underline"
+                      style={{ wordBreak: "keep-all" }}
+                    >
+                      {t.text}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
           <div className="article-body mt-1">{renderBody(post.body)}</div>
 
           <div className="my-9">
