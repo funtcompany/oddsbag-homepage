@@ -44,13 +44,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // 숨긴 글도 사이트맵에는 남긴다 — 검색 유입과 색인을 지키기 위함.
+  // 목록에서만 빠지고, 우선순위만 낮춘다.
   const posts = await getAllPosts();
   const postRoutes = posts.map((p, i) => ({
     url: `${BASE}/magazine/${p.slug}`,
     lastModified: new Date(p.publishedAt ?? p.date),
-    changeFrequency: "daily" as const,
+    changeFrequency: p.hidden ? ("monthly" as const) : ("daily" as const),
     // 최신 글일수록 크롤러가 먼저 보게 한다
-    priority: i < 10 ? 0.9 : 0.7,
+    priority: p.hidden ? 0.4 : i < 10 ? 0.9 : 0.7,
   }));
 
   return [

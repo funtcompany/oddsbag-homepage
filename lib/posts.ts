@@ -47,6 +47,16 @@ export interface Post {
     note?: string;
   };
   publishAt?: string; // 예약 발행 시각 (대기열에 있을 때)
+
+  /**
+   * 목록에서 숨김 (2026-08-03 이전 게시물 정리용)
+   * 글은 그대로 살아 있고 주소로 들어오면 정상으로 보인다.
+   * 홈·목록·카테고리·검색·관련글에서만 빠진다.
+   * → 검색 유입과 색인은 지키면서, 방문자가 보는 첫인상만 새 글로 채우기 위함.
+   *   되돌리려면 이 값만 지우면 된다.
+   */
+  hidden?: boolean;
+  hiddenAt?: string;
   auditedAt?: string; // 마지막 재점검 시각 (1일 3회 크론)
   social?: { ig?: string; fb?: string; at?: string }; // SNS 게시 결과
 }
@@ -111,13 +121,22 @@ export const getAllPosts = unstable_cache(loadAllPublished, ["oddsbag-posts"], {
   tags: ["posts"],
 });
 
+/**
+ * 독자에게 '보여줄' 글 목록.
+ * 홈·목록·카테고리·검색·관련글은 전부 이걸 쓴다.
+ * (getAllPosts 는 숨긴 글까지 포함한 전체 — 주소로 직접 들어오는 경우와 사이트맵에 쓴다)
+ */
+export async function getVisiblePosts(): Promise<Post[]> {
+  return (await getAllPosts()).filter((p) => !p.hidden);
+}
+
 export async function getLatestPosts(count?: number): Promise<Post[]> {
-  const all = await getAllPosts();
+  const all = await getVisiblePosts();
   return count ? all.slice(0, count) : all;
 }
 
 export async function getFeaturedPost(): Promise<Post | undefined> {
-  const all = await getAllPosts();
+  const all = await getVisiblePosts();
   return all.find((p) => p.featured) ?? all[0];
 }
 
@@ -125,7 +144,7 @@ export async function getPostsByCategory(
   label: string,
   count?: number,
 ): Promise<Post[]> {
-  const list = (await getAllPosts()).filter((p) => p.category === label);
+  const list = (await getVisiblePosts()).filter((p) => p.category === label);
   return count ? list.slice(0, count) : list;
 }
 
@@ -135,7 +154,7 @@ export async function getPostBySlug(slug: string): Promise<Post | undefined> {
 }
 
 export async function getRelatedPosts(post: Post, count = 4): Promise<Post[]> {
-  const all = (await getAllPosts()).filter((p) => p.slug !== post.slug);
+  const all = (await getVisiblePosts()).filter((p) => p.slug !== post.slug);
   const same = all.filter((p) => p.category === post.category);
   const others = all.filter((p) => p.category !== post.category);
   return [...same, ...others].slice(0, count);

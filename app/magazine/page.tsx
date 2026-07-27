@@ -2,7 +2,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
 import SearchBox from "@/components/SearchBox";
-import { getAllPosts } from "@/lib/posts";
+import { getVisiblePosts } from "@/lib/posts";
 import { searchPosts, looseSearch } from "@/lib/search";
 import { categories } from "@/lib/categories";
 import Link from "next/link";
@@ -39,7 +39,7 @@ export default async function MagazinePage({
   searchParams: Promise<SP>;
 }) {
   const q = ((await searchParams).q ?? "").trim();
-  const posts = await getAllPosts();
+  const posts = await getVisiblePosts();
 
   const hits = q ? searchPosts(posts, q) : [];
   const suggestions = q && hits.length === 0 ? looseSearch(posts, q) : [];

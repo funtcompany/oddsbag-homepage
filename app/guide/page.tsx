@@ -2,7 +2,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SearchBox from "@/components/SearchBox";
 import Link from "next/link";
-import { getAllPosts } from "@/lib/posts";
+import { getVisiblePosts } from "@/lib/posts";
 import { hubs, postsInHub } from "@/lib/hubs";
 import type { Metadata } from "next";
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default async function GuideIndexPage() {
-  const posts = await getAllPosts();
+  const posts = await getVisiblePosts();
   const rows = hubs
     .map((hub) => ({ hub, items: postsInHub(posts, hub) }))
     // 글이 하나도 없는 주제는 보여주지 않는다 (빈 페이지는 독자도 검색엔진도 싫어한다)

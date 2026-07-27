@@ -4,7 +4,7 @@ import PostCard from "@/components/PostCard";
 import SearchBox from "@/components/SearchBox";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAllPosts } from "@/lib/posts";
+import { getVisiblePosts } from "@/lib/posts";
 import { hubs, hubBySlug, postsInHub } from "@/lib/hubs";
 import type { Metadata } from "next";
 
@@ -37,7 +37,7 @@ export default async function HubPage({
   const hub = hubBySlug(slug);
   if (!hub) notFound();
 
-  const posts = await getAllPosts();
+  const posts = await getVisiblePosts();
   const items = postsInHub(posts, hub);
   const others = hubs.filter((h) => h.slug !== hub.slug);
 

@@ -1,5 +1,5 @@
 // RSS 피드 — 구글/네이버 색인과 뉴스 리더 유입 경로
-import { getAllPosts } from "@/lib/posts";
+import { getVisiblePosts } from "@/lib/posts";
 
 export const revalidate = 600;
 
@@ -8,7 +8,7 @@ const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export async function GET() {
-  const posts = (await getAllPosts()).slice(0, 50);
+  const posts = (await getVisiblePosts()).slice(0, 50);
   const items = posts
     .map(
       (p) => `  <item>
