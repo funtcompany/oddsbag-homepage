@@ -98,8 +98,12 @@ async function nextSlot() {
 // 목표 비중. 최근 발행분에서 이 비중을 넘긴 분야는 이번 회차에 새로 쓰지 않는다.
 // (꿀팁은 근거가 항상 확보돼 성공률이 높아 그냥 두면 혼자 다 차지한다 —
 //  실제로 최근 25건 중 18건(72%)이 꿀팁이었다. 그래서 상한을 둔다.)
+//
+// 【꿀팁 55%인 이유】 하루 2편 중 1편을 꿀팁으로 고정하면 비중이 정확히 50%다.
+// 목표를 50%로 두면 '50% 이상'에 걸려 다음 날 꿀팁이 막힌다. 그래서 조금 높게 잡았다.
+// 꿀팁은 뉴스와 달리 시간이 지나도 검색 유입이 죽지 않는 자산이다.
 const TARGET_SHARE = {
-  "꿀팁": 0.3,
+  "꿀팁": 0.55,
   "사회": 0.2,
   "경제": 0.2,
   "IT·테크": 0.2,
@@ -149,17 +153,20 @@ function balanceByCategory(issues, recent) {
   return out;
 }
 
-// 꿀팁 하루 생산 상한. 검색 유입 자산이라 계속 내되, 하루 1건이면 충분하다.
+// 꿀팁 하루 생산 상한. 하루 2편 체제에서 1편을 꿀팁으로 고정한다.
+// (나머지 1편은 뉴스 — 정보성:뉴스 = 1:1)
 const TIPS_PER_DAY = Number(process.env.TIPS_PER_DAY || 1);
 
 // 오늘 만든 꿀팁 수 (발행분 + 대기열 둘 다 센다 — 대기열에 쌓여도 결국 나가므로)
 async function countTipsToday() {
-  const day = new Date().toISOString().slice(0, 10);
+  const day = kstDay(); // 하루 기준은 한국시간 (UTC로 세면 오전 9시에 리셋된다)
   try {
     const published = await getPublishedRaw();
     const queued = await getQueued();
     return [...published, ...queued].filter(
-      (p) => p.category === "꿀팁" && (p.publishedAt ?? p.date ?? "").slice(0, 10) === day,
+      (p) =>
+        p.category === "꿀팁" &&
+        kstOf(p.createdAt ?? p.publishedAt ?? p.date) === day,
     ).length;
   } catch {
     return 0; // 못 세면 막지 않는다 (발행이 멈추는 게 더 나쁘다)
@@ -257,12 +264,13 @@ export async function runCollection(opts) {
   const everWant = tipsOver ? 0 : Math.max(1, cap - ordered.length);
   const ever = everWant > 0 ? pickEvergreenIssues(seen, everWant) : [];
   if (ever.length) {
-    ordered.splice(1, 0, ...ever); // 앞쪽에 끼워 이번 회차에 확실히 처리되게
+    // 맨 앞에 넣는다 — 아침 슬롯이 정보성 글, 저녁 슬롯이 뉴스가 된다.
+    ordered.unshift(...ever);
     console.log(`에버그린 주제 ${ever.length}건 투입`);
   } else if (tipsCapped) {
     console.log(`꿀팁 오늘 ${tipsToday}건 — 하루 상한(${TIPS_PER_DAY})에 도달, 뉴스만 진행`);
   } else if (tipsOver) {
-    console.log("꿀팁 비중이 목표(30%)를 넘어 이번 회차는 뉴스 위주로 진행");
+    console.log("꿀팁 비중이 목표(55%)를 넘어 이번 회차는 뉴스 위주로 진행");
   }
 
   // 이번 회차에 쓴 분야를 세어, 한 회차가 한 분야로 채워지는 것도 막는다

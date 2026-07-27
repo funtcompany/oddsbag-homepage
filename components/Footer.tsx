@@ -37,10 +37,26 @@ export default function Footer() {
             <ul className="mt-2 space-y-1 text-sm text-white/80">
               <li>
                 <Link
+                  href="/about"
+                  className="transition hover:text-oddsbag-yellow"
+                >
+                  소개
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/#subscribe"
                   className="transition hover:text-oddsbag-yellow"
                 >
                   뉴스레터 구독
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="transition hover:text-oddsbag-yellow"
+                >
+                  문의하기
                 </Link>
               </li>
               <li className="text-white/50">oddsbag.official@gmail.com</li>
@@ -48,8 +64,28 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-white/10 pt-5 text-xs text-white/40">
-          © {new Date().getFullYear()} ODDSBAG. All rights reserved.
+        <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-5 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
+          <span>© {new Date().getFullYear()} ODDSBAG. All rights reserved.</span>
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href="/about" className="transition hover:text-oddsbag-yellow">
+              소개
+            </Link>
+            <Link
+              href="/privacy"
+              className="font-bold text-white/70 transition hover:text-oddsbag-yellow"
+            >
+              개인정보처리방침
+            </Link>
+            <Link href="/terms" className="transition hover:text-oddsbag-yellow">
+              이용약관
+            </Link>
+            <Link
+              href="/contact"
+              className="transition hover:text-oddsbag-yellow"
+            >
+              문의하기
+            </Link>
+          </nav>
         </div>
       </div>
     </footer>
