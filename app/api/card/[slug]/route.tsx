@@ -8,7 +8,8 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { getPostFresh } from "@/lib/posts";
-import { buildCards, type Card } from "@/lib/cards";
+import { buildCards, type Card, type Figure } from "@/lib/cards";
+import { styleFor, badgeEmoji } from "@/lib/cardstyle";
 
 export const runtime = "nodejs";
 // 쿼리(?i=)로 장수가 달라지므로 라우트 캐시는 쓰지 않고, CDN 캐시는 응답 헤더로 건다.
@@ -139,6 +140,18 @@ function paletteFor(slug: string, mood?: string): Pal {
   return list[hash(slug) % list.length];
 }
 
+// 【2026-07-27 개편】 색은 이제 '무드'가 아니라 '카테고리'가 정한다.
+//   넘겨봤을 때 무슨 종류의 글인지 한눈에 구분되게 하기 위함이다.
+//   (무드 팔레트는 분류에 없는 글이 들어올 때를 대비해 남겨둔다)
+function palFor(category: string, slug: string, mood: string | undefined, hasPhoto: boolean): Pal {
+  const cs = styleFor(category, hasPhoto);
+  if (!cs) return paletteFor(slug, mood);
+  return {
+    bg: cs.bg, card: cs.card, ink: cs.ink, sub: cs.sub, faint: cs.faint,
+    line: cs.line, accent: cs.accent, onAccent: cs.onAccent, ghost: cs.ghost,
+  };
+}
+
 // ---- 한글 폰트 (구글폰트에서 필요한 글자만 서브셋으로 받아옴 → 가볍고 빠름) ----
 async function loadFont(text: string, weight: number): Promise<ArrayBuffer | null> {
   try {
@@ -162,6 +175,135 @@ async function loadFont(text: string, weight: number): Promise<ArrayBuffer | nul
   }
 }
 
+// ---- 시각 요소(도식) 그리기 ----
+// 【왜】 글자만 이어지는 카드는 넘기다 만다. 본문에 이미 있는 것을 그림으로 세운다.
+//  satori는 flex만 지원한다 — 자식이 둘 이상인 div에는 반드시 display:flex 를 준다.
+function renderFigure(f: Figure, p: Pal, cover: boolean, scale = 1) {
+  const ink = cover ? "#FFFFFF" : p.ink;
+  const sub = cover ? "rgba(255,255,255,.86)" : p.sub;
+  const cardBg = cover ? "rgba(255,255,255,.16)" : p.card;
+  const bd = cover ? "rgba(255,255,255,.26)" : p.line;
+  const S = (n: number) => Math.round(n * scale);
+
+  if (f.kind === "keys") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", marginTop: S(30) }}>
+        {f.keys.map((k, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center" }}>
+            {i > 0 ? (
+              <div style={{ display: "flex", fontSize: S(38), fontWeight: 800, color: sub, margin: `0 ${S(14)}px` }}>+</div>
+            ) : null}
+            <div
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: cardBg, border: `3px solid ${bd}`, borderRadius: S(18),
+                padding: `${S(20)}px ${S(28)}px`, fontSize: S(38), fontWeight: 900, color: ink,
+              }}
+            >
+              {k}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (f.kind === "path") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", marginTop: S(30) }}>
+        {f.steps.map((st, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center" }}>
+            {i > 0 ? (
+              <div style={{ display: "flex", fontSize: S(34), color: sub, margin: `0 ${S(12)}px` }}>›</div>
+            ) : null}
+            <div
+              style={{
+                display: "flex",
+                background: i === f.steps.length - 1 ? p.accent : cardBg,
+                color: i === f.steps.length - 1 ? p.onAccent : ink,
+                border: `2px solid ${i === f.steps.length - 1 ? p.accent : bd}`,
+                borderRadius: S(14), padding: `${S(15)}px ${S(24)}px`,
+                fontSize: S(30), fontWeight: 800,
+              }}
+            >
+              {st}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (f.kind === "stats") {
+    return (
+      <div style={{ display: "flex", marginTop: S(30) }}>
+        {f.items.map((it, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex", flexDirection: "column", flex: 1,
+              background: cardBg, border: `2px solid ${bd}`, borderRadius: S(22),
+              padding: `${S(26)}px ${S(26)}px`, marginLeft: i ? S(18) : 0,
+            }}
+          >
+            <div style={{ display: "flex", fontSize: S(58), fontWeight: 900, color: p.accent, letterSpacing: -2 }}>
+              {it.value}
+            </div>
+            <div style={{ display: "flex", marginTop: S(8), fontSize: S(26), fontWeight: 600, color: sub, wordBreak: "keep-all" }}>
+              {it.label}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (f.kind === "list") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", marginTop: S(28) }}>
+        {f.items.map((it, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", marginTop: i ? S(15) : 0 }}>
+            <div
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: S(40), height: S(40), borderRadius: S(13),
+                background: p.accent, color: p.onAccent, fontSize: S(22), fontWeight: 900, marginRight: S(18),
+              }}
+            >
+              ✓
+            </div>
+            <div style={{ display: "flex", flex: 1, fontSize: S(32), fontWeight: 700, color: ink, wordBreak: "keep-all" }}>
+              {it}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // 표
+  return (
+    <div style={{ display: "flex", flexDirection: "column", marginTop: S(28), border: `2px solid ${bd}`, borderRadius: S(20), overflow: "hidden" }}>
+      <div style={{ display: "flex", background: p.accent }}>
+        {f.head.map((h, i) => (
+          <div key={i} style={{ display: "flex", flex: i === 0 ? 1 : 1.3, padding: `${S(18)}px ${S(22)}px`, fontSize: S(27), fontWeight: 900, color: p.onAccent }}>
+            {h}
+          </div>
+        ))}
+      </div>
+      {f.rows.map((r, ri) => (
+        <div key={ri} style={{ display: "flex", background: cardBg, borderTop: `2px solid ${bd}` }}>
+          {r.map((c, ci) => (
+            <div key={ci} style={{ display: "flex", flex: ci === 0 ? 1 : 1.3, padding: `${S(16)}px ${S(22)}px`, fontSize: S(27), fontWeight: ci === 0 ? 800 : 500, color: ci === 0 ? ink : sub, wordBreak: "keep-all" }}>
+              {c}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---- 카드 렌더 ----
 function render(
   card: Card,
@@ -182,13 +324,18 @@ function render(
   const photoBg = cover && Boolean(hasPhoto);
   const stepNo = card.kind === "point" && card.label ? card.label.replace(/[^0-9]/g, "") : "";
 
-  // 표지는 포인트색으로 꽉 채우고, 나머지는 크림 바탕
-  const ground = cover ? p.accent : p.bg;
-  const ink = cover ? "#FFFFFF" : p.ink;
-  const sub = cover ? "rgba(255,255,255,.88)" : p.sub;
-  const faint = cover ? "rgba(255,255,255,.7)" : p.faint;
-  const line = cover ? "rgba(255,255,255,.34)" : p.line;
-  const hitColor = cover ? "rgba(255,255,255,.62)" : p.accent;
+  // 【2026-07-27 개편】 표지 연출
+  //  사진이 있으면 사진을 전면에, 없으면 '타이포 표지'(바탕색 + 거대 배경 글자)로 간다.
+  //  예전엔 사진이 없으면 포인트색으로 전면을 도배했는데, 그러면 카테고리 색이 너무 세게 나와
+  //  피드가 색 덩어리처럼 보였다.
+  const typeCover = cover && !hasPhoto;
+  const ground = cover ? (hasPhoto ? p.accent : p.bg) : p.bg;
+  const onDark = cover && !typeCover; // 사진 표지 = 어두운 바탕 위 흰 글자
+  const ink = onDark ? "#FFFFFF" : p.ink;
+  const sub = onDark ? "rgba(255,255,255,.88)" : p.sub;
+  const faint = onDark ? "rgba(255,255,255,.7)" : p.faint;
+  const line = onDark ? "rgba(255,255,255,.34)" : p.line;
+  const hitColor = onDark ? "rgba(255,255,255,.62)" : p.accent;
 
   const PAD = og ? 54 : 96; // 프레임 안쪽 여백
   const FRAME = og ? 26 : 44; // 프레임이 카드 가장자리에서 떨어진 거리
@@ -285,6 +432,26 @@ function render(
         </>
       ) : null}
 
+      {/* 타이포 표지 — 사진이 없을 때. 거대한 배경 글자로 허전함을 메운다 */}
+      {typeCover && !og ? (
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            right: -30,
+            bottom: 40,
+            fontSize: 420,
+            fontWeight: 900,
+            color: p.ghost,
+            opacity: 0.13,
+            letterSpacing: -22,
+            lineHeight: 1,
+          }}
+        >
+          {category || "ODDS"}
+        </div>
+      ) : null}
+
       {/* ── 얇은 라운드 프레임 — 한 장의 인쇄물처럼 보이게 하는 장치 ── */}
       {og ? null : (
         <div
@@ -315,8 +482,8 @@ function render(
             width: 34,
             height: 34,
             borderRadius: 10,
-            background: cover ? "#FFFFFF" : BRAND_PURPLE,
-            color: cover ? p.accent : BRAND_YELLOW,
+            background: onDark ? "#FFFFFF" : BRAND_PURPLE,
+            color: onDark ? p.accent : BRAND_YELLOW,
             fontSize: 22,
             fontWeight: 900,
             alignItems: "center",
@@ -411,8 +578,8 @@ function render(
             style={{
               display: "flex",
               alignItems: "flex-start",
-              background: cover ? "rgba(255,255,255,.14)" : p.card,
-              border: `2px solid ${cover ? "rgba(255,255,255,.22)" : p.line}`,
+              background: onDark ? "rgba(255,255,255,.14)" : p.card,
+              border: `2px solid ${onDark ? "rgba(255,255,255,.22)" : p.line}`,
               borderRadius: 26,
               padding: "40px 40px 42px 40px",
             }}
@@ -426,7 +593,7 @@ function render(
                       width: 13,
                       height: 13,
                       borderRadius: 13,
-                      background: cover ? "#FFFFFF" : p.accent,
+                      background: onDark ? "#FFFFFF" : p.accent,
                       marginTop: 17,
                       marginRight: 20,
                     }}
@@ -466,6 +633,9 @@ function render(
           </div>
         ) : null}
 
+        {/* 시각 요소 — 본문에 있던 단축키·경로·숫자·목록·표를 그림으로 세운다 */}
+        {card.figure && !og ? renderFigure(card.figure, p, onDark) : null}
+
         {/* 표지 하단 안내 */}
         {cover && !og ? (
           <div
@@ -500,23 +670,23 @@ function render(
             width: W,
           }}
         >
-          <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: faint, letterSpacing: 3, marginBottom: 16 }}>
-            {last ? "@oddsbag_official  ·  팔로우하고 미리 받기" : `${String(idx + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`}
-          </div>
-          <div style={{ display: "flex" }}>
-            {Array.from({ length: total }).map((_, s) => (
-              <div
-                key={s}
-                style={{
-                  display: "flex",
-                  width: s === idx ? 26 : 10,
-                  height: 10,
-                  borderRadius: 10,
-                  marginRight: s === total - 1 ? 0 : 9,
-                  background: s === idx ? (cover ? "#FFFFFF" : p.accent) : line,
-                }}
-              />
-            ))}
+          {/* 페이지 번호는 우상단에만 둔다 (예전엔 위·아래로 두 번 나왔다) */}
+          {last ? (
+            <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: faint, letterSpacing: 3, marginBottom: 16 }}>
+              @oddsbag_official  ·  팔로우하고 미리 받기
+            </div>
+          ) : null}
+          {/* 점 대신 진행 막대 — 어디까지 왔는지가 한눈에 보인다 */}
+          <div style={{ display: "flex", width: W - FRAME * 2 - 56, height: 6, borderRadius: 6, background: line }}>
+            <div
+              style={{
+                display: "flex",
+                width: Math.max(24, Math.round(((idx + 1) / total) * (W - FRAME * 2 - 56))),
+                height: 6,
+                borderRadius: 6,
+                background: onDark ? "#FFFFFF" : p.accent,
+              }}
+            />
           </div>
         </div>
       )}
@@ -587,7 +757,8 @@ export async function GET(
 
   const cards = buildCards(post);
   const card = cards[Math.min(i, cards.length - 1)];
-  const pal = paletteFor(post.slug, post.mood);
+  const cstyle = styleFor(post.category, Boolean(post.cover));
+  const pal = palFor(post.category, post.slug, post.mood, Boolean(post.cover));
 
   // 이 카드에 실제로 쓰이는 글자만 폰트로 받아온다 (수십 KB)
   const text =
@@ -595,7 +766,18 @@ export async function GET(
     (card.body ?? "") +
     (card.label ?? "") +
     (post.category ?? "") +
-    "ODDSBAG@oddsbag_official장 전부 보기팔로우하고미리받기0123456789/→·";
+    "ODDSBAG@oddsbag_official장 전부 보기팔로우하고미리받기0123456789/→·›+✓%" +
+    (card.figure
+      ? card.figure.kind === "keys"
+        ? card.figure.keys.join("")
+        : card.figure.kind === "path"
+          ? card.figure.steps.join("")
+          : card.figure.kind === "stats"
+            ? card.figure.items.map((x) => x.value + x.label).join("")
+            : card.figure.kind === "list"
+              ? card.figure.items.join("")
+              : card.figure.head.join("") + card.figure.rows.flat().join("")
+      : "");
   const [bold, normal] = await Promise.all([loadFont(text, 900), loadFont(text, 500)]);
 
   const fonts = [

@@ -45,7 +45,11 @@ function parseSections(body) {
       if (cur) out.push(cur);
       cur = { heading: line.slice(3).trim(), text: "" };
     } else if (cur) {
-      cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
+      // 도식 표시([키]/[경로]/[핵심]/[주의])와 표 줄은 카드 본문에서 뺀다.
+      // 홈페이지는 이걸 그림으로 세우고, 여기서는 글자로 새어나오면 안 된다.
+      if (!/^\[(키|경로|핵심|주의)\]/.test(line) && !line.startsWith("|")) {
+        cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
+      }
     }
   }
   if (cur) out.push(cur);

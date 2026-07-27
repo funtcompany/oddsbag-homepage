@@ -20,6 +20,93 @@ export interface Card {
   label?: string; // 상단 작은 라벨 (카테고리 / 01 / 02 …)
   title: string;
   body?: string;
+  /** 카드에 함께 그릴 시각 요소 (없으면 글만) */
+  figure?: Figure;
+}
+
+// ---- 카드에 넣는 시각 요소 ----
+// 【왜 필요한가】 글자만 이어지는 카드는 넘기다 만다.
+//   본문에 이미 들어 있는 것(단축키·경로·숫자·목록·표)을 찾아 그림으로 세운다.
+//   ※ 없는 걸 지어내지 않는다. 본문에 있는 것만 옮긴다.
+export type Figure =
+  | { kind: "keys"; keys: string[] } // 단축키 키캡
+  | { kind: "path"; steps: string[] } // 메뉴 경로
+  | { kind: "stats"; items: { value: string; label: string }[] } // 숫자 강조 2개
+  | { kind: "list"; items: string[] } // 체크리스트
+  | { kind: "table"; head: string[]; rows: string[][] }; // 표
+
+const MOD =
+  /^(⌘|⌃|⌥|⇧|command|cmd|control|ctrl|option|opt|alt|shift|fn|win|윈도우 ?키|커맨드|컨트롤|옵션|시프트)$/i;
+
+// 본문 한 절에서 그림으로 세울 만한 것을 하나 찾는다 (앞선 것 우선)
+function findFigure(text: string): Figure | undefined {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    const m = line.match(/^\[(키|경로)\]\s*(.+)$/);
+    if (!m) continue;
+    if (m[1] === "키") {
+      const keys = m[2].split("+").map((k) => k.trim()).filter(Boolean);
+      if (keys.length >= 2 && keys.length <= 4) return { kind: "keys", keys };
+    } else {
+      const steps = m[2].split(/[>→]/).map((k) => k.trim()).filter(Boolean);
+      if (steps.length >= 2 && steps.length <= 4) return { kind: "path", steps };
+    }
+  }
+
+  // 표시가 없는 예전 글 — 줄 전체가 단축키뿐일 때만 (문장 중간은 건드리지 않는다)
+  for (const line of lines) {
+    if (line.length > 60 || !line.includes("+")) continue;
+    const parts = line.replace(/[.。]$/, "").split("+").map((k) => k.trim());
+    if (parts.length < 2 || parts.length > 4) continue;
+    if (parts.some((k) => !k || k.length > 12)) continue;
+    if (parts.some((k) => MOD.test(k))) return { kind: "keys", keys: parts };
+  }
+
+  // 마크다운 표
+  const ti = lines.findIndex((l, i) => l.startsWith("|") && /^\|[\s:|-]+\|$/.test(lines[i + 1] ?? ""));
+  if (ti >= 0) {
+    const cells = (r: string) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+    const head = cells(lines[ti]);
+    const rows: string[][] = [];
+    for (let i = ti + 2; i < lines.length && lines[i].startsWith("|"); i++) rows.push(cells(lines[i]));
+    if (head.length >= 2 && head.length <= 3 && rows.length) {
+      return { kind: "table", head, rows: rows.slice(0, 4) };
+    }
+  }
+
+  return undefined;
+}
+
+// 문장에서 눈에 띄는 숫자 두 개를 뽑아 '숫자 타일'로 (이슈·경제 글에 잘 맞는다)
+function findStats(text: string): Figure | undefined {
+  const re = /(-?\d[\d,.]*\s?(%|퍼센트|만|억|조|원|명|건|개|배|년|위|점|시간|분))/g;
+  const seen = new Set<string>();
+  const items: { value: string; label: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) && items.length < 2) {
+    const value = m[1].replace(/\s+/g, "");
+    if (seen.has(value)) continue;
+    seen.add(value);
+    // 숫자 앞뒤 말을 라벨로 (문장 그대로 자르지 않고 짧은 구절만)
+    const before = text.slice(Math.max(0, m.index - 22), m.index).split(/[,.·]/).pop() ?? "";
+    const after = text.slice(m.index + m[1].length, m.index + m[1].length + 20).split(/[,.·]/)[0] ?? "";
+    const label = (before.trim() + " " + after.trim()).replace(/\s+/g, " ").trim().slice(0, 18);
+    if (label.length >= 2) items.push({ value, label });
+  }
+  return items.length === 2 ? { kind: "stats", items } : undefined;
+}
+
+// 본문 안의 목록을 체크리스트로
+function findList(text: string): Figure | undefined {
+  const items = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter((l) => /^[-•]\s+/.test(l))
+    .map((l) => l.replace(/^[-•]\s+/, "").replace(/\*\*/g, "").trim())
+    .filter((l) => l.length >= 4 && l.length <= 42)
+    .slice(0, 3);
+  return items.length >= 2 ? { kind: "list", items } : undefined;
 }
 
 const MAX_BODY = 180; // 정보를 담아야 하므로 조금 넉넉히 (가독성 한계 안에서)
@@ -48,6 +135,7 @@ function clip(s: string, n = MAX_BODY): string {
 interface Section {
   heading: string;
   text: string;
+  raw: string; // 줄바꿈을 살린 원본 (도식을 찾으려면 필요하다)
 }
 
 function parseSections(body: string): Section[] {
@@ -58,9 +146,13 @@ function parseSections(body: string): Section[] {
     if (!line) continue;
     if (line.startsWith("## ")) {
       if (cur) out.push(cur);
-      cur = { heading: line.slice(3).trim(), text: "" };
+      cur = { heading: line.slice(3).trim(), text: "", raw: "" };
     } else if (cur) {
-      cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
+      cur.raw += (cur.raw ? "\n" : "") + line;
+      // 도식 표시 줄은 본문 문장에서 빼둔다 (그림으로 따로 세우므로 중복 방지)
+      if (!/^\[(키|경로|핵심|주의)\]/.test(line) && !line.startsWith("|")) {
+        cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
+      }
     }
   }
   if (cur) out.push(cur);
@@ -77,25 +169,44 @@ export function buildCards(post: Post): Card[] {
     title: (post.hook || post.title).trim(),
   });
 
-  // 2) 인트로
-  if (post.summary) {
-    cards.push({ kind: "intro", label: "무슨 일이냐면", title: clip(post.summary, 110) });
-  }
-
-  // 3) 본문 섹션
+  // 3) 본문 섹션 (인트로에서 목차로 쓰므로 먼저 읽는다)
   const sections = parseSections(post.body);
   const closing = sections.find((s) => s.heading.includes("한 줄 정리"));
   const points = sections.filter((s) => !s.heading.includes("한 줄 정리"));
+
+  // 2) 인트로 — 요약만 넣으면 카드 아래가 텅 빈다.
+  //    '이 글에서 다루는 것'을 목차로 함께 실어 정보량과 넘길 이유를 같이 준다.
+  if (post.summary) {
+    // 소제목이 길면 걸러내지 말고 줄여서 싣는다 (걸러버리면 목차가 통째로 사라진다)
+    const toc = points
+      .map((s) => {
+        const h = s.heading.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+        return h.length > 30 ? h.slice(0, 29).trimEnd() + "…" : h;
+      })
+      .filter((h) => h.length >= 3)
+      .slice(0, 3);
+    cards.push({
+      kind: "intro",
+      label: "무슨 일이냐면",
+      title: clip(post.summary, 110),
+      figure: toc.length >= 2 ? { kind: "list", items: toc } : findStats(post.summary),
+    });
+  }
 
   // 정보가 잘리면 안 되므로 요점 카드를 최우선으로 채운다.
   // (마지막 CTA 1장은 항상 확보 — 그 나머지를 전부 요점에 쓴다)
   const roomForPoints = MAX_CARDS - cards.length - 1;
   points.slice(0, roomForPoints).forEach((s, i) => {
+    // 그림거리를 순서대로 찾는다: 도식 → 표 → 목록 → 숫자
+    const figure =
+      findFigure(s.raw) ?? findList(s.raw) ?? findStats(s.text);
     cards.push({
       kind: "point",
       label: String(i + 1).padStart(2, "0"),
       title: s.heading,
-      body: clip(s.text),
+      // 그림이 붙는 카드는 글을 조금 줄여 숨통을 틔운다
+      body: clip(s.text, figure ? 120 : MAX_BODY),
+      figure,
     });
   });
 
