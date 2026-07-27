@@ -71,6 +71,16 @@ export const hubs: Hub[] = [
     ],
   },
   {
+    slug: "ai",
+    title: "AI 활용법",
+    emoji: "🤖",
+    lead: "AI를 실제로 써먹는 법. 질문하는 요령부터 넣으면 안 되는 정보까지.",
+    keywords: [
+      "AI", "인공지능", "챗gpt", "chatgpt", "제미나이", "gemini", "클로드",
+      "claude", "생성형", "프롬프트", "챗봇", "LLM", "AI 이미지",
+    ],
+  },
+  {
     slug: "money",
     title: "돈 · 절약",
     emoji: "💰",

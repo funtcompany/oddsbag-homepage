@@ -11,6 +11,8 @@ export const CATEGORIES = [
   "IT·테크",
   "문화·연예",
   "트렌드",
+  // 뉴스로 들어온 소재라도 '사용법·노하우'면 꿀팁으로 분류되게 한다.
+  "꿀팁",
 ] as const;
 export const MOODS = ["serious", "trust", "energetic", "soft", "trendy"] as const;
 

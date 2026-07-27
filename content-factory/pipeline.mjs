@@ -22,6 +22,7 @@ import { categoryOf } from "./categories.mjs";
 import { sadd, smembers } from "./store.mjs";
 import { notionEnabled, addCollectedPage } from "./notion.mjs";
 import { findCoverImage } from "./images.mjs";
+import { makeIllustration, illustrateEnabled } from "./illustrate.mjs";
 import { resolveSourceText } from "./article.mjs";
 import { kvGet, kvSet } from "./store.mjs";
 
@@ -381,8 +382,16 @@ export async function runCollection(opts) {
         draft.summary,
       );
 
+      // 정보성 글은 스톡 사진이 잘 안 맞는다 → 사진을 못 찾았을 때만 삽화를 그린다.
+      // (꺼져 있거나 한도에 걸리면 null 이고, 그러면 기존 타이포 디자인이 나온다)
+      const slug = makeSlug(cat.slug);
+      let illus = null;
+      if (!cover && illustrateEnabled && finalCategory === "꿀팁") {
+        illus = await makeIllustration({ slug, title: draft.title, summary: draft.summary });
+      }
+
       const post = {
-        slug: makeSlug(cat.slug),
+        slug,
         title: draft.title,
         summary: draft.summary,
         category: finalCategory,
@@ -392,8 +401,8 @@ export async function runCollection(opts) {
         hook: draft.hook,
         emoji: draft.emoji,
         mood: draft.mood,
-        cover: cover?.url,
-        imageCredit: cover?.credit,
+        cover: cover?.url ?? illus ?? undefined,
+        imageCredit: cover?.credit ?? (illus ? "AI 생성 이미지" : undefined),
         readMinutes: Math.max(2, Math.round(draft.body.length / 400)),
         tags: draft.tags,
         sources: [

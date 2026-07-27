@@ -5,6 +5,12 @@ import AdSlot from "@/components/AdSlot";
 import ReactionBar from "@/components/ReactionBar";
 import CommentSection from "@/components/CommentSection";
 import { getAllPosts, getPostBySlug, getRelatedPosts } from "@/lib/posts";
+import {
+  KeycapFigure,
+  PathFigure,
+  KeyPointFigure,
+  WarnFigure,
+} from "@/components/Figures";
 import { categoryOf } from "@/lib/categories";
 import { getDesign, fxStyle } from "@/lib/design";
 import Link from "next/link";
@@ -107,6 +113,34 @@ function inline(text: string): ReactNode[] {
   return text.split(/\*\*(.+?)\*\*/g).map((p, i) =>
     i % 2 === 1 ? <mark key={i}>{p}</mark> : <span key={i}>{p}</span>,
   );
+}
+
+// ---- 도식 줄 인식 ----
+// 새로 쓰는 글은 [키]/[경로]/[핵심]/[주의] 표시를 붙여서 온다.
+// 예전 글에는 표시가 없으므로, '그 줄 전체가 단축키뿐'인 경우만 조심스럽게 자동 인식한다.
+// (본문 중간에 섞인 단축키까지 건드리면 문장이 깨진다)
+const MODIFIERS =
+  /^(⌘|⌃|⌥|⇧|command|cmd|control|ctrl|option|opt|alt|shift|fn|win|윈도우 ?키|커맨드|컨트롤|옵션|시프트)$/i;
+
+function asKeycap(line: string): string[] | null {
+  const t = line.trim().replace(/\.$/, "");
+  if (t.length > 60 || !t.includes("+")) return null;
+  const parts = t.split("+").map((p) => p.trim());
+  if (parts.length < 2 || parts.some((p) => !p || p.length > 12)) return null;
+  // 적어도 하나는 조합키여야 한다 ("1 + 1 = 2" 같은 문장을 걸러낸다)
+  if (!parts.some((p) => MODIFIERS.test(p))) return null;
+  return parts;
+}
+
+function asPath(line: string): string[] | null {
+  const t = line.trim().replace(/\.$/, "");
+  if (t.length > 90) return null;
+  const sep = t.includes("→") ? "→" : t.includes(" > ") ? " > " : null;
+  if (!sep) return null;
+  const parts = t.split(sep).map((p) => p.trim());
+  if (parts.length < 2 || parts.length > 6) return null;
+  if (parts.some((p) => !p || p.length > 24)) return null;
+  return parts;
 }
 
 // 본문에서 소제목만 뽑아 목차를 만든다 ('오즈백 한 줄 정리'는 뺀다)
@@ -258,9 +292,40 @@ function renderBody(body: string) {
       i++;
       continue;
     }
+
+    // ---- 도식 ----
+    const marked = line.trim().match(/^\[(키|경로|핵심|주의)\]\s*(.+)$/);
+    const rest = marked ? marked[2].trim() : line.trim();
+
+    if (marked?.[1] === "핵심") {
+      out.push(<KeyPointFigure key={key++}>{inline(rest)}</KeyPointFigure>);
+      i++;
+      continue;
+    }
+    if (marked?.[1] === "주의") {
+      out.push(<WarnFigure key={key++}>{inline(rest)}</WarnFigure>);
+      i++;
+      continue;
+    }
+    // [키]/[경로] 표시가 있으면 우선 그걸로, 없으면 줄 모양을 보고 판단
+    const keys = marked?.[1] === "키" ? rest.split("+").map((p) => p.trim()) : asKeycap(rest);
+    if (keys && keys.length >= 2) {
+      out.push(<KeycapFigure key={key++} keys={keys} />);
+      i++;
+      continue;
+    }
+    const path = marked?.[1] === "경로"
+      ? rest.split(/→|>/).map((p) => p.trim()).filter(Boolean)
+      : asPath(rest);
+    if (path && path.length >= 2) {
+      out.push(<PathFigure key={key++} steps={path} />);
+      i++;
+      continue;
+    }
+
     out.push(
       <p key={key++} className={firstPara ? "dropcap" : undefined}>
-        {inline(line.trim())}
+        {inline(rest)}
       </p>,
     );
     firstPara = false;
