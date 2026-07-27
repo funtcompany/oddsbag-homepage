@@ -17,11 +17,11 @@ const G = "https://graph.facebook.com/v21.0";
 
 export const socialEnabled = Boolean(IG_ID && TOKEN);
 
-// 【하루 3개 정책】 인스타에는 하루 3개만 올린다 — 카드뉴스 2 + 릴스 1.
-// 여기(카드뉴스)는 2개, 릴스 1개는 factory/make-reels.mjs 가 따로 센다.
-// 페이스북도 같은 방식으로 링크 2 + 영상 1 = 3개가 된다.
+// 【하루 2개 정책】 인스타에는 하루 2개만 올린다 — 카드뉴스 1 + 릴스 1.
+// 여기(카드뉴스)는 1개, 릴스 1개는 factory/make-reels.mjs 가 따로 센다.
+// 페이스북도 같은 방식으로 링크 1 + 영상 1 = 2개가 된다.
 // 많이 올린다고 도달이 늘지 않는다. 피드가 빽빽하면 오히려 언팔당한다.
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 1);
 
 // 하루의 기준은 '한국 시간'이다. UTC로 세면 오전 9시에 날짜가 바뀌어
 // "하루 3개"가 실제로는 아침에 리셋되며 어긋난다.
@@ -30,7 +30,7 @@ const dayKey = () => `social:shared:${kstDay()}`;
 
 // 한도만으론 부족하다 — 홈페이지 발행이 몰리면 SNS도 한꺼번에 올라간다.
 // 게시 사이 최소 간격을 둬서 하루에 고르게 퍼지게 한다. (몰아 올리면 스팸으로 보이고 도달도 떨어진다)
-const MIN_GAP_MIN = Number(process.env.SOCIAL_GAP_MIN || 360);
+const MIN_GAP_MIN = Number(process.env.SOCIAL_GAP_MIN || 600);
 const K_LAST_SHARED = "social:lastSharedAt";
 
 async function tooSoon() {

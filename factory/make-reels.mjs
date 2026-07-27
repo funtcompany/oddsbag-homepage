@@ -33,7 +33,7 @@ const YT_PRIVACY = process.env.YT_PRIVACY || "public";
 //  · 유튜브 쇼츠 3개 — 구독자 피드를 도배하지 않고, 무료 한도(10,000 units)에도 넉넉히 들어간다
 //  · 인스타 릴스 1개 — 인스타는 카드뉴스 2개와 합쳐 하루 3개가 된다
 //  · 페이스북 영상 1개 — 링크 게시 2개와 합쳐 하루 3개가 된다
-const YT_DAILY_CAP = Number(process.env.YT_DAILY_CAP || 3);
+const YT_DAILY_CAP = Number(process.env.YT_DAILY_CAP || 2);
 const IG_REEL_CAP = Number(process.env.IG_REEL_DAILY_CAP || 1);
 const FB_VIDEO_CAP = Number(process.env.FB_VIDEO_DAILY_CAP || 1);
 const OUT = path.resolve("out");

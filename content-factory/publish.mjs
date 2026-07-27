@@ -11,9 +11,9 @@ import { revalidateTag } from "./cache.mjs";
 
 const MAX_PER_RUN = Number(process.env.PUBLISH_MAX_PER_RUN || 1); // 한 회차에 올리는 글 수
 
-// 【하루 3편 정책】 홈페이지도 하루 3편까지만 올린다.
+// 【하루 2편 정책】 홈페이지도 하루 2편까지만 올린다.
 // 많이 쓰는 대신 잘 쓰는 쪽으로 바꿨다 — 글 한 편에 들어가는 품질 투자를 늘리기 위함.
-const DAILY_CAP = Number(process.env.PUBLISH_DAILY_CAP || 3);
+const DAILY_CAP = Number(process.env.PUBLISH_DAILY_CAP || 2);
 
 // 하루 기준은 한국 시간 (UTC로 세면 오전 9시에 날짜가 바뀐다)
 const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);

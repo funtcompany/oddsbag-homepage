@@ -23,7 +23,7 @@ export const socialEnabled = Boolean(IG_ID && TOKEN);
 //  · 팔로워가 스팸으로 느껴 언팔한다
 // 그래서 SNS만 따로 하루 한도를 둔다.
 // 【하루 3개 정책】 인스타 카드뉴스 2개 (+릴스 1개 = 인스타 하루 3개)
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 1);
 // 하루 기준은 한국 시간 (UTC로 세면 오전 9시에 날짜가 바뀐다)
 const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const dayKey = () => `social:shared:${kstDay()}`;

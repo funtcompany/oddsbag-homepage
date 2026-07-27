@@ -1,15 +1,15 @@
 name: 오즈백 릴스 자동 제작
 
-# 매일 3회(10/16/22시 KST) 각 1개씩 = 하루 3개. 수동 실행도 가능.
+# 매일 2회(10/22시 KST) 각 1개씩 = 하루 2개. 수동 실행도 가능.
 # 발행된 글 3편을 각각 영상으로 만든다.
 #
-# 【하루 3개 정책】 채널별 상한은 make-reels.mjs 가 세어서 지킨다.
-#  · 유튜브 쇼츠  3개 — 만든 영상 전부 (알고리즘 노출형이라 피드 도배 걱정이 없다)
-#  · 인스타 릴스  1개 — 카드뉴스 2개와 합쳐 인스타 하루 3개
-#  · 페북 영상    1개 — 링크 게시 2개와 합쳐 페북 하루 3개
+# 【하루 2개 정책】 채널별 상한은 make-reels.mjs 가 세어서 지킨다.
+#  · 유튜브 쇼츠  2개 — 만든 영상 전부 (알고리즘 노출형이라 피드 도배 걱정이 없다)
+#  · 인스타 릴스  1개 — 카드뉴스 1개와 합쳐 인스타 하루 2개
+#  · 페북 영상    1개 — 링크 게시 1개와 합쳐 페북 하루 2개
 on:
   schedule:
-    - cron: "0 1,7,13 * * *"
+    - cron: "0 1,13 * * *"
   workflow_dispatch:
     inputs:
       limit:
@@ -58,9 +58,9 @@ jobs:
           MEDIA_PUBLIC_BASE: ${{ secrets.MEDIA_PUBLIC_BASE }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FB_PUBLISHED: ${{ secrets.FB_PUBLISHED }}
-          YT_DAILY_CAP: "3" # 유튜브 쇼츠 하루 3개
-          IG_REEL_DAILY_CAP: "1" # 인스타 릴스 하루 1개 (카드뉴스 2개와 합쳐 3개)
-          FB_VIDEO_DAILY_CAP: "1" # 페북 영상 하루 1개 (링크 2개와 합쳐 3개)
+          YT_DAILY_CAP: "2" # 유튜브 쇼츠 하루 2개
+          IG_REEL_DAILY_CAP: "1" # 인스타 릴스 하루 1개 (카드뉴스 1개와 합쳐 2개)
+          FB_VIDEO_DAILY_CAP: "1" # 페북 영상 하루 1개 (링크 1개와 합쳐 2개)
           REEL_LIMIT: ${{ github.event.inputs.limit || '1' }}
         run: node make-reels.mjs
 

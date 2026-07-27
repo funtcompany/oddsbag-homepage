@@ -37,18 +37,18 @@ function makeSlug(categorySlug) {
 }
 
 // 예약 발행 간격 — 이 간격으로 하나씩 올라간다 (홈페이지가 하루 종일 살아있게)
-const GAP_MIN = Number(process.env.PUBLISH_GAP_MIN || 300);
-const QUEUE_MAX = Number(process.env.QUEUE_MAX || 4); // 대기열이 이만큼 차면 새로 쓰지 않는다 (묵은 뉴스 방지 + 비용 절약)
+const GAP_MIN = Number(process.env.PUBLISH_GAP_MIN || 720);
+const QUEUE_MAX = Number(process.env.QUEUE_MAX || 3); // 대기열이 이만큼 차면 새로 쓰지 않는다 (묵은 뉴스 방지 + 비용 절약)
 const K_NEXT_AT = "queue:nextAt";
 
-// ---- 하루 생산량: 3편 ----
+// ---- 하루 생산량: 2편 ----
 // 예전엔 매시간 3편씩 최대 48편을 썼다. 그 결과 글 하나에 쓸 수 있는 AI 예산이 바닥나
-// 짧고 밋밋한 글이 쏟아졌다. 편수를 3편으로 줄이고, 그만큼 한 편에 더 공들인다.
-const WRITE_DAILY_CAP = Number(process.env.WRITE_DAILY_CAP || 3);
+// 짧고 밋밋한 글이 쏟아졌다. 편수를 2편으로 줄이고, 그만큼 한 편에 더 공들인다.
+const WRITE_DAILY_CAP = Number(process.env.WRITE_DAILY_CAP || 2);
 
-// 3편을 아침·낮·저녁에 한 편씩 나눠 쓴다.
-// (새벽에 3편을 몰아 쓰면 그날 저녁 뉴스는 아예 다룰 기회가 없다)
-const WRITE_SLOTS_KST = (process.env.WRITE_SLOTS_KST || "7,13,19")
+// 2편을 아침·저녁에 한 편씩 나눠 쓴다.
+// (새벽에 몰아 쓰면 그날 저녁 뉴스는 아예 다룰 기회가 없다)
+const WRITE_SLOTS_KST = (process.env.WRITE_SLOTS_KST || "8,20")
   .split(",")
   .map((s) => Number(s.trim()))
   .filter((n) => Number.isFinite(n))
