@@ -188,9 +188,9 @@ async function buildReel(post) {
   const lead = (post.hook || post.title).trim();
   const igTags = hashtags(post, 30); // 인스타는 첫 댓글에 30개
   // 【원칙】 링크로 넘기지 않는다 — 내용은 영상 안에서 끝내고, CTA는 저장·구독(미리 알림)이다.
-  const igCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 팔로우하면 다음 정보·일정을 미리 알려드려요 → @oddsbag_official`;
-  const ytDesc = `${lead}\n\n🔔 구독하면 다음 정보·일정을 미리 알려드려요\n\n${hashtags(post, 15)}`;
-  const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 미리 알림 받기\n\n${hashtags(post, 15)}`;
+  const igCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 팔로우하면 이런 알짜 정보가 매일 피드에 떠요 → @oddsbag_official`;
+  const ytDesc = `${lead}\n\n🔔 구독하면 이런 정보 놓치지 않아요\n\n${hashtags(post, 15)}`;
+  const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 매일 새 소식 받기\n\n${hashtags(post, 15)}`;
   // 유튜브는 무료 한도(하루 10,000 units)가 병목이다. 릴스 1개당 약 1,700 units 를 쓰므로
   // 하루 5개가 상한이다. 그 이상은 유튜브만 건너뛰고 인스타·페북에는 그대로 올린다.
   const ytToday = await readDaily("yt:uploads").catch(() => 0);

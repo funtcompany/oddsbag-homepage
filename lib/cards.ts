@@ -220,7 +220,7 @@ export function buildCards(post: Post): Card[] {
     kind: "cta",
     label: "@oddsbag_official",
     title: "저장해두면\n필요할 때 바로 꺼내 봅니다",
-    body: "팔로우하면 다음 정보·일정을 미리 알려드려요",
+    body: "팔로우하면 이런 정보를 매일 받아볼 수 있어요",
   });
 
   return cards.slice(0, MAX_CARDS);
@@ -237,7 +237,7 @@ export function buildCaption(post: Post): string {
     post.summary,
     "",
     "📌 저장해두면 필요할 때 바로 꺼내 볼 수 있어요",
-    "🔔 팔로우하면 다음 정보·일정을 미리 알려드려요 → @oddsbag_official",
+    "🔔 팔로우하면 이런 알짜 정보가 매일 피드에 떠요 → @oddsbag_official",
   ]
     .filter((l) => l !== undefined)
     .join("\n")
