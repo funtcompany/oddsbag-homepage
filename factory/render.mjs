@@ -86,7 +86,7 @@ export function buildCards(post) {
   //   2:59(179초) 규격에서는 소제목을 전부 담아도 시간이 남는다. 본문 글이 스스로 개수를 정한다.
   //   장면당 글자는 오히려 줄인다(110자) — 영상은 멈춰서 읽는 게 아니라 흘러가기 때문(가독성).
   secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, MAX_POINTS)
-    .forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading, body: clip(s.text, 110) }));
+    .forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading.replace(/^\s*\d+[.)]\s*/, ""), body: clip(s.text, 110) }));
   if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 100) });
   cards.push({ kind: "cta", label: "@oddsbag_official", title: "전체 글은\n오즈백 매거진에서", body: "프로필 링크 → oddsbag.co.kr" });
   return cards.slice(0, MAX_CARDS);
