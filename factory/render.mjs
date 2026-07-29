@@ -63,6 +63,31 @@ function clip(s, n = 150) {
   // 첫 문장 하나도 예산을 넘으면, 그 문장만은 통째로 보여준다(중간에 안 자름)
   return (out || sentences[0]).trim();
 }
+// 카드 본문은 반드시 '완결'되어야 한다 — 서론-본론-결론까지 담고 끝낸다.
+//  · 예전엔 글자 예산(110자)에 걸려 결론 문장이 잘리고 "~인데요"에서 끝났다(사장님 지적 2026-07-29).
+//  · 규칙 ① 예산 안에서 완결된 문장까지 담는다
+//         ② 마지막 문장이 '연결어미'(~인데요·~지만·~라서…)면, 말이 안 끝난 것이므로 다음 문장까지 데려온다
+//         ③ 데려올 문장이 없으면, 그 연결 문장은 아예 뺀다 (끝맺지 못한 채로 두지 않는다)
+const CONNECTIVE = /(인데요|는데요|은데요|데요|인데|는데|지만|라서|어서|아서|고요|하며|하면서|이며|되며|되고)[.!?…]?$/;
+function clipWhole(s, n = 200) {
+  const t = humanizeNum(s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim());
+  const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (!sentences.length) return "";
+  const out = [];
+  for (const sen of sentences) {
+    if (out.length && out.join(" ").length + sen.length + 1 > n) break;
+    out.push(sen);
+  }
+  if (!out.length) out.push(sentences[0]);
+  // ② 말이 안 끝났으면 다음 문장을 더 데려온다 (예산을 조금 넘겨도 완결이 먼저)
+  let i = out.length;
+  while (CONNECTIVE.test(out[out.length - 1]) && i < sentences.length && out.join(" ").length < n * 1.6) {
+    out.push(sentences[i]); i++;
+  }
+  // ③ 그래도 연결어미로 끝나면 그 문장은 뺀다 (단, 한 문장뿐이면 그냥 둔다)
+  while (out.length > 1 && CONNECTIVE.test(out[out.length - 1])) out.pop();
+  return out.join(" ").trim();
+}
 function parseSections(body) {
   const out = []; let cur = null;
   for (const raw of (body || "").split("\n")) {
@@ -79,15 +104,30 @@ const MAX_CARDS = 12;   // 훅 + 무슨일이냐면 + 소제목 8 + 한줄정리
 export function buildCards(post) {
   const cards = [];
   cards.push({ kind: "hook", label: post.category, title: (post.hook || post.title).trim() });
-  if (post.summary) cards.push({ kind: "intro", label: "무슨 일이냐면", title: clip(post.summary, 90) });
+  if (post.summary) cards.push({ kind: "intro", label: "무슨 일이냐면", title: clipWhole(post.summary, 130) });
   const secs = parseSections(post.body);
   const closing = secs.find((s) => s.heading.includes("한 줄 정리"));
   // ★ 예전엔 여기서 소제목을 앞 3개만 남겼다(slice(0,3)) — "5가지"라고 해놓고 3개만 나오던 진짜 원인.
   //   2:59(179초) 규격에서는 소제목을 전부 담아도 시간이 남는다. 본문 글이 스스로 개수를 정한다.
   //   장면당 글자는 오히려 줄인다(110자) — 영상은 멈춰서 읽는 게 아니라 흘러가기 때문(가독성).
-  secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, MAX_POINTS)
-    .forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading.replace(/^\s*\d+[.)]\s*/, ""), body: clip(s.text, 110) }));
-  if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 100) });
+  const points = secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, MAX_POINTS);
+  // 3분(179초)을 넘길 것 같으면 카드를 '버리지' 않고 각 카드의 설명을 줄인다.
+  //  왜: "7가지"라고 해놓고 5개만 나오는 게 가장 나쁜 실패다(사장님 지적). 개수 약속 > 카드별 상세.
+  //  예산을 200→150→110자로 낮춰보고, 그래도 길면 각 항목의 첫 문장만 남긴다(문장은 절대 안 자름).
+  const estimate = (budget) => {
+    const t = points.reduce((a, s) => a + s.heading.length + clipWhole(s.text, budget).length, 0);
+    const fixed = (post.hook || post.title).length + (post.summary ? clipWhole(post.summary, 130).length : 0) + (closing?.text ? clipWhole(closing.text, 140).length : 0) + 30;
+    // 초당 6.5자 — 실측 보정값(구글 Chirp3-HD 한국어). 예전 5.3은 과대추정이라 설명이 불필요하게 잘렸다.
+    return (t + fixed) / 6.5 + (points.length + 4) * 1.1;
+  };
+  let budget = 200;
+  for (const b of [200, 150, 110, 0]) { budget = b; if (estimate(b || 1) <= 170) break; }
+  points.forEach((s, i) => cards.push({
+    kind: "point", label: String(i + 1).padStart(2, "0"),
+    title: s.heading.replace(/^\s*\d+[.)]\s*/, ""),
+    body: budget ? clipWhole(s.text, budget) : clipWhole(s.text, 1), // 0이면 첫 문장만
+  }));
+  if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clipWhole(closing.text, 140) });
   cards.push({ kind: "cta", label: "@oddsbag_official", title: "전체 글은\n오즈백 매거진에서", body: "프로필 링크 → oddsbag.co.kr" });
   return cards.slice(0, MAX_CARDS);
 }
