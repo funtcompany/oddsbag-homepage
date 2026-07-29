@@ -23,16 +23,24 @@ export function humanizeNum(s) {
 }
 
 // 카드 본문 발췌: 예산(n자) 안에서 '완결된 문장'까지만. 단어/문장 중간은 절대 안 자른다.
+// 말이 이어지는 채로 끝나는 어미 — 여기서 끊으면 카드가 "~인데요."로 끝나 결론이 사라진다.
+const CONNECTIVE = /(인데요|는데요|은데요|데요|인데|는데|지만|라서|어서|아서|고요)[.!?…]?$/;
+// ★ 예산에 걸려 결론 문장이 잘리던 문제(사장님 지적 2026-07-29) 보완 — lib/cards.ts 와 동일 규칙.
 function clip(s, n = MAX_BODY) {
   const t = humanizeNum(s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim());
-  if (t.length <= n) return t;
   const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean); // 종결부호+공백에서만 → 소수점 안 쪼갬
-  let out = "";
+  if (!sentences.length) return "";
+  if (t.length <= n && !CONNECTIVE.test(sentences[sentences.length - 1])) return t;
+  const out = [];
   for (const sen of sentences) {
-    if (out && (out + " " + sen).length > n) break;
-    out = out ? out + " " + sen : sen;
+    if (out.length && out.join(" ").length + sen.length + 1 > n) break;
+    out.push(sen);
   }
-  return (out || sentences[0]).trim();
+  if (!out.length) out.push(sentences[0]);
+  let i = out.length;
+  while (CONNECTIVE.test(out[out.length - 1]) && i < sentences.length && out.join(" ").length < n * 1.5) out.push(sentences[i++]);
+  while (out.length > 1 && CONNECTIVE.test(out[out.length - 1])) out.pop();
+  return out.join(" ").trim();
 }
 
 function parseSections(body) {

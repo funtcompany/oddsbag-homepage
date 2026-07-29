@@ -354,6 +354,10 @@ function render(
           : 62) * (og ? 0.6 : 1);
 
   const sentences = card.body ? card.body.split(/(?<=[.!?])\s+/).filter(Boolean) : [];
+  // 본문 글자 크기도 분량에 따라 줄인다 — 카드가 넘쳐 아래 요소와 겹치는 것을 막는다.
+  //  (제목은 아래에서 이미 줄여 맞추고 있었는데, 본문은 고정 37px이라 글이 길면 넘쳤다.)
+  const bodyChars = sentences.join(" ").length;
+  const bodySize = bodyChars > 210 ? 30 : bodyChars > 170 ? 33 : bodyChars > 130 ? 35 : 37;
 
   // 한 줄에 들어가는 글자 수를 폭에서 역산해 줄을 직접 나눈다 (한글 한 글자 ≈ 글자크기).
   // 글자를 조금씩 줄여가며 '마지막 줄에 한두 글자만 남는' 어색한 배치를 피한다.
@@ -602,7 +606,7 @@ function render(
                     style={{
                       display: "flex",
                       flex: 1,
-                      fontSize: 37,
+                      fontSize: bodySize,
                       fontWeight: 500,
                       color: sub,
                       lineHeight: 1.56,

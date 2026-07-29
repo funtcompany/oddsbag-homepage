@@ -13,7 +13,17 @@
 
 import type { Post } from "@/lib/posts";
 
-export type CardKind = "hook" | "intro" | "point" | "quote" | "cta";
+// hook/intro/point/quote/cta : 단일 글 카드뉴스 (buildCards)
+// lead/body/conclusion       : "이슈 모아보기" 카드뉴스 (buildRoundupCards) — 이슈 1건을 서론·본론·결론 3장으로
+export type CardKind =
+  | "hook"
+  | "intro"
+  | "point"
+  | "quote"
+  | "cta"
+  | "lead" // 서론 — 무슨 일인지 (훅 + 한 줄 배경)
+  | "body" // 본론 — 핵심 사실 (도식으로 정보 밀도 ↑)
+  | "conclusion"; // 결론 — 그래서 뭐가 달라지나 (오즈백 한 줄)
 
 export interface Card {
   kind: CardKind;
@@ -119,17 +129,27 @@ export function humanizeNum(s: string): string {
     .replace(/(\d+)억\s?(\d{3,5})(?!\s*원)/g, (_m, a: string) => `약 ${Number(a).toLocaleString()}억`);
 }
 
+// 말이 이어지는 채로 끝나는 어미 — 여기서 끊으면 카드가 "~인데요."로 끝나 결론이 사라진다.
+const CONNECTIVE = /(인데요|는데요|은데요|데요|인데|는데|지만|라서|어서|아서|고요)[.!?…]?$/;
+
 // 카드 본문 발췌: 예산(n자) 안에서 '완결된 문장'까지만. 단어/문장 중간은 절대 안 자른다.
+//  ★ 예산에 걸려 결론 문장이 잘리고 "~인데요"로 끝나던 문제(사장님 지적 2026-07-29) 보완:
+//    말이 안 끝났으면 다음 문장까지 데려오고, 데려올 게 없으면 그 문장은 아예 뺀다.
 function clip(s: string, n = MAX_BODY): string {
   const t = humanizeNum(s.replace(/\*\*/g, "").replace(/\s+/g, " ").trim());
-  if (t.length <= n) return t;
   const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean); // 종결부호+공백에서만 → 소수점 안 쪼갬
-  let out = "";
+  if (!sentences.length) return "";
+  if (t.length <= n && !CONNECTIVE.test(sentences[sentences.length - 1])) return t;
+  const out: string[] = [];
   for (const sen of sentences) {
-    if (out && (out + " " + sen).length > n) break;
-    out = out ? out + " " + sen : sen;
+    if (out.length && out.join(" ").length + sen.length + 1 > n) break;
+    out.push(sen);
   }
-  return (out || sentences[0]).trim();
+  if (!out.length) out.push(sentences[0]);
+  let i = out.length;
+  while (CONNECTIVE.test(out[out.length - 1]) && i < sentences.length && out.join(" ").length < n * 1.5) out.push(sentences[i++]);
+  while (out.length > 1 && CONNECTIVE.test(out[out.length - 1])) out.pop();
+  return out.join(" ").trim();
 }
 
 interface Section {
@@ -224,6 +244,116 @@ export function buildCards(post: Post): Card[] {
   });
 
   return cards.slice(0, MAX_CARDS);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  "이슈 모아보기" 카드뉴스 — 여러 이슈를 한 게시물에 (정보 밀도 ↑)
+//
+//  【형태】 어그로만 끌고 빈약한 단일 카드에서 벗어나, 이슈마다 3장(서론·본론·결론)으로
+//          어느 정도 요약해 담는다. 인스타 사진 상한(20장)을 넉넉히 쓴다.
+//
+//   1장       COVER(hook) — "오늘의 이슈 모아보기 N선" (표지)
+//   이슈마다 3장
+//     · LEAD       서론 — 무슨 일인지 (훅 + 한 줄 배경)
+//     · BODY       본론 — 핵심 사실 (도식으로 밀도 ↑)
+//     · CONCLUSION 결론 — 그래서 뭐가 달라지나 (오즈백 한 줄)
+//   끝장      CTA — 저장 + 팔로우
+//
+//   장수 = 1(표지) + 이슈수 × 3 + 1(CTA)
+//     · 이슈 5개 → 17장 · 이슈 6개 → 20장 (권장 5~6개)
+//
+//  ※ 없는 사실을 지어내지 않는다 — 전부 원문(post.body / summary)에서만 요약한다.
+//  ※ content-factory/cards.mjs · factory/render.mjs 의 buildRoundupCards 와 항상 같은 구성.
+// ════════════════════════════════════════════════════════════════════
+
+export const MAX_ROUNDUP_CARDS = 20; // 인스타 캐러셀(사진 첨부) 상한
+export const ROUNDUP_MAX_ISSUES = 6; // 20장 안에 담기는 이슈 최대치 (1 + 6×3 + 1 = 20)
+
+// 이슈 1건 → 서론·본론·결론 3장. (표지·CTA 없이 가운데 토막만)
+export function buildIssueCards(post: Post, issueNo: number): Card[] {
+  const sections = parseSections(post.body);
+  const closing = sections.find((s) => s.heading.includes("한 줄 정리"));
+  const points = sections.filter((s) => !s.heading.includes("한 줄 정리"));
+  const cat = post.category;
+
+  // ① 서론 — 무슨 일인지
+  const lead: Card = {
+    kind: "lead",
+    label: `이슈 ${String(issueNo).padStart(2, "0")} · ${cat}`,
+    title: (post.hook || post.title).trim(),
+    body: clip(post.summary || (points[0]?.text ?? ""), 130),
+    figure: findStats(post.summary || points[0]?.text || ""),
+  };
+
+  // ② 본론 — 핵심 사실 (도식 우선: 표/경로/키 → 목록 → 숫자)
+  const src = points[0] ?? { heading: "무슨 일이 있었나", text: post.summary, raw: post.summary };
+  const extra = points[1]?.text ? " " + points[1].text : "";
+  const figure = findFigure(src.raw) ?? findList(src.raw) ?? findStats(src.text + extra);
+  const body: Card = {
+    kind: "body",
+    label: `이슈 ${String(issueNo).padStart(2, "0")} · 자세히`,
+    title: src.heading.replace(/\*\*/g, "").trim(),
+    body: clip(src.text + extra, figure ? 150 : 200),
+    figure,
+  };
+
+  // ③ 결론 — 그래서 뭐가 달라지나 (오즈백 한 줄 정리, 없으면 마지막 섹션 요지)
+  const conclText = closing?.text || points[points.length - 1]?.text || post.summary;
+  const conclusion: Card = {
+    kind: "conclusion",
+    label: `이슈 ${String(issueNo).padStart(2, "0")} · 오즈백 한 줄`,
+    title: clip(conclText, 90),
+  };
+
+  return [lead, body, conclusion];
+}
+
+// 여러 이슈 → "모아보기" 캐러셀 (표지 + 이슈들 + CTA)
+export function buildRoundupCards(posts: Post[]): Card[] {
+  const issues = posts.filter((p) => p && p.body).slice(0, ROUNDUP_MAX_ISSUES);
+  const n = issues.length;
+  const cards: Card[] = [];
+
+  // 표지 — 오늘의 이슈 모아보기 N선
+  cards.push({
+    kind: "hook",
+    label: "이슈 모아보기",
+    title: `오늘의 이슈\n모아보기 ${n}선`,
+    body: issues
+      .map((p, i) => `${String(i + 1).padStart(2, "0")}. ${(p.hook || p.title).trim()}`)
+      .slice(0, n)
+      .join("\n"),
+  });
+
+  // 이슈마다 3장 (서론·본론·결론)
+  issues.forEach((p, i) => {
+    for (const c of buildIssueCards(p, i + 1)) cards.push(c);
+  });
+
+  // 마무리 — 저장 + 팔로우
+  cards.push({
+    kind: "cta",
+    label: "@oddsbag_official",
+    title: "이슈 모아보기\n매일 올라옵니다",
+    body: "저장해두고 팔로우하면 놓치지 않아요",
+  });
+
+  return cards.slice(0, MAX_ROUNDUP_CARDS);
+}
+
+// 모아보기 캡션 — 담긴 이슈 목록을 그대로 보여 준다 (훑어보기 좋게)
+export function buildRoundupCaption(posts: Post[]): string {
+  const issues = posts.filter((p) => p && p.body).slice(0, ROUNDUP_MAX_ISSUES);
+  return [
+    `오늘의 이슈 모아보기 ${issues.length}선`,
+    "",
+    ...issues.map((p, i) => `${["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"][i] ?? "▪️"} ${(p.hook || p.title).trim()}`),
+    "",
+    "📌 저장해두면 필요할 때 바로 꺼내 볼 수 있어요",
+    "🔔 팔로우하면 이런 이슈 정리가 매일 떠요 → @oddsbag_official",
+  ]
+    .join("\n")
+    .slice(0, 2100);
 }
 
 // 인스타 캡션 — 본문은 깔끔하게 (해시태그는 첫 댓글+대댓글로 분리)
