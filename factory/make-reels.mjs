@@ -22,6 +22,8 @@ import { hashtags, keywords } from "./hashtags.mjs";
 import { findBrollForCategory, downloadBroll, brollCredit } from "./pexels.mjs";
 import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
 import { usesBroll } from "./cardstyle.mjs";
+import { buildCards as buildNewsCards } from "../content-factory/cards.mjs";
+import { fetchCard, renderCardFrame, pickKeywords, checkLayout } from "./cardreel.mjs";
 
 const TTS_KEY = process.env.GOOGLE_TTS_API_KEY;
 const VOICE = process.env.ODDS_VOICE || "ko-KR-Chirp3-HD-Aoede";
@@ -86,13 +88,24 @@ async function buildReel(post) {
   fs.mkdirSync(work, { recursive: true });
   console.log(`\n▶ ${slug} — ${post.title}`);
 
-  const cards = buildCards(post);
+  // 【카드뉴스 방식】(기본) — 인스타에 나가는 카드뉴스 그림을 그대로 영상에 얹는다.
+  //   디자인을 두 벌 유지하지 않아도 되고, 카드뉴스의 질감·도식이 영상에도 그대로 들어온다.
+  //   CARD_REEL=0 으로 두면 예전 방식(공장이 직접 그리는 타이포 화면)으로 돌아간다.
+  const CARD_MODE = process.env.CARD_REEL !== "0";
+  const SITE = process.env.SITE_URL || "https://oddsbag.co.kr";
+  const cards = CARD_MODE ? buildNewsCards(post) : buildCards(post);
   const pal = paletteFor(post.slug, post.mood, post.category); // 색 = 카드뉴스 개편안의 카테고리 색
+  const kws = CARD_MODE ? pickKeywords(post) : [];
+  if (CARD_MODE) {
+    const chk = checkLayout(post);            // 겹침·제목잘림을 만들기 전에 검사한다
+    if (!chk.ok) throw new Error(`배치 문제: ${chk.problems.join(", ")}`);
+    console.log(`  · 카드뉴스 방식 · 제목 ${chk.titleSize}px ${chk.titleLines}줄 · 키워드 ${kws.join(" ")}`);
+  }
 
   // B-roll 배경(선택): 저작권 안전한 Pexels 무료 영상. 못 찾으면 조용히 타이포로 폴백.
   let brollFile = null, brollDur = 0, renderOpts = {};
   // 카테고리별 on/off — 꿀팁·경제처럼 글자가 많은 카테고리는 배경영상이 글을 방해한다(개편안).
-  if (process.env.USE_BROLL === "1" && process.env.PEXELS_API_KEY && usesBroll(post.category)) {
+  if (!CARD_MODE && process.env.USE_BROLL === "1" && process.env.PEXELS_API_KEY && usesBroll(post.category)) {
     try {
       const b = await findBrollForCategory(post.category, (post.tags || [])[0]);
       if (b) {
@@ -105,7 +118,7 @@ async function buildReel(post) {
     } catch (e) { console.log("  · 배경영상 건너뜀(타이포로 진행):", e.message); }
   }
 
-  const fonts = await loadFontsForPost(cards, renderOpts.credit || ""); // 출처 글자도 폰트에 포함(깨짐 방지)
+  const fonts = await loadFontsForPost(cards, `${renderOpts.credit || ""} ${post.title} ${post.category} ${kws.join(" ")} oddsbag.co.kr ODDSBAG #`);
 
   // 나레이션 + 카드 길이
   let acc = 0;
@@ -138,9 +151,16 @@ async function buildReel(post) {
   const clips = [];
   for (let c = 0; c < total; c++) {
     const cdir = path.join(work, `c${c}`); fs.mkdirSync(cdir, { recursive: true });
-    for (let f = 0; f < ENTER_FRAMES; f++) {
-      const png = await renderFrame(post, cards, c, total, f / FPS, fonts, pal, renderOpts);
-      fs.writeFileSync(path.join(cdir, `${String(f).padStart(3, "0")}.png`), png);
+    if (CARD_MODE) {
+      // 카드뉴스 그림을 받아 9:16 화면에 얹는다 (장면 전환 애니메이션 없음 — 카드가 곧 화면)
+      const cardPng = await fetchCard(SITE, slug, c);
+      const png = await renderCardFrame({ post, cardPngBuffer: cardPng, kws, fonts });
+      for (let f = 0; f < ENTER_FRAMES; f++) fs.writeFileSync(path.join(cdir, `${String(f).padStart(3, "0")}.png`), png);
+    } else {
+      for (let f = 0; f < ENTER_FRAMES; f++) {
+        const png = await renderFrame(post, cards, c, total, f / FPS, fonts, pal, renderOpts);
+        fs.writeFileSync(path.join(cdir, `${String(f).padStart(3, "0")}.png`), png);
+      }
     }
     const hold = (cards[c].dur - ENTER_FRAMES / FPS).toFixed(3);
     const clip = path.join(work, `clip${c}.mp4`);
@@ -179,7 +199,14 @@ async function buildReel(post) {
   let thumb = null;
   try {
     thumb = path.join(work, "thumb.jpg");
-    if (brollFile) {
+    if (CARD_MODE) {
+      // 【유튜브 쇼츠 썸네일】 쇼츠는 커스텀 썸네일을 목록에 반영하지 않고 '영상 안 프레임'을 골라 쓴다.
+      //   그래서 지정 이미지도 영상에서 뽑은 실제 프레임(2.5초 지점)으로 맞춘다 — 사장님 지시 2026-07-29.
+      //   이 시점은 아직 첫 카드(메인 제목이 적힌 표지)라, 목록에 뜨는 그림과 지정 썸네일이 일치한다.
+      const at = Math.max(1.2, Math.min(2.5, cards[0].dur - 0.3)).toFixed(2);
+      sh(`ffmpeg -y -ss ${at} -i "${final}" -vframes 1 -q:v 2 "${thumb}"`);
+      console.log(`  · 썸네일 = 영상 ${at}초 지점(첫 카드 · 메인 제목)`);
+    } else if (brollFile) {
       // 배경영상형은 완성 영상의 훅 구간(첫 카드 후반)에서 한 장 추출 → 배경까지 담긴 표지
       const at = Math.min(cards[0].dur - 0.3, ENTER_FRAMES / FPS + 0.6).toFixed(2);
       sh(`ffmpeg -y -ss ${at} -i "${final}" -vframes 1 -q:v 2 "${thumb}"`);
@@ -207,7 +234,15 @@ async function buildReel(post) {
     if (!ytRoom) throw new Error(`유튜브 하루 상한(${YT_DAILY_CAP}) 도달`);
     const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
     await bumpDaily("yt:uploads").catch(() => {});
-    if (thumb && vid) { try { await setThumbnail(vid, thumb); } catch (e) { console.log("  · 유튜브 썸네일 건너뜀:", e.message); } }
+    // 썸네일은 '올렸다'가 아니라 '적용됐다'까지 확인한다. 한 번 실패하면 5초 뒤 한 번 더 시도.
+    if (thumb && vid) {
+      let done = false;
+      for (let t = 0; t < 2 && !done; t++) {
+        try { const r = await setThumbnail(vid, thumb); done = r?.ok !== false; }
+        catch (e) { console.log(`  · 유튜브 썸네일 시도 ${t + 1} 실패: ${e.message}`); await new Promise((s2) => setTimeout(s2, 5000)); }
+      }
+      if (!done) console.log("  ⚠ 유튜브 썸네일이 적용되지 않았습니다 — 사장님 확인 필요");
+    }
     if (vid) { try { await addToCategoryPlaylist(vid, post.category); } catch (e) { console.log("  · 재생목록 건너뜀:", e.message); } }
   }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }

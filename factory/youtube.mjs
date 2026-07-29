@@ -72,5 +72,12 @@ export async function setThumbnail(videoId, imgPath) {
   });
   const j = await r.json();
   if (j.error) throw new Error("썸네일 지정 실패: " + JSON.stringify(j.error).slice(0, 160));
-  console.log("  · 유튜브 썸네일 = 첫 장 지정됨");
+  // 지정만 하고 넘어가지 않는다 — 실제로 올라갔는지 유튜브에 되물어 확인한다(사장님 지시 2026-07-29)
+  const v = await (await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
+    { headers: { Authorization: `Bearer ${token}` } })).json();
+  const t = v.items?.[0]?.snippet?.thumbnails || {};
+  const url = (t.maxres || t.standard || t.high || t.default || {}).url || "";
+  const ok = /ytimg\.com/.test(url);
+  console.log(ok ? `  · 유튜브 썸네일 확인됨 = 첫 카드 장면 (${url})` : "  ⚠ 유튜브 썸네일 확인 실패 — 수동 확인 필요");
+  return { ok, url };
 }
