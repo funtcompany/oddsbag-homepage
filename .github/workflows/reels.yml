@@ -78,6 +78,21 @@ jobs:
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
         run: node replace-old.mjs --confirm
 
+      # 놓친 영상이 없는지 매번 점검한다(읽기 전용). 글이 내려간 '고아 영상'은 교체로 안 지워지므로
+      # 여기서 발견되면 로그에 남는다 → 사장님께 보고 후 손으로 삭제.
+      - name: 남은 영상 점검 (읽기 전용)
+        if: always()
+        working-directory: factory
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: node check-coverage.mjs || true
+
       - name: 완성 영상 보관 (다운로드용)
         uses: actions/upload-artifact@v4
         with:
