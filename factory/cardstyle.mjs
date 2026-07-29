@@ -49,5 +49,5 @@ export const badgeEmoji = (c) => BADGE_EMOJI[c] ?? "📌";
 export const usesBroll = (category) => videoStyleFor(category).broll;
 
 // 9:16 안전영역 (인스타·쇼츠 UI가 덮는 영역)
-export const SAFE_TOP = 230;    // 계정명·시간
-export const SAFE_BOTTOM = 500; // 캡션·좋아요·공유
+export const SAFE_TOP = 200;    // 계정명·시간
+export const SAFE_BOTTOM = 430; // 캡션·좋아요·공유 (실측 여유 포함. 더 줄이면 자막이 가림)

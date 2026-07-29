@@ -227,6 +227,37 @@ async function emojiSvg(seg) { try { const r = await fetch(`https://cdnjs.cloudf
 
 const el = (type, style, children) => ({ type, props: { style, children } });
 
+// ── 카드가 '칸' 안에 들어가도록 글자 크기·문장 수를 정하는 계산 ──
+//   frame() 과 검사도구(check-layout)가 같은 함수를 쓴다 → 검사 결과와 실제 화면이 어긋날 수 없다.
+export function fitCard(post, card, opts = {}) {
+  const big = card.kind === "hook";
+  const photoBg = big && post.cover && !opts.transparent;
+  const baseTitle = big ? (card.title.length > 24 ? 96 : card.title.length > 14 ? 112 : 124) : card.kind === "quote" || card.kind === "cta" ? 88 : 84;
+  const BOX_TOP = SAFE_TOP + 96;
+  const BOX_BOTTOM = H - (SAFE_BOTTOM + 24 + 54 + 34);   // 로고줄(54) + 위아래 여백
+  const BOX_H = BOX_BOTTOM - BOX_TOP;
+  const AVAIL = 880;
+  let sentences = card.body ? card.body.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean) : [];
+  const labelH = card.label && !big ? 92 : 0;
+  let useEmoji = big && !photoBg;
+  const measure = (ts, bs, sens, emoji) => {
+    let h = (emoji ? 276 + 50 : 0) + labelH;
+    h += wrapLines(card.title, ts, -2.5, AVAIL).length * ts * 1.18 + 36;
+    if (sens.length) { h += 34; for (const s of sens) h += wrapLines(s, bs, 0, AVAIL).length * bs * 1.48 + 20; }
+    return h;
+  };
+  let ts = baseTitle, bs = 46;
+  while (measure(ts, bs, sentences, useEmoji) > BOX_H && (ts > 60 || bs > 34)) {
+    if (bs > 34 && (46 - bs) * 2 <= baseTitle - ts) bs -= 2; else if (ts > 60) ts -= 4; else bs -= 2;
+  }
+  if (measure(ts, bs, sentences, useEmoji) > BOX_H && useEmoji) useEmoji = false;
+  const before = sentences.length;
+  while (measure(ts, bs, sentences, useEmoji) > BOX_H && sentences.length > 1) sentences = sentences.slice(0, -1);
+  const height = measure(ts, bs, sentences, useEmoji);
+  return { ts, bs, sentences, useEmoji, BOX_TOP, BOX_H, AVAIL, height,
+           fits: height <= BOX_H, shrunkTitle: baseTitle - ts, shrunkBody: 46 - bs, droppedSentences: before - sentences.length };
+}
+
 function frame(post, card, idx, total, t, pal, opts = {}) {
   const p = pal;
   const broll = !!opts.transparent;            // B-roll 배경(영상이 뒤에서 비침) 모드
@@ -261,24 +292,25 @@ function frame(post, card, idx, total, t, pal, opts = {}) {
     el("div", { display: "flex", flex: 1 }, ""),
     el("div", { display: "flex", fontSize: 32, fontWeight: 800, color: sub }, `${idx + 1} / ${total}`),
   ]));
+  const fit = fitCard(post, card, opts);
+  const { ts, bs, sentences, useEmoji, BOX_TOP, BOX_H, AVAIL } = fit;
+
   // 본문
   const body = [];
-  if (big && !photoBg) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eEmoji, transform: `translateY(${(1 - eEmoji) * 40}px)`, fontSize: 230, marginBottom: 50 }, post.emoji || "📰"));
+  if (useEmoji) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eEmoji, transform: `translateY(${(1 - eEmoji) * 40}px)`, fontSize: 230, marginBottom: 50 }, post.emoji || "📰"));
   if (card.label && !big) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eLabel, transform: `translateY(${(1 - eLabel) * 30}px)`, background: card.kind === "point" ? "transparent" : p.accent, color: card.kind === "point" ? p.accent : p.onAccent, fontSize: card.kind === "point" ? 52 : 32, fontWeight: 900, padding: card.kind === "point" ? "0" : "14px 30px", borderRadius: 999, marginBottom: 30 }, card.label));
-  const titleLines = wrapLines(card.title, titleSize, -2.5);
-  body.push(el("div", { display: "flex", flexDirection: "column", opacity: eTitle, transform: `translateY(${(1 - eTitle) * 44}px)` }, titleLines.map((ln) => el("div", { display: "flex", fontSize: titleSize, fontWeight: 900, color: ink, lineHeight: 1.18, letterSpacing: -2.5 }, ln))));
+  const titleLines = wrapLines(card.title, ts, -2.5, AVAIL);
+  body.push(el("div", { display: "flex", flexDirection: "column", opacity: eTitle, transform: `translateY(${(1 - eTitle) * 44}px)` }, titleLines.map((ln) => el("div", { display: "flex", fontSize: ts, fontWeight: 900, color: ink, lineHeight: 1.18, letterSpacing: -2.5 }, ln))));
   body.push(el("div", { display: "flex", marginTop: 26, width: 60 + eTitle * 140, height: 10, borderRadius: 999, background: p.accent }, ""));
-  if (card.body) {
-    // 문장 단위로 나눠 문장 사이에 여백을 준다 → 어디서 한 생각이 끝나는지 눈에 보이게(가독성)
-    // 종결부호+공백에서만 나눔 → "4.79%" 같은 소수점은 안 쪼개짐
-    const sentences = card.body.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+  if (sentences.length) {
+    // 문장마다 여백을 줘서 한 생각이 어디서 끝나는지 눈에 보이게 (가독성)
     const groups = sentences.map((sen) =>
       el("div", { display: "flex", flexDirection: "column", marginBottom: 20 },
-        wrapLines(sen, 46, 0).map((ln) => el("div", { display: "flex", fontSize: 46, fontWeight: 500, color: sub, lineHeight: 1.48 }, ln))));
+        wrapLines(sen, bs, 0, AVAIL).map((ln) => el("div", { display: "flex", fontSize: bs, fontWeight: 500, color: sub, lineHeight: 1.48 }, ln))));
     body.push(el("div", { display: "flex", flexDirection: "column", marginTop: 34, opacity: eBody, transform: `translateY(${(1 - eBody) * 36}px)` }, groups));
   }
-  // 글자는 안전영역(위 230 ~ 아래 500) 안에만. 아래는 로고줄 자리까지 더 비운다.
-  kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 20 : 10, paddingLeft: 84, paddingRight: 84, paddingBottom: SAFE_BOTTOM + 70 }, body));
+  // ④ 정해진 칸 안에 세로 가운데 정렬 — 칸을 넘지 않으므로 위아래 어느 쪽도 침범하지 않는다
+  kids.push(el("div", { display: "flex", flexDirection: "column", justifyContent: "center", position: "absolute", top: BOX_TOP, left: 84, width: AVAIL, height: BOX_H, overflow: "hidden" }, body));
   // 꼬리말(개편안 고정요소) — 좌: 로고 / 우: 주소. 안전영역 위에 놓아 좋아요·공유 버튼에 안 가린다.
   const foot = [
     el("div", { display: "flex", width: 54, height: 54, borderRadius: 15, background: p.accent, color: p.onAccent, fontSize: 34, fontWeight: 900, alignItems: "center", justifyContent: "center", marginRight: 16 }, "O"),
