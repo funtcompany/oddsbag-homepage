@@ -15,20 +15,33 @@ export const REEL_FPS = 30;
 export const ENTER_SEC = 0.62; // 글자가 떠오르는 시간
 export const ENTER_FRAMES = Math.round(ENTER_SEC * REEL_FPS); // = 19
 
+// 카드에 담긴 텍스트를 '있는 그대로 온전히' 읽는다.
+//  · body는 cards.ts clip()이 완결된 문장까지만 담아둔 것이므로 통째로 읽어도 중간에 안 잘린다.
+//  · 소제목(title) 뒤에 마침표를 넣어 끊어읽되, 이미 종결부호가 있으면 겹치지 않게 한다.
+//  · 본문이 여러 문장이면 영상 공장의 ssmlFor가 문장부호마다 쉼을 넣어 자연스럽게 이어읽는다.
+function sayClean(s: string | undefined): string {
+  return String(s || "").replace(/\*\*/g, "").replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+}
+
 // 카드별 나레이션 문구 (TTS로 읽을 텍스트)
 export function reelSay(card: Card): string {
   switch (card.kind) {
     case "hook":
     case "intro":
-      return card.title.replace(/\n/g, " ");
-    case "point":
-      return card.body ? `${card.title}. ${card.body}` : card.title;
+      return sayClean(card.title);
+    case "point": {
+      const title = sayClean(card.title);
+      const body = sayClean(card.body);
+      if (!body) return title;
+      const head = /[.!?…]$/.test(title) ? title : `${title}.`;
+      return `${head} ${body}`;
+    }
     case "quote":
-      return `오즈백 한 줄 정리. ${card.title}`;
+      return `오즈백 한 줄 정리. ${sayClean(card.title)}`;
     case "cta":
       return "전체 글은 오즈백 매거진에서 확인하세요.";
     default:
-      return card.title.replace(/\n/g, " ");
+      return sayClean(card.title);
   }
 }
 

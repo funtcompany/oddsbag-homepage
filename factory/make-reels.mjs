@@ -114,15 +114,18 @@ async function buildReel(post) {
     cards[i].dur = Math.max(2.6, probe(mp3) + 0.75);
     acc += cards[i].dur;
   }
-  // 숏폼 상한(기본 40초): 초과하면 뒤쪽 포인트/정리 카드부터 덜어낸다(훅·무슨일이냐·CTA는 유지)
-  // 정보가 영상 안에서 끝나야 하므로 길이를 넉넉히 (릴스·쇼츠 모두 60초 이내 안전)
-  const MAX_SEC = Number(process.env.MAX_REEL_SEC || 58);
+  // 세로영상 상한(기본 2:59=179초): 쇼츠·릴스·틱톡·네이버클립 모두 3분 이내면 안전.
+  // 정상 글은 이 상한에 한참 못 미치므로 전부 살아남는다. 아주 긴 글(드묾)만 상한을 넘겨,
+  // 그 경우에도 '문장 중간'이 아니라 '완결된 소제목(=카드)' 단위로만 뒤에서부터 덜어낸다.
+  const MAX_SEC = Number(process.env.MAX_REEL_SEC || 179);
+  let dropped = 0;
   while (acc > MAX_SEC && cards.length > 3) {
     let idx = -1;
     for (let i = cards.length - 2; i >= 2; i--) { if (["point", "quote"].includes(cards[i].kind)) { idx = i; break; } }
     if (idx < 0) break;
-    acc -= cards[idx].dur; cards.splice(idx, 1);
+    acc -= cards[idx].dur; cards.splice(idx, 1); dropped++;
   }
+  if (dropped) console.log(`  · 상한 ${MAX_SEC}초 초과 → 뒤 카드 ${dropped}장 덜어냄 (문장 중간 안 자름, 소제목 단위)`);
   const total = cards.length;
   const offsets = []; let a2 = 0;
   for (const c of cards) { offsets.push(a2); a2 += c.dur; }
@@ -161,8 +164,10 @@ async function buildReel(post) {
   let fc = ""; const v = [];
   cards.forEach((c, i) => { const d = Math.round((offsets[i] + 0.35) * 1000); fc += `[${i + 2}:a]adelay=${d}|${d},volume=2.1[v${i}];`; v.push(`[v${i}]`); });
   fc += `${v.join("")}amix=inputs=${v.length}:normalize=0[voice];`;
-  fc += `[1:a]highpass=f=60,volume=0.22,afade=t=in:st=0:d=0.8[bg];`;
-  fc += `[bg][voice]amix=inputs=2:normalize=0,alimiter=limit=0.95,afade=t=out:st=${(totalDur - 0.6).toFixed(2)}:d=0.6[a]`;
+  // 페이드아웃은 BGM에만 건다 — 나레이션(voice)은 어떤 페이드로도 절대 깎이지 않게 한다.
+  // (카드 표시시간 dur = 오디오+0.75, 시작 지연 0.35초라 나레이션 끝뒤에 최소 0.4초 여유가 남아 잘림이 없다)
+  fc += `[1:a]highpass=f=60,volume=0.22,afade=t=in:st=0:d=0.8,afade=t=out:st=${(totalDur - 0.8).toFixed(2)}:d=0.8[bg];`;
+  fc += `[bg][voice]amix=inputs=2:normalize=0,alimiter=limit=0.95[a]`;
   const final = path.join(OUT, `${slug}.mp4`);
   // 용량 최소화(≈5MB): 배경영상형도 무료 호스팅에 빠르게 올라가 인스타가 확실히 받아가게. 모바일 화질엔 충분.
   sh(`ffmpeg -y ${inputs.join(" ")} -filter_complex "${fc}" -map 0:v -map "[a]" -c:v libx264 -preset medium -crf 26 -maxrate 2200k -bufsize 4400k -pix_fmt yuv420p -c:a aac -b:a 128k -shortest "${final}"`);

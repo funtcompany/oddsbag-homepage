@@ -78,13 +78,26 @@ export function buildCards(post) {
   cards.push({ kind: "cta", label: "@oddsbag_official", title: "전체 글은\n오즈백 매거진에서", body: "프로필 링크 → oddsbag.co.kr" });
   return cards.slice(0, 6);
 }
+// 카드에 담긴 텍스트를 '있는 그대로 온전히' 읽는다.
+//  · body는 clip()이 완결된 문장까지만 담아둔 것이므로 통째로 읽어도 중간에 안 잘린다.
+//  · 소제목(title) 뒤에 마침표를 넣어 끊어읽되, 이미 종결부호가 있으면 겹치지 않게 한다.
+//  · 본문이 여러 문장이면 ssmlFor가 문장부호마다 쉼을 넣어 자연스럽게 이어읽는다.
+function sayClean(s) {
+  return String(s || "").replace(/\*\*/g, "").replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+}
 export function reelSay(card) {
   switch (card.kind) {
-    case "hook": case "intro": return card.title.replace(/\n/g, " ");
-    case "point": return card.body ? `${card.title}. ${card.body}` : card.title;
-    case "quote": return `오즈백 한 줄 정리. ${card.title}`;
+    case "hook": case "intro": case "lead": return sayClean(card.title);
+    case "point": case "body": {
+      const title = sayClean(card.title);
+      const body = sayClean(card.body);
+      if (!body) return title;
+      const head = /[.!?…]$/.test(title) ? title : `${title}.`;
+      return `${head} ${body}`;
+    }
+    case "quote": case "conclusion": return `오즈백 한 줄 정리. ${sayClean(card.title)}`;
     case "cta": return "전체 글은 오즈백 매거진에서 확인하세요.";
-    default: return card.title.replace(/\n/g, " ");
+    default: return sayClean(card.title);
   }
 }
 
