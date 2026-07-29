@@ -2,7 +2,7 @@
 // 홈페이지 /api/reel 라우트와 동일한 디자인을 공장 안에서 직접 그린다 (Vercel 불필요).
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
-import { videoStyleFor, badgeEmoji, SAFE_TOP, SAFE_BOTTOM } from "./cardstyle.mjs";
+import { videoStyleFor, badgeEmoji, SAFE_TOP, SAFE_BOTTOM, FOOTER_BOTTOM } from "./cardstyle.mjs";
 
 export const W = 1080, H = 1920, FPS = 30;
 export const ENTER_SEC = 0.62;
@@ -234,7 +234,7 @@ export function fitCard(post, card, opts = {}) {
   const photoBg = big && post.cover && !opts.transparent;
   const baseTitle = big ? (card.title.length > 24 ? 96 : card.title.length > 14 ? 112 : 124) : card.kind === "quote" || card.kind === "cta" ? 88 : 84;
   const BOX_TOP = SAFE_TOP + 96;
-  const BOX_BOTTOM = H - (SAFE_BOTTOM + 24 + 54 + 34);   // 로고줄(54) + 위아래 여백
+  const BOX_BOTTOM = H - (FOOTER_BOTTOM + 54 + 40);      // 로고줄(54) 위까지 본문이 쓴다
   const BOX_H = BOX_BOTTOM - BOX_TOP;
   const AVAIL = 880;
   let sentences = card.body ? card.body.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean) : [];
@@ -318,8 +318,8 @@ function frame(post, card, idx, total, t, pal, opts = {}) {
     el("div", { display: "flex", flex: 1 }, ""),
     el("div", { display: "flex", fontSize: 28, fontWeight: 700, color: sub }, "oddsbag.co.kr"),
   ];
-  kids.push(el("div", { display: "flex", alignItems: "center", position: "absolute", bottom: SAFE_BOTTOM + 24, left: 84, width: W - 168 }, foot));
-  if (broll && opts.credit) kids.push(el("div", { display: "flex", position: "absolute", bottom: SAFE_BOTTOM - 26, left: 84, fontSize: 22, fontWeight: 600, color: overlayDark ? "rgba(255,255,255,.55)" : sub }, opts.credit));
+  kids.push(el("div", { display: "flex", alignItems: "center", position: "absolute", bottom: FOOTER_BOTTOM, left: 84, width: W - 168 }, foot));
+  if (broll && opts.credit) kids.push(el("div", { display: "flex", position: "absolute", bottom: FOOTER_BOTTOM + 74, left: 84, fontSize: 22, fontWeight: 600, color: overlayDark ? "rgba(255,255,255,.55)" : sub }, opts.credit));
 
   return el("div", { width: W, height: H, display: "flex", flexDirection: "column", background: broll ? "transparent" : p.bg, position: "relative", fontFamily: "Noto" }, kids);
 }

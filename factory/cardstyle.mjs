@@ -50,4 +50,7 @@ export const usesBroll = (category) => videoStyleFor(category).broll;
 
 // 9:16 안전영역 (인스타·쇼츠 UI가 덮는 영역)
 export const SAFE_TOP = 200;    // 계정명·시간
-export const SAFE_BOTTOM = 430; // 캡션·좋아요·공유 (실측 여유 포함. 더 줄이면 자막이 가림)
+export const SAFE_BOTTOM = 430; // 캡션·좋아요·공유 (참고값)
+// 로고 줄이 놓이는 위치(화면 아래에서 이만큼 띄움). 사장님 지시(2026-07-29)로 아래로 내려
+// 본문이 쓸 수 있는 세로 공간을 넓혔다. 로고·주소는 짧아서 SNS UI와 겹쳐도 읽는 데 지장이 없다.
+export const FOOTER_BOTTOM = 190;
