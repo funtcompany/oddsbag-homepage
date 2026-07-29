@@ -21,6 +21,7 @@ import { uploadPublic } from "./host.mjs";
 import { hashtags, keywords } from "./hashtags.mjs";
 import { findBrollForCategory, downloadBroll, brollCredit } from "./pexels.mjs";
 import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
+import { usesBroll } from "./cardstyle.mjs";
 
 const TTS_KEY = process.env.GOOGLE_TTS_API_KEY;
 const VOICE = process.env.ODDS_VOICE || "ko-KR-Chirp3-HD-Aoede";
@@ -86,11 +87,12 @@ async function buildReel(post) {
   console.log(`\n▶ ${slug} — ${post.title}`);
 
   const cards = buildCards(post);
-  const pal = paletteFor(post.slug, post.mood);
+  const pal = paletteFor(post.slug, post.mood, post.category); // 색 = 카드뉴스 개편안의 카테고리 색
 
   // B-roll 배경(선택): 저작권 안전한 Pexels 무료 영상. 못 찾으면 조용히 타이포로 폴백.
   let brollFile = null, brollDur = 0, renderOpts = {};
-  if (process.env.USE_BROLL === "1" && process.env.PEXELS_API_KEY) {
+  // 카테고리별 on/off — 꿀팁·경제처럼 글자가 많은 카테고리는 배경영상이 글을 방해한다(개편안).
+  if (process.env.USE_BROLL === "1" && process.env.PEXELS_API_KEY && usesBroll(post.category)) {
     try {
       const b = await findBrollForCategory(post.category, (post.tags || [])[0]);
       if (b) {

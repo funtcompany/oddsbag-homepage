@@ -2,6 +2,7 @@
 // 홈페이지 /api/reel 라우트와 동일한 디자인을 공장 안에서 직접 그린다 (Vercel 불필요).
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
+import { videoStyleFor, badgeEmoji, SAFE_TOP, SAFE_BOTTOM } from "./cardstyle.mjs";
 
 export const W = 1080, H = 1920, FPS = 30;
 export const ENTER_SEC = 0.62;
@@ -31,7 +32,13 @@ const PALETTES = {
   ],
 };
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return Math.abs(h); }
-export function paletteFor(slug, mood) { const list = PALETTES[mood] ?? PALETTES.trendy; return list[hash(slug) % list.length]; }
+// 색은 이제 '무드 랜덤'이 아니라 '카테고리 고정'이다 (카드뉴스 개편안과 같은 색).
+//  · category 를 주면 개편안 색을 쓴다. 없으면 옛 무드 팔레트로 폴백(구버전 호출 호환).
+export function paletteFor(slug, mood, category) {
+  if (category) return videoStyleFor(category);
+  const list = PALETTES[mood] ?? PALETTES.trendy;
+  return list[hash(slug) % list.length];
+}
 
 export const bgmStyleFor = (cat) => ({ "IT·테크": "synthwave", "트렌드": "synthwave", "스포츠": "energetic", "경제": "newsy", "사회": "newsy", "문화·연예": "lofi" }[cat] || "lofi");
 
@@ -66,17 +73,23 @@ function parseSections(body) {
   if (cur) out.push(cur);
   return out.filter((s) => s.heading);
 }
+// 장수 상한 — 2:59(179초) 안에서 소제목이 잘리지 않도록 넉넉히. 실제 길이는 make-reels 가 지킨다.
+const MAX_POINTS = 8;   // 본문 소제목 카드
+const MAX_CARDS = 12;   // 훅 + 무슨일이냐면 + 소제목 8 + 한줄정리 + CTA
 export function buildCards(post) {
   const cards = [];
   cards.push({ kind: "hook", label: post.category, title: (post.hook || post.title).trim() });
   if (post.summary) cards.push({ kind: "intro", label: "무슨 일이냐면", title: clip(post.summary, 90) });
   const secs = parseSections(post.body);
   const closing = secs.find((s) => s.heading.includes("한 줄 정리"));
-  // 숏폼(20~40초) 최적화: 핵심 포인트 3개 + 본문 짧게(낭독·가독성 둘 다 개선)
-  secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, 3).forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading, body: clip(s.text, 120) }));
+  // ★ 예전엔 여기서 소제목을 앞 3개만 남겼다(slice(0,3)) — "5가지"라고 해놓고 3개만 나오던 진짜 원인.
+  //   2:59(179초) 규격에서는 소제목을 전부 담아도 시간이 남는다. 본문 글이 스스로 개수를 정한다.
+  //   장면당 글자는 오히려 줄인다(110자) — 영상은 멈춰서 읽는 게 아니라 흘러가기 때문(가독성).
+  secs.filter((s) => !s.heading.includes("한 줄 정리")).slice(0, MAX_POINTS)
+    .forEach((s, i) => cards.push({ kind: "point", label: String(i + 1).padStart(2, "0"), title: s.heading, body: clip(s.text, 110) }));
   if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 100) });
   cards.push({ kind: "cta", label: "@oddsbag_official", title: "전체 글은\n오즈백 매거진에서", body: "프로필 링크 → oddsbag.co.kr" });
-  return cards.slice(0, 6);
+  return cards.slice(0, MAX_CARDS);
 }
 // 카드에 담긴 텍스트를 '있는 그대로 온전히' 읽는다.
 //  · body는 clip()이 완결된 문장까지만 담아둔 것이므로 통째로 읽어도 중간에 안 잘린다.
@@ -180,7 +193,8 @@ function frame(post, card, idx, total, t, pal, opts = {}) {
   const big = card.kind === "hook";
   const photoBg = big && post.cover && !broll;
   const overlayDark = photoBg || broll;         // 어두운 그라디언트 + 흰 글자
-  const titleSize = big ? (card.title.length > 24 ? 92 : card.title.length > 14 ? 108 : 122) : card.kind === "quote" || card.kind === "cta" ? 76 : 68;
+  // 영상은 흘러간다 → 카드뉴스보다 글자를 키운다 (개편안: 제목 104px 기준)
+  const titleSize = big ? (card.title.length > 24 ? 96 : card.title.length > 14 ? 112 : 124) : card.kind === "quote" || card.kind === "cta" ? 88 : 84;
   const eLabel = easeOut(t / 0.4), eTitle = easeOut((t - 0.08) / 0.42), eBody = easeOut((t - 0.18) / 0.42), eEmoji = easeOut((t - 0.02) / 0.5);
   const ink = overlayDark ? "#ffffff" : p.ink, sub = overlayDark ? "rgba(255,255,255,.88)" : p.sub;
   const kids = [];
@@ -197,18 +211,20 @@ function frame(post, card, idx, total, t, pal, opts = {}) {
   const seg = [];
   for (let i = 0; i < total; i++) seg.push(el("div", { display: "flex", flex: 1, height: 8, borderRadius: 999, marginRight: i < total - 1 ? 10 : 0, background: i <= idx ? p.accent : "rgba(255,255,255,0.22)" }, ""));
   kids.push(el("div", { display: "flex", position: "absolute", top: 40, left: 56, width: W - 112 }, seg));
-  kids.push(el("div", { position: "absolute", top: 0, left: 0, width: 16, height: H, background: p.accent }, ""));
-  // 브랜드
-  kids.push(el("div", { display: "flex", alignItems: "center", padding: "84px 84px 0 84px" }, [
-    el("div", { display: "flex", width: 58, height: 58, borderRadius: 16, background: p.accent, color: p.onAccent, fontSize: 38, fontWeight: 900, alignItems: "center", justifyContent: "center", marginRight: 18 }, "O"),
-    el("div", { display: "flex", fontSize: 40, fontWeight: 900, color: photoBg ? "#fff" : p.ink, letterSpacing: -1 }, "ODDSBAG"),
+  // 머리말 — 좌: 카테고리 뱃지(개편안 고정요소) / 우: 페이지. SNS UI가 덮는 위 230px 아래로 내린다.
+  kids.push(el("div", { display: "flex", alignItems: "center", padding: `${SAFE_TOP}px 84px 0 84px` }, [
+    el("div", {
+      display: "flex", alignItems: "center", background: overlayDark ? "rgba(255,255,255,.14)" : p.accent,
+      color: overlayDark ? "#fff" : p.onAccent, fontSize: 34, fontWeight: 900,
+      padding: "12px 26px", borderRadius: 999,
+    }, `${badgeEmoji(post.category)} ${post.category || "오즈백"}`),
     el("div", { display: "flex", flex: 1 }, ""),
-    el("div", { display: "flex", fontSize: 30, fontWeight: 700, color: sub }, `${idx + 1} / ${total}`),
+    el("div", { display: "flex", fontSize: 32, fontWeight: 800, color: sub }, `${idx + 1} / ${total}`),
   ]));
   // 본문
   const body = [];
   if (big && !photoBg) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eEmoji, transform: `translateY(${(1 - eEmoji) * 40}px)`, fontSize: 230, marginBottom: 50 }, post.emoji || "📰"));
-  if (card.label) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eLabel, transform: `translateY(${(1 - eLabel) * 30}px)`, background: card.kind === "point" ? "transparent" : p.accent, color: card.kind === "point" ? p.accent : p.onAccent, fontSize: card.kind === "point" ? 52 : 32, fontWeight: 900, padding: card.kind === "point" ? "0" : "14px 30px", borderRadius: 999, marginBottom: 30 }, card.label));
+  if (card.label && !big) body.push(el("div", { display: "flex", alignSelf: "flex-start", opacity: eLabel, transform: `translateY(${(1 - eLabel) * 30}px)`, background: card.kind === "point" ? "transparent" : p.accent, color: card.kind === "point" ? p.accent : p.onAccent, fontSize: card.kind === "point" ? 52 : 32, fontWeight: 900, padding: card.kind === "point" ? "0" : "14px 30px", borderRadius: 999, marginBottom: 30 }, card.label));
   const titleLines = wrapLines(card.title, titleSize, -2.5);
   body.push(el("div", { display: "flex", flexDirection: "column", opacity: eTitle, transform: `translateY(${(1 - eTitle) * 44}px)` }, titleLines.map((ln) => el("div", { display: "flex", fontSize: titleSize, fontWeight: 900, color: ink, lineHeight: 1.18, letterSpacing: -2.5 }, ln))));
   body.push(el("div", { display: "flex", marginTop: 26, width: 60 + eTitle * 140, height: 10, borderRadius: 999, background: p.accent }, ""));
@@ -221,12 +237,17 @@ function frame(post, card, idx, total, t, pal, opts = {}) {
         wrapLines(sen, 46, 0).map((ln) => el("div", { display: "flex", fontSize: 46, fontWeight: 500, color: sub, lineHeight: 1.48 }, ln))));
     body.push(el("div", { display: "flex", flexDirection: "column", marginTop: 34, opacity: eBody, transform: `translateY(${(1 - eBody) * 36}px)` }, groups));
   }
-  // 제목 블록을 화면 상단~중앙에 배치(썸네일·가독성). 아래쪽 여백을 크게 둬서 SNS UI와 안 겹치게.
-  kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 40 : 20, paddingLeft: 84, paddingRight: 84, paddingBottom: 500 }, body));
-  // 하단 문구 = SNS 안전영역: 좌측 정렬 + 하단 20%(우측 버튼·계정명) 위로 올림. 계정명+출처를 한 덩어리로.
-  const footer = [el("div", { display: "flex", fontSize: 30, fontWeight: 800, color: sub }, "@oddsbag_official")];
-  if (broll && opts.credit) footer.push(el("div", { display: "flex", fontSize: 23, fontWeight: 600, color: overlayDark ? "rgba(255,255,255,.6)" : sub, marginTop: 10 }, opts.credit));
-  kids.push(el("div", { display: "flex", flexDirection: "column", position: "absolute", bottom: 400, left: 84, maxWidth: 760 }, footer));
+  // 글자는 안전영역(위 230 ~ 아래 500) 안에만. 아래는 로고줄 자리까지 더 비운다.
+  kids.push(el("div", { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", paddingTop: big ? 20 : 10, paddingLeft: 84, paddingRight: 84, paddingBottom: SAFE_BOTTOM + 70 }, body));
+  // 꼬리말(개편안 고정요소) — 좌: 로고 / 우: 주소. 안전영역 위에 놓아 좋아요·공유 버튼에 안 가린다.
+  const foot = [
+    el("div", { display: "flex", width: 54, height: 54, borderRadius: 15, background: p.accent, color: p.onAccent, fontSize: 34, fontWeight: 900, alignItems: "center", justifyContent: "center", marginRight: 16 }, "O"),
+    el("div", { display: "flex", fontSize: 36, fontWeight: 900, color: ink, letterSpacing: -1 }, "ODDSBAG"),
+    el("div", { display: "flex", flex: 1 }, ""),
+    el("div", { display: "flex", fontSize: 28, fontWeight: 700, color: sub }, "oddsbag.co.kr"),
+  ];
+  kids.push(el("div", { display: "flex", alignItems: "center", position: "absolute", bottom: SAFE_BOTTOM + 24, left: 84, width: W - 168 }, foot));
+  if (broll && opts.credit) kids.push(el("div", { display: "flex", position: "absolute", bottom: SAFE_BOTTOM - 26, left: 84, fontSize: 22, fontWeight: 600, color: overlayDark ? "rgba(255,255,255,.55)" : sub }, opts.credit));
 
   return el("div", { width: W, height: H, display: "flex", flexDirection: "column", background: broll ? "transparent" : p.bg, position: "relative", fontFamily: "Noto" }, kids);
 }
