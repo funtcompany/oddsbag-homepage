@@ -2,14 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { publishPost, deletePost } from "@/lib/posts";
 import { kvGet, kvSet } from "@/lib/store";
 
-const ADMIN = process.env.ADMIN_PASSWORD;
-
+// 인증은 middleware.ts에서 /api/admin/* 전체를 한 번에 막는다
 export async function POST(req: NextRequest) {
   try {
-    const { password, action, slug, patch } = await req.json();
-    if (!ADMIN || password !== ADMIN) {
-      return NextResponse.json({ error: "인증 실패" }, { status: 401 });
-    }
+    const { action, slug, patch } = await req.json();
     if (typeof slug !== "string") {
       return NextResponse.json({ error: "slug 필요" }, { status: 400 });
     }

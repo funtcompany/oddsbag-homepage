@@ -4,14 +4,11 @@ import { getLatestPosts } from "@/lib/posts";
 import { smembers } from "@/lib/store";
 
 export const maxDuration = 60;
-const ADMIN = process.env.ADMIN_PASSWORD;
+// 인증은 middleware.ts에서 /api/admin/* 전체를 한 번에 막는다
 
 export async function POST(req: NextRequest) {
   try {
-    const { password, to, all } = await req.json();
-    if (!ADMIN || password !== ADMIN) {
-      return NextResponse.json({ error: "인증 실패" }, { status: 401 });
-    }
+    const { to, all } = await req.json();
     const posts = await getLatestPosts(5);
     const subject = "오즈백 매거진 · 오늘의 이슈 📮";
     const html = newsletterHtml(posts);

@@ -1,16 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { syncFromNotion } from "@/lib/sync";
 
 export const maxDuration = 300;
 
-const ADMIN = process.env.ADMIN_PASSWORD;
-
-export async function POST(req: NextRequest) {
+// 인증은 middleware.ts에서 /api/admin/* 전체를 한 번에 막는다
+export async function POST() {
   try {
-    const { password } = await req.json();
-    if (!ADMIN || password !== ADMIN) {
-      return NextResponse.json({ error: "인증 실패" }, { status: 401 });
-    }
     const result = await syncFromNotion();
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {

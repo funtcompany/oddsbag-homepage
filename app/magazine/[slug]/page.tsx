@@ -4,6 +4,7 @@ import PostCard from "@/components/PostCard";
 import AdSlot from "@/components/AdSlot";
 import ReactionBar from "@/components/ReactionBar";
 import CommentSection from "@/components/CommentSection";
+import ViewTracker from "@/components/ViewTracker";
 import { getAllPosts, getPostBySlug, getRelatedPosts } from "@/lib/posts";
 import {
   KeycapFigure,
@@ -357,6 +358,7 @@ export default async function PostPage({
 
   return (
     <>
+      <ViewTracker slug={post.slug} />
       {/* 검색엔진용 구조화 데이터 (구글 뉴스 노출) */}
       <script
         type="application/ld+json"

@@ -1,13 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getDrafts, getAllPosts } from "@/lib/posts";
 
-const ADMIN = process.env.ADMIN_PASSWORD;
-
-export async function GET(req: NextRequest) {
-  const password = req.nextUrl.searchParams.get("password");
-  if (!ADMIN || password !== ADMIN) {
-    return NextResponse.json({ error: "인증 실패" }, { status: 401 });
-  }
+// 인증은 middleware.ts에서 /api/admin/* 전체를 한 번에 막는다
+export async function GET() {
   const [drafts, published] = await Promise.all([getDrafts(), getAllPosts()]);
   return NextResponse.json({
     drafts,

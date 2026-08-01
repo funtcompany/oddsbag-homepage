@@ -50,6 +50,50 @@ export async function hincr(
   return next;
 }
 
+// 키에 만료시간 걸기 (날짜별 조회수처럼 오래 두면 안 되는 데이터)
+export async function expire(key: string, ttlSec: number): Promise<void> {
+  if (isPersistent) {
+    await redis(["EXPIRE", key, ttlSec]);
+  }
+}
+
+// 키 하나 증가 + 만료시간 지정 (로그인 시도 횟수 제한용)
+// 반환: 증가 후 값
+export async function incrWithTtl(key: string, ttlSec: number): Promise<number> {
+  if (isPersistent) {
+    const n = (await redis(["INCR", key])) as number;
+    if (n === 1) await redis(["EXPIRE", key, ttlSec]);
+    return n;
+  }
+  const now = Date.now();
+  const cur = memCounter.get(key);
+  if (!cur || cur.expires < now) {
+    memCounter.set(key, { n: 1, expires: now + ttlSec * 1000 });
+    return 1;
+  }
+  cur.n += 1;
+  return cur.n;
+}
+
+export async function counterGet(key: string): Promise<number> {
+  if (isPersistent) {
+    const v = (await redis(["GET", key])) as string | null;
+    return v ? parseInt(v, 10) || 0 : 0;
+  }
+  const cur = memCounter.get(key);
+  return cur && cur.expires > Date.now() ? cur.n : 0;
+}
+
+export async function counterReset(key: string): Promise<void> {
+  if (isPersistent) {
+    await redis(["DEL", key]);
+    return;
+  }
+  memCounter.delete(key);
+}
+
+const memCounter = new Map<string, { n: number; expires: number }>();
+
 // 해시 전체 조회 (반응 카운트 묶음)
 export async function hgetall(key: string): Promise<Record<string, number>> {
   if (isPersistent) {

@@ -2,7 +2,7 @@
 //  · 깨진 문자(�) · 짝 없는 서로게이트 · 보이지 않는 제어문자
 // 발행글 / 예약 대기열 / 검수함 전부 검사한다.
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getPublishedRaw, getQueued, getDrafts, upsertPublished, saveDraft, queuePost, type Post } from "@/lib/posts";
 import { hasBrokenChars, sanitize } from "@/lib/ai";
 import { revalidateTag } from "next/cache";
@@ -10,7 +10,6 @@ import { revalidateTag } from "next/cache";
 export const maxDuration = 300;
 
 const API_KEY = process.env.ANTHROPIC_API_KEY;
-const ADMIN = process.env.ADMIN_PASSWORD;
 
 // 깨진 글자를 문맥으로 복원한다 (글 전체를 다시 쓰지 않고 그 자리만 고친다)
 async function repairText(text: string): Promise<string> {
@@ -65,12 +64,8 @@ async function fixPost(p: Post): Promise<{ changed: boolean; fields: string[] }>
   return { changed: fields.length > 0, fields };
 }
 
-export async function POST(req: NextRequest) {
-  const { password } = (await req.json()) as { password?: string };
-  if (ADMIN && password !== ADMIN) {
-    return NextResponse.json({ error: "비밀번호가 틀렸습니다" }, { status: 401 });
-  }
-
+// 인증은 middleware.ts에서 /api/admin/* 전체를 한 번에 막는다
+export async function POST() {
   const report: { slug: string; title: string; where: string; fields: string[] }[] = [];
   const errors: string[] = [];
   let scanned = 0;
