@@ -114,26 +114,36 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${notoSansKr.variable} h-full antialiased`}>
+      {/*
+        GA 코드는 반드시 <head> 안에 있어야 한다.
+        next/script(afterInteractive)는 <body> 끝에 붙이는데, 측정은 되지만
+        구글 서치콘솔 소유권 확인이 "head에 없다"며 거부한다.
+        그래서 여기서는 일반 script 태그로 head에 직접 넣는다.
+      */}
+      <head>
+        {GA_ID && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA_ID}');`,
+              }}
+            />
+          </>
+        )}
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSONLD) }}
         />
         {children}
-        {GA_ID && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="ga4-init" strategy="afterInteractive">
-              {`window.dataLayer=window.dataLayer||[];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', '${GA_ID}');`}
-            </Script>
-          </>
-        )}
         {ADSENSE_CLIENT && (
           <Script
             async
