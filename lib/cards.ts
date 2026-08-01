@@ -89,20 +89,74 @@ function findFigure(text: string): Figure | undefined {
 }
 
 // 문장에서 눈에 띄는 숫자 두 개를 뽑아 '숫자 타일'로 (이슈·경제 글에 잘 맞는다)
+//
+//  ★ 2026-08-01 전면 수정 (사장님 지적: "이미 삼성 관계사 임직원 약 명이")
+//    옛 방식은 문장에서 숫자만 오려내고 '숫자가 빠진 원래 문장'을 설명으로 썼다.
+//    그래서 말이 무너지고("임직원 약 명이"), 단어 중간이 잘리고("…오간 메시"),
+//    무엇보다 "약 3조 7000억 원" 한 금액이 [3조]·[7000억] 두 금액처럼 보였다.
+//    → 지금은 (1) 붙어 있는 금액은 하나로 묶고 (2) 설명은 숫자 앞의 '온전한 구절'만 쓰며
+//      (3) 조건을 못 맞추면 타일을 아예 세우지 않는다. 깨진 타일보다 없는 편이 낫다.
+const SCALE = "(?:조|억|만|천)";
+const COUNTER =
+  "(?:%|퍼센트|원|명|건|개|배|위|점|곳|가지|차례|번|년|개월|주|일|시간|분|초|권|편|회|대|석|가구|세대|톤|kg|km)";
+// "3조 7000억 원", "1억 2000만 원" 처럼 이어진 금액은 통째로 하나의 값이다
+const AMOUNT = new RegExp(
+  `(\\d[\\d,]*(?:\\.\\d+)?\\s*${SCALE}?(?:\\s*\\d[\\d,]*(?:\\.\\d+)?\\s*${SCALE})*)\\s*(${COUNTER})?`,
+  "g",
+);
+const FILLER = /^(약|총|무려|각각|최대|최소|이상|이하|모두|전체|절반|나머지|여|한)$/;
+const JOSA = /(만|은|는|이|가|을|를|의|에|도|과|와|로|으로|에서|부터|까지)$/;
+const UNIT_HEAD = new RegExp(`^${COUNTER}[은는이가을를의에도와과]?$`); // 앞 숫자에서 떨어져 나온 단위 조각
+const BARE_NUM_TAIL = new RegExp(`\\d[\\d,]*\\s*${SCALE}?[은는이가을를의에도]?$`);
+
+// 숫자 앞의 말에서 '설명 구절'을 만든다. 단어 중간이 잘리거나 숫자 조각이 남으면 버린다.
+function tidyLabel(raw: string, max = 16): string {
+  let s = (raw.split(/[.!?\n·;:()（）"“”'‘’]/).pop() ?? "").trim();
+  if (!s) return "";
+  if (s.length > max) {
+    // 앞을 잘라내되 반드시 '낱말이 시작하는 곳'에서 (→ "동탄의"가 "탄의"로 잘리던 문제)
+    const cut = s.slice(s.length - max);
+    const sp = cut.indexOf(" ");
+    s = sp >= 0 ? cut.slice(sp + 1) : "";
+  }
+  s = s.replace(/^[,]\s*/, "");
+  const w = s.split(" ").filter(Boolean);
+  while (w.length && (UNIT_HEAD.test(w[0]) || /^\d/.test(w[0]))) w.shift(); // 머리의 단위·숫자 조각 제거
+  while (w.length && FILLER.test(w[w.length - 1])) w.pop(); // 꼬리의 "약"·"총" 제거
+  if (!w.length) return "";
+  if (BARE_NUM_TAIL.test(w[w.length - 1])) return ""; // 다른 숫자로 끝나면 설명이 아니다
+  const last = w[w.length - 1].replace(JOSA, ""); // 마지막 낱말의 조사 제거 ("메시지만"→"메시지")
+  if (last.length >= 2) w[w.length - 1] = last;
+  s = w.join(" ").replace(/\s*,\s*$/, "").trim();
+  const tail = (s.split(",").pop() ?? "").trim(); // 쉼표가 남으면 마지막 토막만
+  if (tail.length >= 2) s = tail;
+  return s.length >= 2 && /[가-힣A-Za-z]/.test(s) ? s : "";
+}
+
 function findStats(text: string): Figure | undefined {
-  const re = /(-?\d[\d,.]*\s?(%|퍼센트|만|억|조|원|명|건|개|배|년|위|점|시간|분))/g;
   const seen = new Set<string>();
   const items: { value: string; label: string }[] = [];
   let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) && items.length < 2) {
-    const value = m[1].replace(/\s+/g, "");
+  AMOUNT.lastIndex = 0;
+  while ((m = AMOUNT.exec(text)) && items.length < 2) {
+    const num = m[1].replace(/\s+/g, " ").trim();
+    const unit = m[2] ?? "";
+    if (!unit && !/[조억만천]/.test(num)) continue; // 단위 없는 맨숫자는 세우지 않는다
+    if (unit === "년" && /^\d{4}$/.test(num)) continue; // 연도(1893년)는 숫자 타일이 아니다
+    // 띄어쓰기: 만/억/조/천으로 끝나면 띄우고("7만 명"), 아니면 붙인다("3곳")
+    const value =
+      unit === "%" || unit === "퍼센트"
+        ? `${num}%`
+        : !unit
+          ? num
+          : /[조억만천]$/.test(num)
+            ? `${num} ${unit}`
+            : `${num}${unit}`;
     if (seen.has(value)) continue;
+    const label = tidyLabel(text.slice(0, m.index));
+    if (!label) continue;
     seen.add(value);
-    // 숫자 앞뒤 말을 라벨로 (문장 그대로 자르지 않고 짧은 구절만)
-    const before = text.slice(Math.max(0, m.index - 22), m.index).split(/[,.·]/).pop() ?? "";
-    const after = text.slice(m.index + m[1].length, m.index + m[1].length + 20).split(/[,.·]/)[0] ?? "";
-    const label = (before.trim() + " " + after.trim()).replace(/\s+/g, " ").trim().slice(0, 18);
-    if (label.length >= 2) items.push({ value, label });
+    items.push({ value, label });
   }
   return items.length === 2 ? { kind: "stats", items } : undefined;
 }
@@ -224,8 +278,10 @@ export function buildCards(post: Post): Card[] {
       kind: "point",
       label: String(i + 1).padStart(2, "0"),
       title: s.heading,
-      // 그림이 붙는 카드는 글을 조금 줄여 숨통을 틔운다
-      body: clip(s.text, figure ? 120 : MAX_BODY),
+      // ★ 예전엔 그림이 붙으면 120자로 줄였는데, 나레이션(content-factory/cards.mjs)은
+      //   그대로 180자를 읽어 '화면에 없는 말을 읽는' 싱크 사고가 났다. 둘을 180자로 맞춘다.
+      //   (카드가 넘칠 걱정은 없다 — 카드 렌더러가 분량에 따라 글자 크기를 줄인다)
+      body: clip(s.text, MAX_BODY),
       figure,
     });
   });
@@ -382,6 +438,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "IT·테크": "🤖",
   "문화·연예": "🎬",
   트렌드: "🔥",
+  꿀팁: "💡",
 };
 export function firstCommentEmoji(post: Post): string {
   return post.emoji || CATEGORY_EMOJI[post.category] || "🔎";
@@ -396,6 +453,8 @@ const CATEGORY_TAGS: Record<string, string[]> = {
   "IT·테크": ["#IT", "#테크", "#인공지능", "#AI", "#IT뉴스", "#챗지피티", "#신기술", "#가젯"],
   "문화·연예": ["#연예", "#문화", "#엔터", "#연예뉴스", "#드라마", "#영화", "#kpop", "#셀럽"],
   트렌드: ["#트렌드", "#요즘", "#밈", "#요즘트렌드", "#핫이슈", "#급상승", "#챌린지", "#요즘것들"],
+  // 꿀팁이 빠져 있어 지메일·크롬 꿀팁 글에 #이슈 #뉴스가 붙어 나갔다 (2026-08-01 수정)
+  꿀팁: ["#꿀팁", "#생활정보", "#유용한정보", "#라이프핵", "#알아두면좋은", "#정보공유", "#팁", "#일상꿀팁"],
 };
 const COMMON_TAGS = [
   "#오늘의이슈", "#이슈", "#핫이슈", "#뉴스레터", "#카드뉴스", "#이슈정리", "#요약",

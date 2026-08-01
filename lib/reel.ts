@@ -111,6 +111,7 @@ export function bgmStyleFor(category: string): string {
     "IT·테크": "synthwave",
     트렌드: "synthwave",
     스포츠: "energetic",
+    꿀팁: "lofi",
     경제: "newsy",
     사회: "newsy",
     "문화·연예": "lofi",
