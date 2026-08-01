@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       자동수정: r.fixed.length,
       내림: r.pulled.length,
       구조발행: r.rescued.length,
+      보관: r.archived.length,
       인스타: r.social.ig,
       페북: r.social.fb,
       ...r,

@@ -16,6 +16,7 @@ import {
   upsertPublished,
   unpublishPost,
   publishPost,
+  archiveDraft,
   type Post,
 } from "@/lib/posts";
 import { notionEnabled, setNotionStatus } from "@/lib/notion";
@@ -26,10 +27,13 @@ import { revalidateTag } from "next/cache";
 const AUDIT_PER_RUN = 8; // 회차당 재감사할 발행글 수
 const RESCUE_PER_RUN = 4; // 회차당 구조 시도할 검수함 글 수
 const RECHECK_HOURS = 36; // 이 시간이 지난 발행글은 다시 감사
+const ARCHIVE_AFTER_DAYS = 7; // 이만큼 지난 '위험 high' 초안은 보관함으로
+const ARCHIVE_PER_RUN = 25; // 회차당 보관 처리 상한
 
 const nowIso = () => new Date().toISOString();
 const hoursSince = (iso?: string) =>
   iso ? (Date.now() - new Date(iso).getTime()) / 36e5 : Infinity;
+const daysSince = (iso?: string) => hoursSince(iso) / 24;
 
 export interface AuditResult {
   synced: number;
@@ -37,6 +41,7 @@ export interface AuditResult {
   fixed: { slug: string; title: string; score: number }[]; // 자동 개선 후 발행 유지
   pulled: { slug: string; title: string; reason: string }[]; // 내려서 검수함으로
   rescued: { slug: string; title: string; score: number }[]; // 검수함 → 발행
+  archived: { slug: string; title: string }[]; // 검수함 → 보관함 (되돌릴 수 있음)
   social: { ig: number; fb: number };
   lessons: string;
   errors: string[];
@@ -50,6 +55,7 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
     fixed: [],
     pulled: [],
     rescued: [],
+    archived: [],
     social: { ig: 0, fb: 0 },
     lessons: "",
     errors: [],
@@ -153,8 +159,34 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
     out.errors.push(`검수함 로드: ${(e as Error).message}`);
   }
 
+  // ---- C-1. 검수함 청소 (오래 묵은 '위험 high' → 보관함) ----
+  // 가짜뉴스 위험 high 는 자동 구조 대상이 아니라서, 치우는 규칙이 없으면 영원히 쌓인다.
+  // 만든 지 오래된 것부터 보관함으로 옮긴다. 지우는 게 아니라 자리만 옮기는 것이라
+  // 언제든 되돌릴 수 있고, 검수함은 사람이 실제로 볼 수 있는 크기로 유지된다.
+  const stale = drafts
+    .filter((p) => p.quality?.fakeRisk === "high")
+    .filter((p) => daysSince(p.createdAt ?? p.date) >= ARCHIVE_AFTER_DAYS)
+    .sort((a, b) => ((a.createdAt ?? "") < (b.createdAt ?? "") ? -1 : 1)) // 오래된 것부터
+    .slice(0, ARCHIVE_PER_RUN);
+
+  const archivedSlugs = new Set<string>();
+  for (const post of stale) {
+    try {
+      const reason = `가짜뉴스 위험 high · ${ARCHIVE_AFTER_DAYS}일 경과 → 보관 (되돌릴 수 있음)`;
+      await archiveDraft(post.slug, reason);
+      archivedSlugs.add(post.slug);
+      if (notionEnabled && post.notionId) {
+        await setNotionStatus(post.notionId, "보관", reason);
+      }
+      out.archived.push({ slug: post.slug, title: post.title });
+    } catch (e) {
+      out.errors.push(`보관 ${post.slug}: ${(e as Error).message}`);
+    }
+  }
+
   // 가짜뉴스 위험 high 는 자동 구조하지 않는다 (사람이 봐야 함)
   const rescuable = drafts
+    .filter((p) => !archivedSlugs.has(p.slug))
     .filter((p) => p.quality?.fakeRisk !== "high")
     .filter((p) => (p.quality?.rounds ?? 0) < 3) // 3번 실패하면 그만 시도
     .slice(0, RESCUE_PER_RUN);
@@ -208,7 +240,7 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
   }
 
   // ---- 캐시 갱신 ----
-  if (out.fixed.length || out.pulled.length || out.rescued.length || out.synced) {
+  if (out.fixed.length || out.pulled.length || out.rescued.length || out.archived.length || out.synced) {
     try {
       revalidateTag("posts", "max");
     } catch {

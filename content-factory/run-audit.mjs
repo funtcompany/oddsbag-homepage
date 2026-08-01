@@ -8,5 +8,6 @@ console.log("점검 결과:", JSON.stringify({
   수정: r.fixed ?? [],
   내림: r.pulled ?? [],
   구조: r.rescued ?? [],
+  보관: r.archived ?? [],
   오류: r.errors ?? [],
 }, null, 2));

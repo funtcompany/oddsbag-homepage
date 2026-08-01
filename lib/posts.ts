@@ -14,7 +14,7 @@ import path from "path";
 import { unstable_cache } from "next/cache";
 import { kvGet, kvSet, kvDel, smembers, sadd, srem } from "@/lib/store";
 
-export type PostStatus = "draft" | "queued" | "published";
+export type PostStatus = "draft" | "queued" | "published" | "archived";
 
 export interface Post {
   slug: string;
@@ -59,13 +59,21 @@ export interface Post {
   hiddenAt?: string;
   auditedAt?: string; // 마지막 재점검 시각 (1일 3회 크론)
   social?: { ig?: string; fb?: string; at?: string }; // SNS 게시 결과
+
+  /** 보관함으로 옮긴 시각·사유 (지운 게 아니라 자리만 옮긴 것 — 되돌릴 수 있다) */
+  archivedAt?: string;
+  archivedReason?: string;
 }
 
 const POSTS_DIR = path.join(process.cwd(), "content", "posts");
 const K_PUBLISHED = "posts:published";
 const K_DRAFTS = "posts:drafts";
 const K_QUEUE = "posts:queued"; // 예약 발행 대기열
+const K_ARCHIVED = "posts:archived"; // 보관함 — 검수함에서 치운 글 (삭제 아님)
 const postKey = (slug: string) => `post:${slug}`;
+
+// 검수함이 아무리 불어나도 한 번에 이만큼만 읽는다 (점검이 시간 안에 끝나게)
+const MAX_DRAFT_LOAD = 200;
 
 // ---- 파일 시드 ----
 function readSeedPosts(): Post[] {
@@ -80,9 +88,10 @@ function readSeedPosts(): Post[] {
 }
 
 // ---- Redis ----
-async function readRedisPosts(setKey: string): Promise<Post[]> {
-  const slugs = await smembers(setKey);
+async function readRedisPosts(setKey: string, max?: number): Promise<Post[]> {
+  let slugs = await smembers(setKey);
   if (slugs.length === 0) return [];
+  if (max && slugs.length > max) slugs = slugs.slice(0, max);
   const raws = await Promise.all(slugs.map((s) => kvGet(postKey(s))));
   return raws
     .filter((r): r is string => Boolean(r))
@@ -162,10 +171,50 @@ export async function getRelatedPosts(post: Post, count = 4): Promise<Post[]> {
 
 // ---- 관리자(검수/발행) ----
 export async function getDrafts(): Promise<Post[]> {
-  const drafts = await readRedisPosts(K_DRAFTS);
+  const drafts = await readRedisPosts(K_DRAFTS, MAX_DRAFT_LOAD);
   return drafts.sort((a, b) =>
     (b.createdAt ?? "") > (a.createdAt ?? "") ? 1 : -1,
   );
+}
+
+// ---- 보관함 ----
+// 검수함에 영원히 남는 글(주로 가짜뉴스 위험 high)을 치우는 자리.
+// 지우는 게 아니라 자리만 옮기므로 언제든 되돌릴 수 있다.
+export async function archiveDraft(
+  slug: string,
+  reason?: string,
+): Promise<boolean> {
+  const raw = await kvGet(postKey(slug));
+  if (!raw) return false;
+  const post = JSON.parse(raw) as Post;
+  post.status = "archived";
+  post.archivedAt = new Date().toISOString();
+  post.archivedReason = reason ?? "";
+  await kvSet(postKey(slug), JSON.stringify(post));
+  await srem(K_DRAFTS, slug);
+  await sadd(K_ARCHIVED, slug);
+  return true;
+}
+
+export async function getArchived(): Promise<Post[]> {
+  const list = await readRedisPosts(K_ARCHIVED);
+  return list.sort((a, b) =>
+    (b.archivedAt ?? "") > (a.archivedAt ?? "") ? 1 : -1,
+  );
+}
+
+// 보관함 → 검수함 (되돌리기)
+export async function restoreArchived(slug: string): Promise<boolean> {
+  const raw = await kvGet(postKey(slug));
+  if (!raw) return false;
+  const post = JSON.parse(raw) as Post;
+  post.status = "draft";
+  delete post.archivedAt;
+  delete post.archivedReason;
+  await kvSet(postKey(slug), JSON.stringify(post));
+  await srem(K_ARCHIVED, slug);
+  await sadd(K_DRAFTS, slug);
+  return true;
 }
 
 // 초안 저장 (검수함으로)
@@ -264,4 +313,5 @@ export async function deletePost(slug: string): Promise<void> {
   await srem(K_DRAFTS, slug);
   await srem(K_QUEUE, slug);
   await srem(K_PUBLISHED, slug);
+  await srem(K_ARCHIVED, slug);
 }

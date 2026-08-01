@@ -16,6 +16,7 @@ import {
   upsertPublished,
   unpublishPost,
   publishPost,
+  archiveDraft,
 } from "./posts.mjs";
 import { notionEnabled, setNotionStatus } from "./notion.mjs";
 import { syncFromNotion } from "./sync.mjs";
@@ -25,10 +26,13 @@ import { revalidateTag } from "./cache.mjs";
 const AUDIT_PER_RUN = 8; // 회차당 재감사할 발행글 수
 const RESCUE_PER_RUN = 4; // 회차당 구조 시도할 검수함 글 수
 const RECHECK_HOURS = 36; // 이 시간이 지난 발행글은 다시 감사
+const ARCHIVE_AFTER_DAYS = 7; // 이만큼 지난 '위험 high' 초안은 보관함으로
+const ARCHIVE_PER_RUN = 25; // 회차당 보관 처리 상한
 
 const nowIso = () => new Date().toISOString();
 const hoursSince = (iso) =>
   iso ? (Date.now() - new Date(iso).getTime()) / 36e5 : Infinity;
+const daysSince = (iso) => hoursSince(iso) / 24;
 
 export async function runAudit(opts = {}) {
   const share = opts.share !== false;
@@ -38,6 +42,7 @@ export async function runAudit(opts = {}) {
     fixed: [],
     pulled: [],
     rescued: [],
+    archived: [],
     social: { ig: 0, fb: 0 },
     lessons: "",
     errors: [],
@@ -141,8 +146,34 @@ export async function runAudit(opts = {}) {
     out.errors.push(`검수함 로드: ${e.message}`);
   }
 
+  // ---- C-1. 검수함 청소 (오래 묵은 '위험 high' → 보관함) ----
+  // 가짜뉴스 위험 high 는 자동 구조 대상이 아니라서, 치우는 규칙이 없으면 영원히 쌓인다.
+  // 만든 지 오래된 것부터 보관함으로 옮긴다. 지우는 게 아니라 자리만 옮기는 것이라
+  // 언제든 되돌릴 수 있고, 검수함은 사람이 실제로 볼 수 있는 크기로 유지된다.
+  const stale = drafts
+    .filter((p) => p.quality?.fakeRisk === "high")
+    .filter((p) => daysSince(p.createdAt ?? p.date) >= ARCHIVE_AFTER_DAYS)
+    .sort((a, b) => ((a.createdAt ?? "") < (b.createdAt ?? "") ? -1 : 1)) // 오래된 것부터
+    .slice(0, ARCHIVE_PER_RUN);
+
+  const archivedSlugs = new Set();
+  for (const post of stale) {
+    try {
+      const reason = `가짜뉴스 위험 high · ${ARCHIVE_AFTER_DAYS}일 경과 → 보관 (되돌릴 수 있음)`;
+      await archiveDraft(post.slug, reason);
+      archivedSlugs.add(post.slug);
+      if (notionEnabled && post.notionId) {
+        await setNotionStatus(post.notionId, "보관", reason);
+      }
+      out.archived.push({ slug: post.slug, title: post.title });
+    } catch (e) {
+      out.errors.push(`보관 ${post.slug}: ${e.message}`);
+    }
+  }
+
   // 가짜뉴스 위험 high 는 자동 구조하지 않는다 (사람이 봐야 함)
   const rescuable = drafts
+    .filter((p) => !archivedSlugs.has(p.slug))
     .filter((p) => p.quality?.fakeRisk !== "high")
     .filter((p) => (p.quality?.rounds ?? 0) < 3) // 3번 실패하면 그만 시도
     .slice(0, RESCUE_PER_RUN);
@@ -196,7 +227,7 @@ export async function runAudit(opts = {}) {
   }
 
   // ---- 캐시 갱신 ----
-  if (out.fixed.length || out.pulled.length || out.rescued.length || out.synced) {
+  if (out.fixed.length || out.pulled.length || out.rescued.length || out.archived.length || out.synced) {
     try {
       revalidateTag("posts", "max");
     } catch {
