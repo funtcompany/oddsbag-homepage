@@ -1,0 +1,47 @@
+name: 오즈백 옛 영상 폐기
+
+# 매일 1회(새벽 4시 KST) 옛 영상을 딱 한 편씩 내린다.
+#
+# 왜 하루 한 편인가: 대상 24편에 채널 조회수의 79%가 들어 있어서,
+#   한 번에 지우면 채널 숫자가 하루아침에 무너진다. 천천히 뺀다.
+# 무엇을: 2026-07-29 화면 수정 이전에 만들어진 영상 (옛 디자인·소제목 잘림·번호 중복).
+#   홈페이지 글은 건드리지 않는다. 지운 글의 영상은 다시 만들지 않는다.
+# 대기줄(reels:retire)이 비면 아무 일도 하지 않고 끝난다.
+on:
+  schedule:
+    - cron: "0 19 * * *" # 19:00 UTC = 04:00 KST
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "이번에 내릴 편수"
+        default: "1"
+
+concurrency:
+  group: oddsbag-retire
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 옛 영상 한 편 내리기
+        working-directory: factory
+        env:
+          APPLY: "1"
+          RETIRE_PER_RUN: ${{ github.event.inputs.count || '1' }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+        run: node retire-old.mjs

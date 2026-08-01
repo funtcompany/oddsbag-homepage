@@ -22,6 +22,12 @@ export async function getJSON(key) {
 }
 export const redisReady = Boolean(URL && TOKEN);
 
+// 줄 세우기(LIST) — 폐기 대기줄처럼 "먼저 넣은 것부터 하나씩" 꺼낼 때 쓴다.
+export const llen = (key) => cmd(["LLEN", key]);
+export const lrange = (key, a = 0, b = -1) => cmd(["LRANGE", key, a, b]);
+export const rpush = (key, value) => cmd(["RPUSH", key, value]);
+export const lpop = (key) => cmd(["LPOP", key]);
+
 // 하루 단위 카운터 (유튜브 무료 한도 관리에 쓴다). 이틀 뒤 자동 삭제.
 // 하루 기준은 한국 시간. UTC로 세면 오전 9시에 날짜가 바뀌어 "하루 N개"가 어긋난다.
 const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
