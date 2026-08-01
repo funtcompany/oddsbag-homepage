@@ -1,7 +1,56 @@
-// 트렌디 BGM 엔진 — 카테고리별 스타일. 비트(킥/햇/클랩) + 베이스 + 아르페지오 + 패드.
-// 전부 직접 합성 → 저작권 안전. 스타일마다 BPM·코드진행·리듬이 다르다.
+// 영상 BGM — 오즈백 뮤직에서 만든 연주곡(가사 없음)을 쓴다.
+//
+// 저작권이 우리에게 있어 유튜브·인스타 어디에 올려도 문제가 없고,
+// 직접 합성한 소리보다 훨씬 듣기 좋다. 두 앨범 16곡을 영상용으로 담아뒀다 (bgm/ 폴더).
+//   · rain-*  「비 오는 카페」 — 차분하고 잔잔함
+//   · sunny-* 「볕 드는 날」  — 밝고 산뜻함
+// 원본은 02_뮤직/01_앨범/ 에 있고, 여기 있는 건 영상용으로 줄인 사본이다.
+//
+// bgm/ 폴더가 없으면(예: 다른 곳에서 돌릴 때) 아래 합성 엔진으로 자동으로 넘어간다.
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const BGM_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "bgm");
+
+// 카테고리마다 어울리는 앨범
+const ALBUM_FOR = {
+  "IT·테크": "sunny",
+  "트렌드": "sunny",
+  "스포츠": "sunny",
+  "경제": "rain",
+  "사회": "rain",
+  "문화·연예": "rain",
+};
+
+function hashOf(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+}
+
+/**
+ * 글마다 곡을 하나 고정 배정한다 (같은 글은 늘 같은 곡, 글이 다르면 다른 곡).
+ * 음원이 없으면 null → 부르는 쪽이 합성 엔진으로 넘어간다.
+ */
+export function pickTrack(category, slug = "") {
+  let files;
+  try {
+    files = fs.readdirSync(BGM_DIR).filter((f) => f.endsWith(".mp3"));
+  } catch {
+    return null;
+  }
+  if (!files.length) return null;
+  const album = ALBUM_FOR[category] || "sunny";
+  const pool = files.filter((f) => f.startsWith(album + "-"));
+  const list = (pool.length ? pool : files).sort();
+  const pick = list[hashOf(slug || category) % list.length];
+  return { file: path.join(BGM_DIR, pick), name: pick.replace(/\.mp3$/, "") };
+}
+
+
+// ---- 아래는 예비용 합성 엔진 ----
+// bgm/ 폴더의 음원을 못 쓸 때만 돌아간다. 소리는 단순하지만 영상이 멈추지 않게 해준다.
 const midiFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const saw = (f, t, n = 8) => { let s = 0; for (let k = 1; k <= n; k++) s += Math.sin(2 * Math.PI * k * f * t) / k; return s * (2 / Math.PI); };
 const tri = (f, t) => (2 / Math.PI) * Math.asin(Math.sin(2 * Math.PI * f * t));

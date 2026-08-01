@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { smembers, sadd, srem, getJSON, redisReady, bumpDaily, readDaily } from "./redis.mjs";
-import { makeMusic, writeWav, pickBgm } from "./music.mjs";
+import { makeMusic, writeWav, pickBgm, pickTrack } from "./music.mjs";
 import { uploadShort, setThumbnail, addToCategoryPlaylist } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
 import { postVideo } from "./facebook.mjs";
@@ -177,11 +177,20 @@ async function buildReel(post) {
   const silent = path.join(work, "video.mp4");
   sh(`ffmpeg -y -f concat -safe 0 -i "${work}/list.txt" -c copy "${silent}"`);
 
-  // BGM + 나레이션 믹스 (은은한 고정 볼륨) — 글마다 스타일·조를 다르게 골라 다양하게
+  // BGM + 나레이션 믹스 (은은한 고정 볼륨)
+  // 오즈백 뮤직에서 만든 연주곡을 쓴다 — 저작권이 우리 것이라 어디에 올려도 안전하다.
+  // 글마다 곡을 하나 고정 배정하고, 곡이 영상보다 짧으면 이어 붙여 길이를 맞춘다.
   const music = path.join(work, "music.wav");
-  const bgm = pickBgm(post.category, post.slug);
-  console.log(`  · BGM: ${bgm.style}${bgm.shift ? ` (${bgm.shift > 0 ? "+" : ""}${bgm.shift})` : ""}`);
-  writeWav(music, makeMusic(bgm.style, totalDur, 44100, bgm.shift));
+  const track = pickTrack(post.category, post.slug);
+  if (track) {
+    console.log(`  · BGM: ${track.name} (오즈백 뮤직)`);
+    sh(`ffmpeg -y -loglevel error -stream_loop -1 -i "${track.file}" -t ${(totalDur + 1).toFixed(2)} -ac 2 -ar 44100 "${music}"`);
+  } else {
+    // 음원을 못 찾으면 합성 엔진으로 — 영상 제작이 멈추지 않게
+    const bgm = pickBgm(post.category, post.slug);
+    console.log(`  · BGM: ${bgm.style} (합성 · 음원 없음)`);
+    writeWav(music, makeMusic(bgm.style, totalDur, 44100, bgm.shift));
+  }
   const inputs = [`-i "${silent}"`, `-i "${music}"`, ...cards.map((c) => `-i "${c.narr}"`)];
   let fc = ""; const v = [];
   cards.forEach((c, i) => { const d = Math.round((offsets[i] + 0.35) * 1000); fc += `[${i + 2}:a]adelay=${d}|${d},volume=2.1[v${i}];`; v.push(`[v${i}]`); });
