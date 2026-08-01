@@ -36,13 +36,14 @@ AI 에디터가 쓴 초안을 '원문 기사'와 한 문장씩 대조해 검증�
 
 [점수]
 - accuracy(40): 원문 사실과의 일치도. 환각이 하나라도 있으면 15점 이하.
-- readability(20): 문장이 짧고 명확한가, 소제목 구조가 살아있는가
+- readability(20): 문장이 짧고 명확한가, 소제목 구조가 살아있는가. 섹션이 서론만 있고 본론·결론 없이 빈약하면 감점.
 - tone(15): 오즈백 톤 (위트 있되 쓸모 있게, 중립적, 따뜻함)
-- useful(15): 독자가 얻어가는 게 있는가
+- useful(15): 독자가 얻어가는 게 있는가. 훅·제목이 약속한 걸 본문이 실제로 다루는가 — 어그로만 세고 알맹이가 없거나, 서론에서 끝나 카드뉴스·영상으로 펼칠 내용이 부족하면(빈약함) 크게 감점.
 - title(10): 낚시가 아니면서 클릭하고 싶은가
 
 [issues]
 - 무엇을 어떻게 고쳐야 하는지 구체적으로. (예: "원문에 없는 '3배 증가'를 삭제할 것")
+- 빈약한 섹션이 있으면 어느 소제목을 서론-본론-결론으로 채워야 하는지 지적하라 (단, 없는 사실을 지어내라는 뜻은 아니다).
 - 문제가 없으면 비워둬라.
 
 출력은 반드시 아래 형식 그대로. 다른 말 금지.
@@ -127,6 +128,42 @@ function worst(a, b) {
 }
 
 // ================= 발행 전 심사 (3중 게이트) =================
+// ================= 개수 약속 ↔ 본문 일치 검사 (기계, AI 없이) =================
+// 왜: 제목/요약이 "5가지"라 해놓고 본문 ## 섹션이 3개뿐이면 카드뉴스·쇼츠도 반토막이 난다.
+//     (buildCards가 본문 ## 소제목을 그대로 카드로 옮기기 때문)
+//     ※ lib/quality.ts 와 항상 같은 규칙이어야 한다 (쌍둥이 파일).
+const KNUM = { 두: 2, 세: 3, 네: 4, 다섯: 5, 여섯: 6, 일곱: 7, 여덟: 8, 아홉: 9, 열: 10, 둘: 2, 셋: 3, 넷: 4 };
+const PROMISE_UNIT = "(?:가지방법|가지|단계|선)";
+export function promisedCount(text) {
+  if (!text) return 0;
+  const t = String(text).replace(/,/g, "");
+  let max = 0;
+  for (const m of t.matchAll(new RegExp(`(?<!\\d)(\\d{1,2})\\s*${PROMISE_UNIT}`, "g"))) {
+    const n = parseInt(m[1], 10);
+    if (n >= 2 && n <= 20) max = Math.max(max, n);
+  }
+  for (const m of t.matchAll(/(?:TOP|top|베스트|BEST|best)\s*(\d{1,2})/g)) {
+    const n = parseInt(m[1], 10);
+    if (n >= 2 && n <= 20) max = Math.max(max, n);
+  }
+  for (const m of t.matchAll(new RegExp(`(두|세|네|다섯|여섯|일곱|여덟|아홉|열|둘|셋|넷)\\s*${PROMISE_UNIT}`, "g"))) {
+    const n = KNUM[m[1]] || 0;
+    if (n >= 2) max = Math.max(max, n);
+  }
+  return max;
+}
+export function deliveredSections(body) {
+  if (!body) return 0;
+  return String(body).split("\n").filter((l) => l.trim().startsWith("## ") && !l.includes("한 줄 정리")).length;
+}
+function promiseIssue(title, summary, body) {
+  const promised = promisedCount(`${title}  ${summary}`);
+  if (promised < 2) return "";
+  const delivered = deliveredSections(body);
+  if (delivered >= promised) return "";
+  return `제목/요약이 ${promised}개를 약속했는데 본문 소제목(## )은 ${delivered}개뿐 — 본문 소제목을 ${promised}개로 맞추거나, 제목·요약의 개수를 실제 담긴 ${delivered}개로 낮출 것 (카드뉴스·쇼츠가 소제목 단위로 잘려 뒤 항목이 사라진다)`;
+}
+
 export async function reviewDraft(
   draft,
   source,
@@ -190,12 +227,19 @@ ${draft.body}
   }
   if (risk.flags.length) issues.push(...risk.flags.map((f) => `[위험] ${f}`));
 
+  // 개수 약속 ↔ 본문 소제목 일치 (기계 대조) — 어긋나면 지적에 얹어 개선을 유도한다
+  const pIssue = promiseIssue(draft.title, draft.summary, draft.body);
+  if (pIssue) issues.unshift(pIssue);
+
   let verdict;
   if (fakeRisk === "high") verdict = "hold";
   else if (fakeRisk === "medium") verdict = score >= HOLD_SCORE ? "revise" : "hold";
   else if (score >= PASS_SCORE) verdict = "publish";
   else if (score >= HOLD_SCORE) verdict = "revise";
   else verdict = "hold";
+
+  // 약속한 개수만큼 본문이 없으면 그대로 발행하지 않는다 — 개선(revise) 후 재심사로 돌린다
+  if (pIssue && verdict === "publish") verdict = "revise";
 
   return {
     score,

@@ -62,13 +62,14 @@ AI 에디터가 쓴 초안을 '원문 기사'와 한 문장씩 대조해 검증�
 
 [점수]
 - accuracy(40): 원문 사실과의 일치도. 환각이 하나라도 있으면 15점 이하.
-- readability(20): 문장이 짧고 명확한가, 소제목 구조가 살아있는가
+- readability(20): 문장이 짧고 명확한가, 소제목 구조가 살아있는가. 섹션이 서론만 있고 본론·결론 없이 빈약하면 감점.
 - tone(15): 오즈백 톤 (위트 있되 쓸모 있게, 중립적, 따뜻함)
-- useful(15): 독자가 얻어가는 게 있는가
+- useful(15): 독자가 얻어가는 게 있는가. 훅·제목이 약속한 걸 본문이 실제로 다루는가 — 어그로만 세고 알맹이가 없거나, 서론에서 끝나 카드뉴스·영상으로 펼칠 내용이 부족하면(빈약함) 크게 감점.
 - title(10): 낚시가 아니면서 클릭하고 싶은가
 
 [issues]
 - 무엇을 어떻게 고쳐야 하는지 구체적으로. (예: "원문에 없는 '3배 증가'를 삭제할 것")
+- 빈약한 섹션이 있으면 어느 소제목을 서론-본론-결론으로 채워야 하는지 지적하라 (단, 없는 사실을 지어내라는 뜻은 아니다).
 - 문제가 없으면 비워둬라.
 
 출력은 반드시 아래 형식 그대로. 다른 말 금지.
@@ -152,6 +153,51 @@ function worst(a: FakeRisk, b: FakeRisk): FakeRisk {
   return rank[a] >= rank[b] ? a : b;
 }
 
+// ================= 개수 약속 ↔ 본문 일치 검사 (기계, AI 없이) =================
+// 왜: 제목/요약이 "5가지"라 해놓고 본문 ## 섹션이 3개뿐이면 카드뉴스·쇼츠도 반토막이 난다.
+//     (buildCards가 본문 ## 소제목을 그대로 카드로 옮기기 때문)
+//     factory/find-truncated.mjs 와 같은 보수적 파서로, '가지/단계/선/TOP N'만 신뢰한다.
+//     '개·대·위·명·개월' 등 뉴스 본문 숫자는 오탐이 심해 세지 않는다.
+const KNUM: Record<string, number> = {
+  두: 2, 세: 3, 네: 4, 다섯: 5, 여섯: 6, 일곱: 7, 여덟: 8, 아홉: 9, 열: 10, 둘: 2, 셋: 3, 넷: 4,
+};
+const PROMISE_UNIT = "(?:가지방법|가지|단계|선)";
+export function promisedCount(text: string): number {
+  if (!text) return 0;
+  const t = text.replace(/,/g, "");
+  let max = 0;
+  for (const m of t.matchAll(new RegExp(`(?<!\\d)(\\d{1,2})\\s*${PROMISE_UNIT}`, "g"))) {
+    const n = parseInt(m[1], 10);
+    if (n >= 2 && n <= 20) max = Math.max(max, n);
+  }
+  for (const m of t.matchAll(/(?:TOP|top|베스트|BEST|best)\s*(\d{1,2})/g)) {
+    const n = parseInt(m[1], 10);
+    if (n >= 2 && n <= 20) max = Math.max(max, n);
+  }
+  for (const m of t.matchAll(new RegExp(`(두|세|네|다섯|여섯|일곱|여덟|아홉|열|둘|셋|넷)\\s*${PROMISE_UNIT}`, "g"))) {
+    const n = KNUM[m[1]] || 0;
+    if (n >= 2) max = Math.max(max, n);
+  }
+  return max;
+}
+
+// 본문 ## 소제목 개수 (한 줄 정리 제외)
+export function deliveredSections(body: string): number {
+  if (!body) return 0;
+  return body
+    .split("\n")
+    .filter((l) => l.trim().startsWith("## ") && !l.includes("한 줄 정리")).length;
+}
+
+// 약속 개수 > 본문 소제목이면 지적 문구를 돌려준다 (없으면 빈 문자열)
+function promiseIssue(title: string, summary: string, body: string): string {
+  const promised = promisedCount(`${title}  ${summary}`);
+  if (promised < 2) return "";
+  const delivered = deliveredSections(body);
+  if (delivered >= promised) return "";
+  return `제목/요약이 ${promised}개를 약속했는데 본문 소제목(## )은 ${delivered}개뿐 — 본문 소제목을 ${promised}개로 맞추거나, 제목·요약의 개수를 실제 담긴 ${delivered}개로 낮출 것 (카드뉴스·쇼츠가 소제목 단위로 잘려 뒤 항목이 사라진다)`;
+}
+
 // ================= 발행 전 심사 (3중 게이트) =================
 export async function reviewDraft(
   draft: Pick<DraftDraft, "title" | "summary" | "body">,
@@ -216,12 +262,19 @@ ${draft.body}
   }
   if (risk.flags.length) issues.push(...risk.flags.map((f) => `[위험] ${f}`));
 
+  // 개수 약속 ↔ 본문 소제목 일치 (기계 대조) — 어긋나면 지적에 얹어 개선을 유도한다
+  const pIssue = promiseIssue(draft.title, draft.summary, draft.body);
+  if (pIssue) issues.unshift(pIssue);
+
   let verdict: Verdict;
   if (fakeRisk === "high") verdict = "hold";
   else if (fakeRisk === "medium") verdict = score >= HOLD_SCORE ? "revise" : "hold";
   else if (score >= PASS_SCORE) verdict = "publish";
   else if (score >= HOLD_SCORE) verdict = "revise";
   else verdict = "hold";
+
+  // 약속한 개수만큼 본문이 없으면 그대로 발행하지 않는다 — 개선(revise) 후 재심사로 돌린다
+  if (pIssue && verdict === "publish") verdict = "revise";
 
   return {
     score,
@@ -240,7 +293,11 @@ const REVISE_SYSTEM = `너는 '오즈백' 매거진 에디터다. 편집장의 �
 - 지적된 부분만 정확히 고친다. 멀쩡한 부분은 건드리지 않는다.
 - 원문에 없는 사실을 절대 새로 만들지 않는다. 확실하지 않으면 그 문장을 통째로 뺀다.
 - '원문에 없는 수치/인용문' 지적은 반드시 '삭제'로 처리한다. 다른 숫자로 바꾸지 마라.
-- 본문은 마크다운. '## 소제목' 2~3개, 마지막은 반드시 '## 오즈백 한 줄 정리'.
+- 본문은 마크다운. 마지막은 반드시 '## 오즈백 한 줄 정리'.
+  · 제목·요약이 "N가지"·"N개"처럼 개수를 약속하거나 항목을 N개 나열했으면, '## 소제목'을 정확히 그 N개 만든다 (한 줄 정리 제외). 개수를 못 채우면 제목·요약의 개수를 실제 담긴 수로 낮춘다 — 약속과 본문 개수는 반드시 일치시킨다.
+  · 소제목 하나 = 독립된 정보 하나. 한 소제목 안에 여러 항목을 뭉치지 않는다 (카드뉴스·쇼츠가 소제목 단위로 쪼개지므로 뭉치면 뒤 항목이 잘려나간다).
+  · 개수를 약속하지 않은 일반 이슈는 소제목 3~5개 (다룰 사실이 적으면 최소 2개).
+- [빈약한 섹션 보강] 지적에 '빈약함·서론만·내용부족·어그로'가 있으면, 원문 사실 범위 안에서 각 섹션을 서론-본론-결론(무슨 일 → 왜/어떻게 → 그래서 뭐가 달라지나)으로 채운다. 서론에서 끝내지 말고, 훅·제목이 약속한 내용을 본문에서 실제로 다룬다. 단 채울 사실이 없으면 지어내지 말고 소제목 개수를 실제에 맞춰 줄인다.
 
 출력은 반드시 아래 형식 그대로. 다른 말 금지.
 <title>제목</title>
@@ -272,7 +329,7 @@ ${draft.body}
 
 지적사항을 반영해 다시 써라. 지정된 태그 형식으로만 출력.`;
 
-  const raw = await ask(REVISE_SYSTEM, user, { maxTokens: 2400, careful: true });
+  const raw = await ask(REVISE_SYSTEM, user, { maxTokens: 3200, careful: true });
   const fixed = {
     title: pick(raw, "title") || draft.title,
     summary: pick(raw, "summary") || draft.summary,
@@ -294,6 +351,7 @@ const AUDIT_SYSTEM = `너는 '오즈백' 매거진 편집장이다. 이미 발�
 - 특정 인물·집단 비방 소지, 혐오 뉘앙스
 - 의료·금융·법률 관련 위험한 조언
 - 시간이 지나 이미 틀린 정보가 된 부분
+- 서론만 있고 알맹이가 없는 빈약한 섹션 — 훅·제목만 세고 본문이 부실하거나 서론에서 끝나 카드뉴스·영상으로 펼칠 내용이 부족한 글
 - 읽기 힘든 문장, 깨진 글자나 이상한 기호
 
 문제가 없으면 issues는 비우고 fakeRisk는 low, 점수는 높게 준다. 억지로 흠집 내지 마라.
@@ -333,12 +391,16 @@ ${post.body}
   );
   const { score, fakeRisk } = rv;
 
+  // 이미 발행된 글도 '약속 개수 ≠ 본문 소제목'이면 개선 대상으로 돌린다 (기존 반토막 글 자동 교정)
+  const pIssue = promiseIssue(post.title, post.summary, post.body);
+  const issues = pIssue ? [pIssue, ...rv.issues].slice(0, 8) : rv.issues;
+
   let verdict: Verdict;
   if (fakeRisk === "high") verdict = "hold";
-  else if (fakeRisk === "medium" || score < 70) verdict = "revise";
+  else if (fakeRisk === "medium" || score < 70 || pIssue) verdict = "revise";
   else verdict = "publish";
 
-  return { ...rv, verdict };
+  return { ...rv, issues, verdict };
 }
 
 // ================= 발행글 개선 (원문 없이) =================
@@ -358,7 +420,7 @@ ${post.body}
 
 지적사항만 정확히 반영해 다시 써라. 없는 사실을 새로 만들지 마라 — 위험한 문장은 추가하지 말고 삭제하라. 지정된 태그 형식으로만 출력.`;
 
-  const raw = await ask(REVISE_SYSTEM, user, { maxTokens: 2400, careful: true });
+  const raw = await ask(REVISE_SYSTEM, user, { maxTokens: 3200, careful: true });
   const fixed = {
     title: pick(raw, "title") || post.title,
     summary: pick(raw, "summary") || post.summary,
