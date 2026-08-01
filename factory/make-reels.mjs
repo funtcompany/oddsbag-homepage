@@ -19,6 +19,7 @@ import { postReel } from "./instagram.mjs";
 import { postVideo } from "./facebook.mjs";
 import { uploadPublic } from "./host.mjs";
 import { hashtags, keywords } from "./hashtags.mjs";
+import { writeUploadSheet } from "./upload-sheet.mjs";
 import { findBrollForCategory, downloadBroll, brollCredit } from "./pexels.mjs";
 import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
 import { usesBroll } from "./cardstyle.mjs";
@@ -37,6 +38,9 @@ const YT_PRIVACY = process.env.YT_PRIVACY || "public";
 //  · 인스타 릴스 1개 — 인스타는 카드뉴스 2개와 합쳐 하루 3개가 된다
 //  · 페이스북 영상 1개 — 링크 게시 2개와 합쳐 하루 3개가 된다
 const YT_DAILY_CAP = Number(process.env.YT_DAILY_CAP || 2);
+// 유튜브 자동 업로드 끄기 — 뮤직 앨범 올리는 날처럼 한도를 양보해야 할 때 YT_UPLOAD=0.
+// 꺼도 영상과 업로드 양식(html)은 그대로 나오므로, 손으로 올리면 된다 (손 업로드는 한도 0점).
+const YT_UPLOAD = process.env.YT_UPLOAD !== "0";
 const IG_REEL_CAP = Number(process.env.IG_REEL_DAILY_CAP || 1);
 const FB_VIDEO_CAP = Number(process.env.FB_VIDEO_DAILY_CAP || 1);
 const OUT = path.resolve("out");
@@ -236,11 +240,23 @@ async function buildReel(post) {
   const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 매일 새 소식 받기\n\n${hashtags(post, 15)}`;
   // 유튜브는 무료 한도(하루 10,000 units)가 병목이다. 릴스 1개당 약 1,700 units 를 쓰므로
   // 하루 5개가 상한이다. 그 이상은 유튜브만 건너뛰고 인스타·페북에는 그대로 올린다.
+  // 손으로 올릴 때 쓰는 양식을 영상 옆에 항상 놓아둔다 (한도를 안 쓰는 길을 늘 열어둔다)
+  try {
+    const sheet = writeUploadSheet(OUT, {
+      slug, title: post.title, category: post.category, seconds: totalDur,
+      videoFile: path.basename(final),
+      ytTitle: `${post.title} #Shorts`, ytDesc, ytTags: keywords(post, 20),
+      igCaption, igTags, fbCaption,
+    });
+    console.log(`  · 업로드 양식: ${sheet}`);
+  } catch (e) { console.log("  · 업로드 양식 건너뜀:", e.message); }
+
   const ytToday = await readDaily("yt:uploads").catch(() => 0);
-  const ytRoom = ytToday < YT_DAILY_CAP;
+  const ytRoom = YT_UPLOAD && ytToday < YT_DAILY_CAP;
+  if (!YT_UPLOAD) console.log("  · 유튜브 자동 업로드 꺼짐(YT_UPLOAD=0) — 업로드 양식으로 손수 올리세요");
   if (!ytRoom) console.log(`  · 유튜브 오늘 ${ytToday}개 — 무료 한도라 이번 건은 인스타·페북만`);
   try {
-    if (!ytRoom) throw new Error(`유튜브 하루 상한(${YT_DAILY_CAP}) 도달`);
+    if (!ytRoom) throw new Error(YT_UPLOAD ? `유튜브 하루 상한(${YT_DAILY_CAP}) 도달` : "자동 업로드 꺼짐");
     const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
     await bumpDaily("yt:uploads").catch(() => {});
     // 썸네일은 '올렸다'가 아니라 '적용됐다'까지 확인한다. 한 번 실패하면 5초 뒤 한 번 더 시도.

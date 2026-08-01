@@ -15,6 +15,9 @@ on:
       limit:
         description: "한 번에 만들 릴스 수"
         default: "1"
+      yt_upload:
+        description: "유튜브 자동 업로드 (0 = 끄고 업로드 양식만 만들기)"
+        default: "1"
 
 concurrency:
   group: oddsbag-reels
@@ -59,6 +62,9 @@ jobs:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FB_PUBLISHED: ${{ secrets.FB_PUBLISHED }}
           YT_DAILY_CAP: "2" # 유튜브 쇼츠 하루 2개
+          # 유튜브 자동 업로드 스위치. 0 으로 돌리면 올리지 않고 '업로드 양식'만 만든다.
+          # (손으로 올리면 API 한도를 0점 쓴다 — 오즈백뮤직 앨범 올리는 날 한도를 양보할 때 쓴다)
+          YT_UPLOAD: ${{ github.event.inputs.yt_upload || '1' }}
           IG_REEL_DAILY_CAP: "1" # 인스타 릴스 하루 1개 (카드뉴스 1개와 합쳐 2개)
           FB_VIDEO_DAILY_CAP: "1" # 페북 영상 하루 1개 (링크 1개와 합쳐 2개)
           REEL_LIMIT: ${{ github.event.inputs.limit || '1' }}
@@ -97,6 +103,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: reels
-          path: factory/out/*.mp4
+          path: |
+            factory/out/*.mp4
+            factory/out/*.html
           if-no-files-found: ignore
           retention-days: 7
