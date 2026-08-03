@@ -179,6 +179,28 @@ export async function postToFacebook(post) {
   return r.id;
 }
 
+// ---- 실제로 나간 주소 만들기 (작업일지 '링크' 칸에 쓴다) ----
+//  게시 결과로 돌아오는 건 '번호'뿐이라, 사람이 눌러볼 수 있는 주소로 바꿔준다.
+//  주소를 못 구해도 게시·기록은 그대로 진행한다 (링크 칸만 빈다).
+
+/** 인스타 게시물 주소 — 번호로는 열 수 없어서 메타에 한 번 물어본다 */
+export async function igPermalink(mediaId) {
+  if (!mediaId || !socialEnabled) return null;
+  try {
+    const r = await graph(`/${mediaId}`, { fields: "permalink" }, "GET");
+    return r.permalink ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** 페북 게시물 주소 — 번호가 "페이지번호_글번호" 형태라 물어보지 않고 바로 만든다 */
+export function fbPermalink(postId) {
+  if (!postId) return null;
+  const [page, post] = String(postId).split("_");
+  return post ? `https://www.facebook.com/${page}/posts/${post}` : `https://www.facebook.com/${page}`;
+}
+
 // ---- 발행 시 한 번에 (실패해도 홈페이지 발행은 유지) ----
 export async function shareEverywhere(
   post,

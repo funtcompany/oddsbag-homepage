@@ -6,7 +6,7 @@
 
 import { getQueued, getPublishedRaw, releaseFromQueue, upsertPublished } from "./posts.mjs";
 import { notionEnabled, setNotionStatus } from "./notion.mjs";
-import { shareEverywhere, socialEnabled } from "./social.mjs";
+import { shareEverywhere, socialEnabled, igPermalink, fbPermalink } from "./social.mjs";
 import { revalidateTag } from "./cache.mjs";
 
 const MAX_PER_RUN = Number(process.env.PUBLISH_MAX_PER_RUN || 1); // 한 회차에 올리는 글 수
@@ -108,6 +108,20 @@ export async function runPublish() {
         if (r.errors.length) out.errors.push(...r.errors);
         post.social = { ig: r.ig, fb: r.fb, at: new Date().toISOString() };
         await upsertPublished(post);
+
+        // 인스타·페북에 실제로 나간 것을 발행 목록에 표시해 둔다 → run-publish.mjs 가 작업일지에 남긴다.
+        // 여기서 무슨 일이 나도 발행은 이미 끝났으므로 조용히 넘어간다.
+        try {
+          const e = out.published.find((x) => x.slug === post.slug);
+          if (e) {
+            if (r.ig) e.igUrl = (await igPermalink(r.ig)) ?? undefined;
+            if (r.fb) e.fbUrl = fbPermalink(r.fb) ?? undefined;
+            e.ig = r.ig ?? undefined;
+            e.fb = r.fb ?? undefined;
+          }
+        } catch {
+          /* 링크 못 구해도 기록은 진행 */
+        }
       } catch (e) {
         out.errors.push(`SNS ${post.slug}: ${e.message}`);
       }

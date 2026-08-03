@@ -25,6 +25,7 @@ import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_F
 import { usesBroll } from "./cardstyle.mjs";
 import { buildCards as buildNewsCards } from "../content-factory/cards.mjs";
 import { fetchCard, renderCardFrame, pickKeywords, checkLayout } from "./cardreel.mjs";
+import { logWork } from "../content-factory/worklog.mjs";
 
 const TTS_KEY = process.env.GOOGLE_TTS_API_KEY;
 const VOICE = process.env.ODDS_VOICE || "ko-KR-Chirp3-HD-Aoede";
@@ -47,6 +48,26 @@ const OUT = path.resolve("out");
 fs.mkdirSync(OUT, { recursive: true });
 const K_PUB = "posts:published", DONE = "reels:done";
 const sh = (c) => execSync(c, { stdio: "inherit" });
+
+// ── 노션 작업일지에 쓸 채널 이름 ──
+// 오즈백 작업일지 DB의 선택지와 글자까지 같아야 한다. 다르면 조용히 새 선택지가 생겨 캘린더가 어긋난다.
+const 채널_유튜브 = "유튜브 오즈백";
+const 채널_인스타 = "인스타 공식";
+const 채널_페북 = "페이스북";
+
+/** 인스타 게시물 주소 — 번호로는 못 여니 메타에 한 번 물어본다. 실패하면 링크 없이 기록한다. */
+async function igPermalink(mediaId) {
+  const token = process.env.INSTAGRAM_ACCESS_TOKEN;
+  if (!mediaId || !token) return null;
+  try {
+    const r = await (await fetch(
+      `https://graph.facebook.com/v21.0/${mediaId}?fields=permalink&access_token=${token}`,
+    )).json();
+    return r.permalink ?? null;
+  } catch {
+    return null;
+  }
+}
 const probe = (f) => parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${f}"`).toString().trim());
 
 // 자연스러운 '끊어읽기': 문장부호에서 쉼(break)을 준다. 붙여읽으면 뭉개져 들리므로 쉼이 핵심.
@@ -251,6 +272,9 @@ async function buildReel(post) {
     console.log(`  · 업로드 양식: ${sheet}`);
   } catch (e) { console.log("  · 업로드 양식 건너뜀:", e.message); }
 
+  // 실제로 나간 것만 모았다가 마지막에 노션 작업일지에 남긴다 (게시가 끝난 뒤라 기록이 실패해도 손해가 없다)
+  const 일지 = [];
+
   const ytToday = await readDaily("yt:uploads").catch(() => 0);
   const ytRoom = YT_UPLOAD && ytToday < YT_DAILY_CAP;
   if (!YT_UPLOAD) console.log("  · 유튜브 자동 업로드 꺼짐(YT_UPLOAD=0) — 업로드 양식으로 손수 올리세요");
@@ -259,6 +283,7 @@ async function buildReel(post) {
     if (!ytRoom) throw new Error(YT_UPLOAD ? `유튜브 하루 상한(${YT_DAILY_CAP}) 도달` : "자동 업로드 꺼짐");
     const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
     await bumpDaily("yt:uploads").catch(() => {});
+    if (vid) 일지.push({ 채널: 채널_유튜브, 제목: post.title, 링크: `https://www.youtube.com/shorts/${vid}` });
     // 썸네일은 '올렸다'가 아니라 '적용됐다'까지 확인한다. 한 번 실패하면 5초 뒤 한 번 더 시도.
     if (thumb && vid) {
       let done = false;
@@ -282,17 +307,25 @@ async function buildReel(post) {
       try { coverUrl = await uploadPublic(thumb, { metaSafe: true }); }
       catch (e) { console.log("  · 인스타 커버 생략(첫 프레임 사용):", e.message); } // 커버 실패해도 릴스는 올린다
     }
-    await postReel(url, igCaption, coverUrl, igTags);
+    const mid = await postReel(url, igCaption, coverUrl, igTags);
     await bumpDaily("ig:reels").catch(() => {});
+    if (mid) 일지.push({ 채널: 채널_인스타, 제목: post.title, 링크: (await igPermalink(mid)) ?? undefined });
   }
   catch (e) { console.log("  · 인스타 건너뜀:", e.message); }
   try {
     const fbToday = await readDaily("fb:videos").catch(() => 0);
     if (fbToday >= FB_VIDEO_CAP) throw new Error(`페이스북 영상 하루 상한(${FB_VIDEO_CAP}개) 도달`);
-    await postVideo(final, fbCaption, thumb);
+    const fid = await postVideo(final, fbCaption, thumb);
     await bumpDaily("fb:videos").catch(() => {});
+    if (fid) 일지.push({ 채널: 채널_페북, 제목: post.title, 링크: `https://www.facebook.com/watch/?v=${fid}` });
   }
   catch (e) { console.log("  · 페이스북 건너뜀:", e.message); }
+
+  // 노션 작업일지 기록 — 여기서 무슨 일이 나도 영상·게시는 이미 끝났으므로 절대 멈추지 않는다
+  try {
+    const n = await logWork(일지);
+    if (n) console.log(`  · 작업일지 ${n}건 기록 (전체 ${일지.length}건 시도)`);
+  } catch (e) { console.log("  · 작업일지 건너뜀:", e.message); }
 
   fs.rmSync(work, { recursive: true, force: true });
 }

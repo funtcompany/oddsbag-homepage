@@ -20,7 +20,7 @@ import {
 } from "./posts.mjs";
 import { notionEnabled, setNotionStatus } from "./notion.mjs";
 import { syncFromNotion } from "./sync.mjs";
-import { shareEverywhere, socialEnabled } from "./social.mjs";
+import { shareEverywhere, socialEnabled, igPermalink, fbPermalink } from "./social.mjs";
 import { revalidateTag } from "./cache.mjs";
 
 const AUDIT_PER_RUN = 8; // 회차당 재감사할 발행글 수
@@ -246,6 +246,17 @@ export async function runAudit(opts = {}) {
         if (r.errors.length) out.errors.push(...r.errors);
         post.social = { ig: r.ig, fb: r.fb, at: nowIso() };
         await upsertPublished(post);
+
+        // 구조된 글이 인스타·페북에 나간 것을 결과에 표시 → run-audit.mjs 가 작업일지에 남긴다
+        try {
+          const e = out.rescued.find((x) => x.slug === post.slug);
+          if (e) {
+            if (r.ig) { e.ig = r.ig; e.igUrl = (await igPermalink(r.ig)) ?? undefined; }
+            if (r.fb) { e.fb = r.fb; e.fbUrl = fbPermalink(r.fb) ?? undefined; }
+          }
+        } catch {
+          /* 링크 못 구해도 기록은 진행 */
+        }
       } catch (e) {
         out.errors.push(`SNS ${post.slug}: ${e.message}`);
       }
