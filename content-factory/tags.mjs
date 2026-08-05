@@ -133,14 +133,17 @@ function dedupe(list) {
  * 앞쪽이 더 중요하다(유튜브는 앞 3개만 제목 위에 뜬다). 그래서 구체적인 소분류를 앞에 둔다.
  * 목표 개수를 못 채우면 남은 칸에서 끌어와 채운다 — 20개는 반드시 넘긴다.
  */
-export function buildTagList(post, max = 30) {
-  const target = Math.max(10, Math.min(30, max));
+export function buildTagList(post, max = 30, opts = {}) {
+  // 아래 바닥을 10으로 두면 "5개만" 같은 요청이 무시된다. 유튜브 설명은 5개가 맞다.
+  const target = Math.max(3, Math.min(30, max));
+  // 유튜브에는 #소통 #instadaily 같은 인스타 품앗이 태그를 넣지 않는다 — 관련성만 떨어뜨린다.
+  const useEngagement = opts.engagement !== false;
   const seed = post.slug || post.title || "오즈백";
 
   const small = shuffle(smallTags(post), seed + ":s");
   const mid = shuffle(midTags(post), seed + ":m");
   const big = shuffle(bigTags(post), seed + ":b");
-  const engage = shuffle(dedupe(POOL.engagement ?? []), seed + ":e");
+  const engage = useEngagement ? shuffle(dedupe(POOL.engagement ?? []), seed + ":e") : [];
   const brand = dedupe(POOL.brand);
 
   const out = [...brand];
@@ -156,7 +159,7 @@ export function buildTagList(post, max = 30) {
 
   // 비율 — 소 1/3, 중 1/3, 대 1/3. 품앗이 태그(#소통 등)는 3개까지만 곁들인다.
   const room = Math.max(0, target - brand.length);
-  const engageWant = Math.min(3, Math.max(0, Math.round(room * 0.1)));
+  const engageWant = useEngagement ? Math.min(3, Math.max(0, Math.round(room * 0.1))) : 0;
   const core = room - engageWant;
   const smallWant = Math.round(core * 0.36);
   const midWant = Math.round(core * 0.37);
@@ -184,8 +187,9 @@ export function hashtagText(post, max = 30) {
  * 유튜브 설명란용 — 15개를 절대 넘기지 않는다.
  * 넘기면 유튜브가 해시태그를 전부 무시해서 하나도 안 붙은 것과 같아진다.
  */
-export function youtubeHashtagText(post) {
-  return buildTagList(post, YT_DESC_TAG_LIMIT).join(" ");
+export function youtubeHashtagText(post, max = YT_DESC_TAG_LIMIT) {
+  const n = Math.min(max, YT_DESC_TAG_LIMIT); // 15를 넘기면 유튜브가 전부 무시한다
+  return buildTagList(post, n, { engagement: false }).join(" ");
 }
 
 /**
@@ -193,7 +197,7 @@ export function youtubeHashtagText(post) {
  * 여기는 개수 제한이 없고 '전체 500자' 제한만 있다 — 그래서 태그를 넉넉히 담는다.
  */
 export function youtubeKeywords(post, max = 30) {
-  const words = buildTagList(post, max).map((t) => t.replace(/^#/, ""));
+  const words = buildTagList(post, max, { engagement: false }).map((t) => t.replace(/^#/, ""));
   const list = [...new Set(["오즈백", "ODDSBAG", post.category, ...words].filter(Boolean))];
 
   // 500자를 넘기면 유튜브가 요청 자체를 거부한다. 넘치기 전에 자른다.
