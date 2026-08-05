@@ -353,6 +353,11 @@ async function buildReel(post) {
   } catch (e) { console.log("  · 작업일지 건너뜀:", e.message); }
 
   fs.rmSync(work, { recursive: true, force: true });
+
+  // 어디든 한 곳이라도 실제로 올라갔는가.
+  //  한 곳도 못 올렸다면(=하루 상한에 다 막혔다면) '완료' 도장을 찍으면 안 된다.
+  //  찍어버리면 그 글은 다시 뽑히지 않아, 만들어 둔 영상이 영영 안 올라간다.
+  return { 게시됨: 일지.length > 0 };
 }
 
 async function main() {
@@ -363,8 +368,21 @@ async function main() {
   console.log(`릴스 ${pending.length}개 제작 시작`);
   for (const post of pending) {
     try {
-      await buildReel(post);
-      if (process.env.MARK_DONE !== "0") { await sadd(DONE, post.slug); await srem("reels:priority", post.slug); }
+      const r = await buildReel(post);
+      // 【한 곳도 못 올렸으면 완료 처리하지 않는다】
+      //  채널 하루 상한에 다 막히는 일이 실제로 있었다(유튜브 2/2·인스타 1/1·페북 1/1).
+      //  그때도 '완료' 도장을 찍고 있어서, 만들어 둔 영상이 그대로 묻혔다.
+      //  완료를 미루면 다음 회차가 같은 글을 다시 집어 올려준다.
+      //  다만 자동 업로드를 꺼둔 날(YT_UPLOAD=0)은 손으로 올리는 게 정상이라 그대로 완료 처리한다.
+      //  안 그러면 같은 영상을 매 회차 다시 만들며 시간만 태운다.
+      const 보류 = !r?.게시됨 && YT_UPLOAD;
+      if (process.env.MARK_DONE !== "0" && !보류) {
+        await sadd(DONE, post.slug);
+        await srem("reels:priority", post.slug);
+      }
+      if (보류) {
+        console.log("  · 어느 채널에도 못 올림(하루 상한) — 완료 처리 보류, 다음 회차가 다시 올린다");
+      }
     } catch (e) {
       console.error(`  ✗ ${post.slug} 실패:`, e.message);
     }
