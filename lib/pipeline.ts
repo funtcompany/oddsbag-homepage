@@ -152,7 +152,11 @@ export async function runCollection(opts: {
 
       // 가짜뉴스 위험 high 는 검수함에도 쌓지 않고 즉시 폐기한다.
       // (원문 대비 창작이 심한 환각 글 — 사람이 봐도 살릴 수 없어 적체만 됨. 발행은 절대 안 하고 버린다.)
-      if (review.fakeRisk === "high") {
+      //
+      // 【가이드는 예외 — 폐기하지 않고 검수함으로】 근거(facts)를 우리가 직접 넣은 글이라
+      // high 는 대개 심사 흔들림이다. 폐기하면 주제만 소진되고 남는 게 없다.
+      // (content-factory/pipeline.mjs 와 같은 규칙 — 한쪽만 고치면 어긋난다)
+      if (review.fakeRisk === "high" && !("facts" in issue && issue.facts)) {
         out.discarded = (out.discarded ?? 0) + 1;
         continue;
       }

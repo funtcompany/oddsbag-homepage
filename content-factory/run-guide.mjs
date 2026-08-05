@@ -18,6 +18,9 @@ const r = await runCollection({
   limit: Number(process.env.GUIDE_LIMIT || 1),
 });
 
+// 【전부 찍는다】 예약·발행·검수함만 찍었더니, 환각 위험으로 폐기된 글이 어디에도
+// 안 나와서 "주제만 사라지고 아무 일도 없었다"로 보였다. 결과가 0이면 이유가 보여야 한다.
+const 폐기 = r.discarded ?? 0;
 console.log(
   "가이드 결과:",
   JSON.stringify(
@@ -25,12 +28,24 @@ console.log(
       예약: r.queued?.length ?? 0,
       발행: r.published?.length ?? 0,
       검수함: r.held?.length ?? 0,
+      폐기_환각위험: 폐기,
+      근거못읽음: r.unreadable ?? 0,
       오류: r.errors ?? [],
     },
     null,
     2,
   ),
 );
+if (r.queued?.length) for (const q of r.queued) console.log(`  · 예약 ${q.at} · ${q.score}점 · ${q.title}`);
+if (r.held?.length) for (const h of r.held) console.log(`  · 검수함 (${h.reason}) · ${h.title}`);
+if (폐기) {
+  console.log(
+    `⚠️ 가이드 ${폐기}편이 환각 위험(high)으로 폐기됐다 — 주제는 이미 소진됐고 남는 것이 없다.`,
+  );
+  console.log(
+    "   가이드는 근거(facts)가 확실한데도 폐기된다면, 글쓰기가 근거 밖으로 나갔다는 뜻이다.",
+  );
+}
 
 // 주제 소진 경고 — 떨어지고 나서 알면 늦다. 미리 알린다.
 try {
