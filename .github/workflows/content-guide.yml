@@ -9,7 +9,22 @@ name: 오즈백 가이드(꿀팁) 전용
 on:
   schedule:
     - cron: "0 18 * * *" # UTC 18시 = KST 새벽 3시
+  # 손으로 돌릴 때는 상한을 올려 예약 분량을 미리 채울 수 있다.
+  # (자동 회차는 아래 기본값 그대로 — 도배 방지 장치를 건드리지 않는다)
   workflow_dispatch:
+    inputs:
+      편수:
+        description: "이번 회차에 만들 가이드 편수"
+        required: false
+        default: "1"
+      하루상한:
+        description: "가이드 하루 상한 (기본 2). 미리 채울 때만 올린다"
+        required: false
+        default: "2"
+      대기열상한:
+        description: "예약 대기열 상한 (기본 4)"
+        required: false
+        default: "4"
 
 concurrency:
   group: oddsbag-guide
@@ -50,9 +65,9 @@ jobs:
           NOTION_WORKLOG_DB_ID: ${{ secrets.NOTION_WORKLOG_DB_ID }}
           SITE_URL: ${{ secrets.SITE_URL }}
           GUIDE_ONLY: "1" # 뉴스 수집을 아예 하지 않는다
-          GUIDE_LIMIT: "1" # 이 회차에 만들 가이드 편수
-          TIPS_PER_DAY: "2" # 가이드 하루 상한 (새벽 1편 + 아침 슬롯 1편)
-          QUEUE_MAX: "4" # 발행 대기열 상한
+          GUIDE_LIMIT: ${{ github.event.inputs.편수 || '1' }} # 이 회차에 만들 가이드 편수
+          TIPS_PER_DAY: ${{ github.event.inputs.하루상한 || '2' }} # 가이드 하루 상한 (새벽 1편 + 아침 슬롯 1편)
+          QUEUE_MAX: ${{ github.event.inputs.대기열상한 || '4' }} # 발행 대기열 상한
           PUBLISH_GAP_MIN: "480" # 발행 간격 8시간 → 하루 3편이 고르게 퍼진다
           SOCIAL_DAILY_CAP: "2" # 인스타 카드뉴스 2개 — 인스타는 가이드 전용 채널이다
           SOCIAL_GAP_MIN: "360" # 인스타 게시 최소 간격 6시간
