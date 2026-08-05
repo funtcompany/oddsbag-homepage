@@ -6,6 +6,12 @@ import { postUrl } from "@/lib/channels";
 
 const BASE = "https://oddsbag.co.kr";
 
+// 사이트맵을 한 시간마다 다시 만든다.
+//  이게 없으면 배포할 때 한 번 만들어진 채로 굳어버린다.
+//  글을 보관함으로 옮겨도 사이트맵엔 그대로 남아서, 검색엔진이 없는 주소를 계속 찾아온다.
+//  (없는 주소가 많은 사이트맵은 색인에 불리하다)
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const staticRoutes = ["", "/magazine", "/oddsbag", "/music", "/services", "/link"].map((path) => ({
