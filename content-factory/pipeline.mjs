@@ -19,7 +19,7 @@ import {
   getQueued,
 } from "./posts.mjs";
 import { categoryOf } from "./categories.mjs";
-import { sadd, smembers } from "./store.mjs";
+import { sadd, smembers, srem } from "./store.mjs";
 import { notionEnabled, addCollectedPage } from "./notion.mjs";
 import { findCoverImage } from "./images.mjs";
 import { makeIllustration, illustrateEnabled } from "./illustrate.mjs";
@@ -495,6 +495,13 @@ export async function runCollection(opts) {
       }
     } catch (e) {
       out.errors.push(`${issue.title.slice(0, 22)}: ${e.message}`);
+      // 【가이드 주제는 되돌린다】 뉴스는 오늘 안 나가면 어차피 죽으니 소진돼도 그만이지만,
+      // 가이드 주제는 재고다. 쓰다가 도중에 엎어졌는데 '이미 쓴 것'으로 남으면 영영 안 나온다.
+      // 주제 목록에 되돌려 다음 회차가 다시 집을 수 있게 한다.
+      if (issue.facts) {
+        await srem(K_SEEN, issueKey(issue.title)).catch(() => {});
+        console.log(`  · 가이드 주제 되돌림(다음 회차에 다시 시도): ${issue.title.slice(0, 30)}`);
+      }
     }
   }
 
