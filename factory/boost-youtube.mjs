@@ -80,7 +80,7 @@ async function main() {
     const lead = (p.hook || p.title).trim();
     const desc = `${lead}\n\n👉 oddsbag.co.kr 에서 전체 글 보기\n📌 @oddsbag_official 구독\n\n${hashtags(p, 15)}`;
     try {
-      await api("videos?part=snippet", { method: "PUT", body: JSON.stringify({ id: v.id, snippet: { title: v.title, description: desc, tags: keywords(p, 20), categoryId: v.categoryId || "25" } }) });
+      await api("videos?part=snippet", { method: "PUT", body: JSON.stringify({ id: v.id, snippet: { title: v.title, description: desc, tags: keywords(p, 30), categoryId: v.categoryId || "25" } }) });
       done++; console.log(`  ✅ 태그보강 ${done}/${toBoost.length}: ${v.title}`);
     } catch (e) { console.log(`  ✗ ${v.title}: ${e.message}`); }
     await sleep(200);

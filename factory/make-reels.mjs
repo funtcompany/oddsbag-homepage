@@ -269,11 +269,16 @@ async function buildReel(post) {
 
   // 게시 (자격증명 있을 때만) — 유입 최적화: 훅 첫줄 + 명확한 CTA + 태그(10~30개)
   const lead = (post.hook || post.title).trim();
-  const igTags = hashtags(post, 30); // 인스타는 첫 댓글에 30개
+  // 【채널마다 태그 개수가 다르다】
+  //   인스타 — 한 게시물 30개가 상한. 첫 댓글에 30개를 꽉 채운다.
+  //   페북   — 개수 제한이 없다. 인스타와 같이 30개.
+  //   유튜브 — 설명란 해시태그가 15개를 넘으면 '전부' 무시한다. 그래서 여기만 15개다.
+  //            대신 tags 필드(500자)에 키워드를 30개까지 넣어 검색을 노린다.
+  const igTags = hashtags(post, 30);
   // 【원칙】 링크로 넘기지 않는다 — 내용은 영상 안에서 끝내고, CTA는 저장·구독(미리 알림)이다.
   const igCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 팔로우하면 이런 알짜 정보가 매일 피드에 떠요 → @oddsbag_official`;
   const ytDesc = `${lead}\n\n🔔 구독하면 이런 정보 놓치지 않아요\n\n${hashtags(post, 15)}`;
-  const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 매일 새 소식 받기\n\n${hashtags(post, 15)}`;
+  const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 매일 새 소식 받기\n\n${hashtags(post, 30)}`;
   // 유튜브는 무료 한도(하루 10,000 units)가 병목이다. 릴스 1개당 약 1,700 units 를 쓰므로
   // 하루 5개가 상한이다. 그 이상은 유튜브만 건너뛰고 인스타·페북에는 그대로 올린다.
   // 손으로 올릴 때 쓰는 양식을 영상 옆에 항상 놓아둔다 (한도를 안 쓰는 길을 늘 열어둔다)
@@ -281,7 +286,7 @@ async function buildReel(post) {
     const sheet = writeUploadSheet(OUT, {
       slug, title: post.title, category: post.category, seconds: totalDur,
       videoFile: path.basename(final),
-      ytTitle: `${post.title} #Shorts`, ytDesc, ytTags: keywords(post, 20),
+      ytTitle: `${post.title} #Shorts`, ytDesc, ytTags: keywords(post, 30),
       igCaption, igTags, fbCaption,
     });
     console.log(`  · 업로드 양식: ${sheet}`);
@@ -296,7 +301,7 @@ async function buildReel(post) {
   if (!ytRoom) console.log(`  · 유튜브 오늘 ${ytToday}개 — 무료 한도라 이번 건은 인스타·페북만`);
   try {
     if (!ytRoom) throw new Error(YT_UPLOAD ? `유튜브 하루 상한(${YT_DAILY_CAP}) 도달` : "자동 업로드 꺼짐");
-    const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 20), privacy: YT_PRIVACY });
+    const vid = await uploadShort(final, { title: `${post.title} #Shorts`, description: ytDesc, tags: keywords(post, 30), privacy: YT_PRIVACY });
     await bumpDaily("yt:uploads").catch(() => {});
     if (vid) 일지.push({ 채널: 채널_유튜브, 제목: post.title, 링크: `https://www.youtube.com/shorts/${vid}` });
     // 썸네일은 '올렸다'가 아니라 '적용됐다'까지 확인한다. 한 번 실패하면 5초 뒤 한 번 더 시도.

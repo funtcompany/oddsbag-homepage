@@ -13,6 +13,7 @@
 
 import type { Post } from "@/lib/posts";
 import { markOf, isMarkLine } from "@/lib/guide";
+import { hashtagText } from "@/lib/tags";
 
 // hook/intro/point/quote/cta : 단일 글 카드뉴스 (buildCards)
 // lead/body/conclusion       : "이슈 모아보기" 카드뉴스 (buildRoundupCards) — 이슈 1건을 서론·본론·결론 3장으로
@@ -459,29 +460,10 @@ export function firstCommentEmoji(post: Post): string {
 }
 
 // 대댓글용 해시태그 (기본 30개) — 검색 유입용
-//  가장 관련 있는 태그(브랜드 → 카테고리 → 글 태그)를 앞에 두고 30개로 자른다.
-const CATEGORY_TAGS: Record<string, string[]> = {
-  사회: ["#사회이슈", "#뉴스", "#시사", "#오늘의뉴스", "#속보", "#뉴스요약", "#사회", "#세상소식"],
-  경제: ["#경제", "#재테크", "#경제뉴스", "#주식", "#부동산", "#투자", "#돈버는법", "#경제상식"],
-  스포츠: ["#스포츠", "#스포츠뉴스", "#축구", "#야구", "#스포츠이슈", "#경기결과", "#스포츠하이라이트", "#운동"],
-  "IT·테크": ["#IT", "#테크", "#인공지능", "#AI", "#IT뉴스", "#챗지피티", "#신기술", "#가젯"],
-  "문화·연예": ["#연예", "#문화", "#엔터", "#연예뉴스", "#드라마", "#영화", "#kpop", "#셀럽"],
-  트렌드: ["#트렌드", "#요즘", "#밈", "#요즘트렌드", "#핫이슈", "#급상승", "#챌린지", "#요즘것들"],
-  // 꿀팁이 빠져 있어 지메일·크롬 꿀팁 글에 #이슈 #뉴스가 붙어 나갔다 (2026-08-01 수정)
-  꿀팁: ["#꿀팁", "#생활정보", "#유용한정보", "#라이프핵", "#알아두면좋은", "#정보공유", "#팁", "#일상꿀팁"],
-};
-const COMMON_TAGS = [
-  "#오늘의이슈", "#이슈", "#핫이슈", "#뉴스레터", "#카드뉴스", "#이슈정리", "#요약",
-  "#정보", "#꿀팁", "#instadaily", "#issue", "#news", "#trending", "#dailynews",
-];
+//
+// 태그 목록·계산은 lib/tags.ts 로 옮겼다. 원본은 content-factory/tagpool.json 하나뿐이고
+// 릴스 쪽(factory/hashtags.mjs)도 같은 파일을 읽는다. 목록을 두 벌 두면 반드시 어긋난다.
+// 대분류·중분류·소분류를 골고루 섞는다 (사장님 지시 2026-08-05 — 노출 개선).
 export function buildHashtags(post: Post, max = 30): string {
-  const pool = [
-    "#오즈백",
-    "#ODDSBAG",
-    ...(CATEGORY_TAGS[post.category] ?? ["#이슈", "#뉴스"]),
-    ...(post.tags ?? []).map((t) => "#" + t.replace(/[\s#]/g, "")),
-    ...COMMON_TAGS,
-  ];
-  const uniq = [...new Set(pool.filter((t) => t.length > 1))];
-  return uniq.slice(0, max).join(" ");
+  return hashtagText(post, max);
 }
