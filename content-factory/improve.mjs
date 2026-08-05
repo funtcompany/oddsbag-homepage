@@ -12,6 +12,7 @@
 
 import { getPublishedRaw, getDrafts, upsertPublished } from "./posts.mjs";
 import { getQualityTrend, getLessons } from "./learn.mjs";
+import { staleGuides, GUIDE_STALE_DAYS } from "./guide-age.mjs";
 import { findCoverImage } from "./images.mjs";
 import { shareEverywhere, socialEnabled } from "./social.mjs";
 import { sendEmail, emailEnabled } from "./email.mjs";
@@ -41,6 +42,8 @@ export async function runImprove() {
     thin: 0,
     expanded: 0,
     reshared: 0,
+    staleCount: 0,
+    stale: [],
     byCategory: {},
     trend: { avg7: 0, avgPrev: 0, autoPublishRate: 0, count: 0 },
     actions: [],
@@ -61,6 +64,15 @@ export async function runImprove() {
   }
   const noCover = published.filter((p) => !p.cover);
   out.noCover = noCover.length;
+
+  // ---- 확인일이 지난 가이드 (자동으로 고치지 않는다 — 사람이 공식 문서를 봐야 한다) ----
+  const stale = staleGuides(published);
+  out.staleCount = stale.length;
+  out.stale = stale.slice(0, 8).map(({ post, days }) => ({
+    slug: post.slug,
+    title: post.title,
+    days,
+  }));
 
   // ---- 1) 커버 사진 재탐색 ----
   for (const post of noCover.slice(0, FIX_COVERS_PER_RUN)) {
@@ -158,6 +170,8 @@ export async function runImprove() {
     posts: out.posts,
     drafts: out.drafts,
     noCover: out.noCover,
+    thin: out.thin, // 빠져 있어서 프롬프트에 'undefined건'이 찍히고 있었다
+    staleCount: out.staleCount,
     byCategory: out.byCategory,
     trend: out.trend,
     lessons,
@@ -194,6 +208,7 @@ async function suggestActions(ctx) {
   const user = `발행글: ${ctx.posts}건 / 검수함 대기: ${ctx.drafts}건
 사진 없는 글: ${ctx.noCover}건
 분량이 짧은 꿀팁(1,500자 미만): ${ctx.thin}건
+확인일이 ${GUIDE_STALE_DAYS}일 넘은 가이드(사실 갱신 필요): ${ctx.staleCount}건
 카테고리 분포: ${JSON.stringify(ctx.byCategory)}
 품질 점수 평균: 최근 ${ctx.trend.avg7}점 (직전 ${ctx.trend.avgPrev}점)
 자동 발행 통과율: ${ctx.trend.autoPublishRate}%
@@ -246,12 +261,32 @@ function reportHtml(r, subs) {
       ${stat("자동 발행 통과율", `${r.trend.autoPublishRate}%`)}
       ${stat("사진 없는 글", `${r.noCover}건 (이번에 ${r.coversFixed}건 보완)`)}
       ${stat("짧은 꿀팁 보강", `${r.thin}건 남음 (이번에 ${r.expanded}건 보강)`)}
+      ${stat("확인일 지난 가이드", `${r.staleCount}건 (${GUIDE_STALE_DAYS}일 기준)`)}
       ${stat("인스타 재게시", `${r.reshared}건`)}
       ${stat("뉴스레터 구독자", `${subs}명`)}
     </table>
     <div style="margin-top:22px;font-size:13px;color:#8577a8">카테고리 분포</div>
     <div style="margin-top:6px;font-size:14px;color:#f3eefc;font-weight:700">${cats || "-"}</div>
   </td></tr>
+  ${
+    r.stale?.length
+      ? `<tr><td style="${bg("#241a3d")}padding:24px 30px">
+    <div style="font-size:12px;font-weight:900;letter-spacing:2px;color:#ffe600">확인일이 지난 가이드</div>
+    <div style="margin-top:8px;font-size:13px;color:#b3a6cf;line-height:1.6">
+      아래 글은 쓴 지 ${GUIDE_STALE_DAYS}일이 넘었습니다. 메뉴 이름이나 절차가 바뀌었을 수 있어
+      <b style="color:#f3eefc">공식 문서를 한 번 보고</b> 노션에서 손봐 주시면, 고친 날짜로 다시 셉니다.
+      (자동으로는 고치지 않습니다)
+    </div>
+    ${r.stale
+      .map(
+        (s) =>
+          `<div style="margin-top:10px;font-size:14px;color:#f3eefc;line-height:1.5">· <a href="https://oddsbag.co.kr/magazine/${s.slug}" style="color:#f3eefc;text-decoration:none">${s.title}</a> <span style="color:#8577a8;font-size:12px">${s.days}일 전</span></div>`,
+      )
+      .join("")}
+    ${r.staleCount > r.stale.length ? `<div style="margin-top:10px;font-size:12px;color:#8577a8">외 ${r.staleCount - r.stale.length}건</div>` : ""}
+  </td></tr>`
+      : ""
+  }
   ${
     r.actions.length
       ? `<tr><td style="${bg("#241a3d")}padding:24px 30px">

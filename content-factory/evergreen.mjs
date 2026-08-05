@@ -17,11 +17,13 @@ export const EVERGREEN = ALL_EVERGREEN;
 // 시즌 주제 — 정해진 시기 '전에' 미리 알려주는 것
 //   month/day = 기준일, leadDays = 며칠 전부터 낼지
 //   ※ 해마다 날짜·금액이 바뀌므로 facts 에 '연도별 확정 수치'는 쓰지 않는다.
+//   ※ risky: true = 돈·세금이 걸린 주제. 자동 발행하지 않고 검수함으로 보낸다 (사람이 확인).
 // ─────────────────────────────────────────────────────────────
 export const SEASONAL = [
   {
     id: "yearend-tax",
     category: "꿀팁",
+    risky: true,
     month: 1,
     day: 15,
     leadDays: 20,
@@ -47,6 +49,7 @@ export const SEASONAL = [
   {
     id: "car-tax-prepay",
     category: "꿀팁",
+    risky: true,
     month: 1,
     day: 16,
     leadDays: 14,
@@ -69,6 +72,7 @@ export const SEASONAL = [
   {
     id: "income-tax-may",
     category: "꿀팁",
+    risky: true,
     month: 5,
     day: 1,
     leadDays: 20,
@@ -176,6 +180,7 @@ export function pickEvergreenIssues(seen, want = 2, now = new Date()) {
       category: t.category,
       facts: t.facts, // ★ 이게 있으면 파이프라인이 원문 수집 대신 이걸 근거로 쓴다
       ref: t.ref,
+      risky: t.risky === true, // 위험 주제 → 점수와 무관하게 검수함으로 (자동 발행 금지)
     });
   }
   return out;

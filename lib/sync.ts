@@ -47,6 +47,14 @@ export async function syncFromNotion(): Promise<{
       hook: incoming.hook ?? existing?.hook,
       // 노션에서 본문이 바뀌었으면 다시 감사해야 하므로 감사 이력을 비운다
       auditedAt: bodyChanged ? undefined : existing?.auditedAt,
+
+      // 노션에 칸이 없는 표시들 — 그냥 두면 동기화 때마다 사라져서 같은 일을 다시 한다
+      expandedAt: existing?.expandedAt, // 이미 보강한 글을 또 보강하지 않게
+      risky: existing?.risky, // 위험 주제 표시 (자동 발행·자동 구조 금지)
+
+      // 가이드 시효 — 사장님이 노션에서 본문을 손봤으면 '확인했다'로 보고 날짜를 다시 센다
+      factsCheckedAt: bodyChanged ? new Date().toISOString() : existing?.factsCheckedAt,
+      staleGuide: bodyChanged ? undefined : existing?.staleGuide,
     };
 
     await upsertPublished(merged);

@@ -69,6 +69,20 @@ export interface Post {
   /** 보관함으로 옮긴 시각·사유 (지운 게 아니라 자리만 옮긴 것 — 되돌릴 수 있다) */
   archivedAt?: string;
   archivedReason?: string;
+
+  /** 짧은 꿀팁을 자동 보강한 시각 (한 번만 보강한다) */
+  expandedAt?: string;
+
+  // ---- 가이드(꿀팁) 전용 ----
+  /**
+   * 위험 주제 — 잘못 따라 하면 자료가 날아가거나 돈이 걸리는 종류.
+   * 점수와 무관하게 자동 발행하지 않고 검수함으로 보낸다. 자동 구조 대상에서도 뺀다.
+   */
+  risky?: boolean;
+  /** 근거(facts)를 마지막으로 확인한 시각 — 시효 판단 기준 (lib/guideAge.ts) */
+  factsCheckedAt?: string;
+  /** 확인일이 지나 "갱신 필요"로 표시된 것. 내용은 건드리지 않고 리포트에만 올린다 */
+  staleGuide?: { flaggedAt: string; days: number };
 }
 
 const POSTS_DIR = path.join(process.cwd(), "content", "posts");

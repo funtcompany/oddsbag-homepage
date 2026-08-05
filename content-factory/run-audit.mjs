@@ -10,6 +10,7 @@ console.log("점검 결과:", JSON.stringify({
   내림: r.pulled ?? [],
   구조: r.rescued ?? [],
   보관: r.archived ?? [],
+  확인일지남: (r.stale ?? []).length, // 가이드 시효 — 표시만 하고 고치지 않는다 (2일 리포트로 감)
   오류: r.errors ?? [],
 }, null, 2));
 

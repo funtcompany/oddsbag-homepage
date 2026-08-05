@@ -3,6 +3,7 @@
 //  A. 노션 동기화     — 사장님이 노션에서 손본 글을 홈페이지에 반영
 //  B. 발행글 재감사   — 문제 있으면 즉시 내려서 검수함으로
 //                       (가벼운 문제면 자동으로 고쳐서 계속 발행 유지)
+//  B-2. 가이드 시효   — 확인한 지 오래된 꿀팁에 '갱신 필요' 표시만 단다 (내용은 안 건드림)
 //  C. 검수함 구조     — 보류된 글을 개선해 기준 넘으면 발행 + SNS
 //  D. 교훈 갱신       — 반복 지적을 체크리스트로 정제 → 다음 글부터 반영
 //
@@ -18,6 +19,7 @@ import {
   publishPost,
   archiveDraft,
 } from "./posts.mjs";
+import { staleGuides, GUIDE_STALE_DAYS } from "./guide-age.mjs";
 import { notionEnabled, setNotionStatus } from "./notion.mjs";
 import { syncFromNotion } from "./sync.mjs";
 import { shareEverywhere, socialEnabled, igPermalink, fbPermalink } from "./social.mjs";
@@ -28,6 +30,7 @@ const RESCUE_PER_RUN = 4; // 회차당 구조 시도할 검수함 글 수
 const RECHECK_HOURS = 36; // 이 시간이 지난 발행글은 다시 감사
 const ARCHIVE_AFTER_DAYS = 7; // 이만큼 지난 '위험 high' 초안은 보관함으로
 const ARCHIVE_PER_RUN = 25; // 회차당 보관 처리 상한
+const STALE_MARK_PER_RUN = 20; // 회차당 '확인일 지남' 표시 상한 (한꺼번에 쓰지 않는다)
 
 const nowIso = () => new Date().toISOString();
 const hoursSince = (iso) =>
@@ -43,6 +46,7 @@ export async function runAudit(opts = {}) {
     pulled: [],
     rescued: [],
     archived: [],
+    stale: [],
     social: { ig: 0, fb: 0 },
     lessons: "",
     errors: [],
@@ -138,6 +142,24 @@ export async function runAudit(opts = {}) {
     }
   }
 
+  // ---- B-2. 가이드 시효 점검 (내용은 절대 건드리지 않는다) ----
+  // OS·앱은 해마다 바뀐다. 오래된 가이드는 '틀렸다'가 아니라 '확인이 필요하다'.
+  // 사실이 정말 바뀌었는지는 공식 문서를 사람이 봐야 알 수 있으므로
+  // 표시만 달아 두고 2일 점검 리포트로 넘긴다. 자동으로 고치거나 내리지 않는다.
+  try {
+    let marked = 0;
+    for (const { post, days } of staleGuides(published)) {
+      out.stale.push({ slug: post.slug, title: post.title, days });
+      if (post.staleGuide) continue; // 이미 표시된 글은 다시 저장하지 않는다
+      if (marked >= STALE_MARK_PER_RUN) continue; // 남은 것은 다음 회차가 이어받는다
+      post.staleGuide = { flaggedAt: nowIso(), days };
+      await upsertPublished(post);
+      marked++;
+    }
+  } catch (e) {
+    out.errors.push(`가이드 시효 점검: ${e.message}`);
+  }
+
   // ---- C. 검수함 구조 (품질을 확실히 올린 것만 발행) ----
   let drafts = [];
   try {
@@ -175,6 +197,10 @@ export async function runAudit(opts = {}) {
   const rescuable = drafts
     .filter((p) => !archivedSlugs.has(p.slug))
     .filter((p) => p.quality?.fakeRisk !== "high")
+    // 위험 주제(초기화·삭제·비밀번호·결제·세금)도 자동 구조 금지.
+    // 이걸 빼먹으면 파이프라인이 검수함으로 보낸 글을 감사가 다시 발행해버려
+    // '자동 발행 금지'가 통째로 무력화된다.
+    .filter((p) => !p.risky)
     .filter((p) => (p.quality?.rounds ?? 0) < 3) // 3번 실패하면 그만 시도
     .slice(0, RESCUE_PER_RUN);
 

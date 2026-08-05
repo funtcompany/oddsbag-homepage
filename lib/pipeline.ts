@@ -161,7 +161,12 @@ export async function runCollection(opts: {
         continue;
       }
 
-      const passed = autoPublish && review.verdict === "publish";
+      // 【위험 주제는 점수와 무관하게 자동 발행하지 않는다】
+      //   초기화·삭제·비밀번호·결제·세금처럼 잘못 따라 하면 자료가 날아가거나 돈이 걸리는 것.
+      //   심사 점수는 '원문과 맞느냐'만 본다. 따라 했을 때의 피해까지는 못 본다.
+      //   (content-factory/pipeline.mjs 와 같은 규칙 — 한쪽만 고치면 어긋난다)
+      const risky = "risky" in issue && issue.risky === true;
+      const passed = autoPublish && review.verdict === "publish" && !risky;
 
       // 4) 커버 사진 (없으면 타이포 디자인으로 감)
       const finalCategory = draft.category;
@@ -191,13 +196,21 @@ export async function runCollection(opts: {
         tags: draft.tags,
         sources: [{ title: `원문 보기 (${issue.source})`, url: sourceUrl }],
         createdAt: new Date().toISOString(),
+        // 위험 주제 표시 — 감사(audit)가 이 글을 자동으로 구조·발행하지 않게 막는 표시이기도 하다
+        risky: risky ? true : undefined,
+        // 가이드는 근거(facts)를 확인한 날을 남긴다 → 오래되면 감사가 "갱신 필요"로 골라낸다
+        factsCheckedAt:
+          "facts" in issue && issue.facts ? new Date().toISOString() : undefined,
         quality: {
           score: review.score,
           fakeRisk: review.fakeRisk,
           verdict: review.verdict,
           reviewedAt: new Date().toISOString(),
           rounds,
-          note: review.note,
+          // 위험 주제는 노션 검수함에서 '왜 여기 있는지'가 한눈에 보여야 한다.
+          note: risky
+            ? `⚠️ 위험 주제 — 사람이 확인한 뒤 발행하세요. ${review.note ?? ""}`.trim()
+            : review.note,
         },
       };
 
@@ -233,8 +246,9 @@ export async function runCollection(opts: {
         out.held.push({
           title: post.title,
           score: review.score,
-          reason:
-            review.fakeRisk !== "low"
+          reason: risky
+            ? `위험 주제 — 사람이 확인해야 발행 (${review.score}점)`
+            : review.fakeRisk !== "low"
               ? `가짜뉴스 위험 ${review.fakeRisk}`
               : `품질 미달 (${review.score}점)`,
         });
