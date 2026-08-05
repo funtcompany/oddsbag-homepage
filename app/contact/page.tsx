@@ -1,5 +1,9 @@
 import LegalPage, { Section, List } from "@/components/LegalPage";
+import ContactForm from "@/components/ContactForm";
+import { getSiteConfig } from "@/lib/sitecfg";
 import type { Metadata } from "next";
+
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "문의하기",
@@ -8,17 +12,21 @@ export const metadata: Metadata = {
   alternates: { canonical: "/contact" },
 };
 
-const MAIL = "oddsbag.official@gmail.com";
+export default async function ContactPage() {
+  const cfg = await getSiteConfig();
+  const MAIL = cfg.contact.email;
 
-export default function ContactPage() {
   return (
-    <LegalPage
-      title="문의하기"
-      lead="제보, 정정 요청, 제휴 무엇이든 편하게 보내주세요."
-    >
-      <Section heading="메일로 보내주세요">
+    <LegalPage title="문의하기" lead={cfg.contact.lead}>
+      {cfg.contact.formEnabled && (
+        <Section heading="여기에 바로 적어 보내주세요">
+          <ContactForm thanks={cfg.contact.thanks} />
+        </Section>
+      )}
+
+      <Section heading="메일로 보내셔도 됩니다">
         <p>
-          오즈백은 아래 메일 하나로 모든 문의를 받습니다. 보통{" "}
+          위 폼 대신 메일로 보내셔도 똑같이 접수됩니다. 보통{" "}
           <strong>영업일 기준 2~3일 안에</strong> 답변드립니다.
         </p>
         <p className="rounded-2xl bg-oddsbag-light-gray px-5 py-6 text-center">

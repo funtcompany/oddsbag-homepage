@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { categoryOf } from "@/lib/categories";
+import { postUrl } from "@/lib/channels";
 import type { Post } from "@/lib/posts";
 
 // 인기글 랭킹 — 현재는 최신/피처드 기반.
@@ -17,12 +18,16 @@ export default function PopularRanking({ posts }: { posts: Post[] }) {
           return (
             <li key={post.slug}>
               <Link
-                href={`/magazine/${post.slug}`}
+                href={postUrl(post)}
                 className="group flex items-start gap-3"
               >
+                {/* 1~3위는 퍼플 원형 배지, 4~5위도 읽히는 회색으로.
+                    예전엔 4·5위가 연회색(/40)이라 번호가 거의 안 보였다. */}
                 <span
-                  className={`mt-0.5 w-5 shrink-0 text-center text-lg font-black ${
-                    i < 3 ? "text-oddsbag-purple" : "text-oddsbag-gray/40"
+                  className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px] font-black ${
+                    i < 3
+                      ? "bg-oddsbag-purple text-white"
+                      : "bg-oddsbag-light-gray text-oddsbag-gray"
                   }`}
                 >
                   {i + 1}
@@ -34,7 +39,10 @@ export default function PopularRanking({ posts }: { posts: Post[] }) {
                   >
                     {post.title}
                   </p>
-                  <span className="text-[12.5px] text-oddsbag-gray/70">{cat.label}</span>
+                  <span className="flex items-center gap-1 text-[12.5px] text-oddsbag-gray">
+                    <span aria-hidden>{cat.emoji}</span>
+                    {cat.label}
+                  </span>
                 </div>
               </Link>
             </li>

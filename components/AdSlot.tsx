@@ -34,14 +34,19 @@ export default function AdSlot({
   // 승인 후 게시자 ID를 환경변수에 넣으면 실제 광고가 자동으로 나타남.
   if (!CLIENT) return null;
 
+  // 광고가 들어올 자리를 미리 잡아둔다.
+  //  안 잡아두면 광고가 뜨는 순간 본문이 아래로 확 밀린다 —
+  //  독자는 읽던 줄을 놓치고, 구글은 이 '화면 튐'을 순위에 직접 반영한다.
   return (
-    <ins
-      className={`adsbygoogle block ${className}`}
-      style={{ display: "block" }}
-      data-ad-client={CLIENT}
-      data-ad-slot={slot}
-      data-ad-format="auto"
-      data-full-width-responsive="true"
-    />
+    <div style={{ minHeight: 280 }} className="flex items-center justify-center">
+      <ins
+        className={`adsbygoogle block w-full ${className}`}
+        style={{ display: "block", minHeight: 280 }}
+        data-ad-client={CLIENT}
+        data-ad-slot={slot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+    </div>
   );
 }

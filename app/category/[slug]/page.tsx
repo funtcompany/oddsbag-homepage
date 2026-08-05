@@ -24,6 +24,8 @@ export async function generateMetadata({
   return {
     title: `${cat.label} 이슈`,
     description: `${cat.label} 분야의 이슈를 오즈백 시선으로 정리했어요.`,
+    // 카테고리 주소도 하나로 못박는다 (기사 페이지엔 있는데 여기만 빠져 있었다)
+    alternates: { canonical: `/category/${cat.slug}` },
   };
 }
 

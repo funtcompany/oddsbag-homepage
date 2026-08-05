@@ -12,6 +12,7 @@
 // ※ content-factory/cards.mjs 와 항상 같은 구성이어야 한다 (게시 장수 ↔ 렌더 장수 일치).
 
 import type { Post } from "@/lib/posts";
+import { markOf, isMarkLine } from "@/lib/guide";
 
 // hook/intro/point/quote/cta : 단일 글 카드뉴스 (buildCards)
 // lead/body/conclusion       : "이슈 모아보기" 카드뉴스 (buildRoundupCards) — 이슈 1건을 서론·본론·결론 3장으로
@@ -53,15 +54,27 @@ function findFigure(text: string): Figure | undefined {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
 
   for (const line of lines) {
-    const m = line.match(/^\[(키|경로)\]\s*(.+)$/);
+    const m = markOf(line);
     if (!m) continue;
-    if (m[1] === "키") {
-      const keys = m[2].split("+").map((k) => k.trim()).filter(Boolean);
+    if (m.name === "키") {
+      const keys = m.rest.split("+").map((k) => k.trim()).filter(Boolean);
       if (keys.length >= 2 && keys.length <= 4) return { kind: "keys", keys };
-    } else {
-      const steps = m[2].split(/[>→]/).map((k) => k.trim()).filter(Boolean);
+    } else if (m.name === "경로") {
+      const steps = m.rest.split(/[>→]/).map((k) => k.trim()).filter(Boolean);
       if (steps.length >= 2 && steps.length <= 4) return { kind: "path", steps };
     }
+  }
+
+  // 가이드 글의 [단계]·[확인] 줄은 카드에서 체크리스트 그림으로 세운다
+  // (홈페이지에서 그림이 되는 줄이 카드에서만 사라지면 카드가 텅 빈다)
+  for (const want of ["단계", "확인"] as const) {
+    const items = lines
+      .map((l) => markOf(l))
+      .filter((m) => m?.name === want)
+      .map((m) => m!.rest.replace(/\*\*/g, "").trim())
+      .filter((t) => t.length >= 2 && t.length <= 42)
+      .slice(0, 4);
+    if (items.length >= 2) return { kind: "list", items };
   }
 
   // 표시가 없는 예전 글 — 줄 전체가 단축키뿐일 때만 (문장 중간은 건드리지 않는다)
@@ -224,7 +237,8 @@ function parseSections(body: string): Section[] {
     } else if (cur) {
       cur.raw += (cur.raw ? "\n" : "") + line;
       // 도식 표시 줄은 본문 문장에서 빼둔다 (그림으로 따로 세우므로 중복 방지)
-      if (!/^\[(키|경로|핵심|주의)\]/.test(line) && !line.startsWith("|")) {
+      // ※ 여기서 안 빼면 카드에 "[Q] …" 처럼 대괄호가 그대로 찍혀 나간다. 목록은 lib/guide.ts.
+      if (!isMarkLine(line) && !line.startsWith("|")) {
         cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
       }
     }

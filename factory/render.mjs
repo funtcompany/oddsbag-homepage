@@ -88,12 +88,19 @@ function clipWhole(s, n = 200) {
   while (out.length > 1 && CONNECTIVE.test(out[out.length - 1])) out.pop();
   return out.join(" ").trim();
 }
+// 본문 도식 표시 — lib/guide.ts 와 반드시 같은 목록이어야 한다.
+//  ★ 이걸 안 빼면 릴스 자막과 나레이션에 "[Q] …" 처럼 대괄호가 그대로 나가고,
+//    TTS가 "대괄호 큐"라고 읽는다. 표시를 늘릴 땐 lib/guide.ts 머리말을 먼저 볼 것.
+const MARK_LINE = /^\[(키|경로|핵심|주의|즉답|버전|단계|확인|대안|[QA])\]\s*(.+)$/i;
+const isMarkLine = (line) => MARK_LINE.test(String(line ?? "").trim());
+
 function parseSections(body) {
   const out = []; let cur = null;
   for (const raw of (body || "").split("\n")) {
     const line = raw.trim(); if (!line) continue;
     if (line.startsWith("## ")) { if (cur) out.push(cur); cur = { heading: line.slice(3).trim(), text: "" }; }
-    else if (cur) cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
+    // 도식 줄과 표 줄은 영상 자막에서 뺀다 (홈페이지는 그림으로 세우는 줄이다)
+    else if (cur && !isMarkLine(line) && !line.startsWith("|")) cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
   }
   if (cur) out.push(cur);
   return out.filter((s) => s.heading);

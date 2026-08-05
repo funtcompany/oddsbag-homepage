@@ -99,8 +99,17 @@ export const metadata: Metadata = {
     description: "이상하게 필요한 것들, 오즈백에 다 있어",
     images: ["/og.png"],
   },
-  // 네이버 서치어드바이저 소유확인
+  // 홈 주소를 하나로 못박는다.
+  //  이게 없으면 oddsbag.co.kr / www / 물음표 붙은 주소가 서로 다른 페이지로 취급돼
+  //  검색엔진이 점수를 나눠 갖는다. (기사 페이지엔 이미 들어가 있고 홈만 빠져 있었다)
+  alternates: { canonical: "/" },
+  // 검색엔진 소유확인
+  //  구글 코드는 서치콘솔에서 발급받아 Vercel 환경변수에 넣으면 자동으로 붙는다.
+  //  (환경변수 이름: NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION)
   verification: {
+    ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+      : {}),
     other: {
       "naver-site-verification": "86499460c0cebd8ea3e67ab9760eb64b80932da7",
     },

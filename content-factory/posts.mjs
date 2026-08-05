@@ -171,6 +171,16 @@ export async function publishPost(slug) {
   await kvSet(postKey(slug), JSON.stringify(post));
   await sadd(K_PUBLISHED, slug);
   await srem(K_DRAFTS, slug);
+
+  // 네이버·빙에 "새 글 나왔다"고 바로 알린다 (로봇이 올 때까지 안 기다린다).
+  //  알리기가 실패해도 발행은 이미 끝난 것이므로 절대 막지 않는다.
+  try {
+    const { pingPost } = await import("./indexnow.mjs");
+    const r = await pingPost(slug, post.channel || "magazine");
+    console.log(`[IndexNow] ${slug} → ${r.ok ? "접수됨" : "실패"} (${r.results.map((x) => x.status).join(", ")})`);
+  } catch (e) {
+    console.log(`[IndexNow] ${slug} 알림 건너뜀:`, e?.message || e);
+  }
   return true;
 }
 

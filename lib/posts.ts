@@ -13,6 +13,7 @@ import fs from "fs";
 import path from "path";
 import { unstable_cache } from "next/cache";
 import { kvGet, kvSet, kvDel, smembers, sadd, srem } from "@/lib/store";
+import { DEFAULT_CHANNEL, type ChannelKey } from "@/lib/channels";
 
 export type PostStatus = "draft" | "queued" | "published" | "archived";
 
@@ -24,6 +25,11 @@ export interface Post {
   date: string; // YYYY-MM-DD
   status: PostStatus;
   body: string;
+  /**
+   * 어느 코너의 글인가 — magazine(기본) / oddsbag / music
+   * 값이 없으면 매거진 글로 본다 (기존 글 전부 해당).
+   */
+  channel?: ChannelKey;
   emoji?: string;
   mood?: string; // AI가 판별한 분위기 (디자인 색에 반영)
   cover?: string; // 커버 이미지 URL (Pexels 등)
@@ -105,6 +111,11 @@ function sortByDateDesc(posts: Post[]): Post[] {
   });
 }
 
+/** 파일로 준비해 둔 글 한 건 찾기 (검수함에 미리 넣어 둔 원고) */
+function findSeedPost(slug: string): Post | undefined {
+  return readSeedPosts().find((p) => p.slug === slug);
+}
+
 // ---- 공개(발행) 조회 ----
 // 파일 시드 + Redis 발행글 병합
 async function loadAllPublished(): Promise<Post[]> {
@@ -139,13 +150,35 @@ export async function getVisiblePosts(): Promise<Post[]> {
   return (await getAllPosts()).filter((p) => !p.hidden);
 }
 
+/** 이 글이 어느 코너 글인가 (값이 없으면 매거진) */
+export const channelKeyOf = (p: Post): ChannelKey => p.channel ?? DEFAULT_CHANNEL;
+
+/**
+ * 코너별 글 목록.
+ * 매거진 목록·카테고리·검색은 매거진 글만 본다 (오즈백/뮤직 글이 섞이지 않게).
+ */
+export async function getPostsByChannel(
+  channel: ChannelKey,
+  count?: number,
+): Promise<Post[]> {
+  const list = (await getVisiblePosts()).filter(
+    (p) => channelKeyOf(p) === channel,
+  );
+  return count ? list.slice(0, count) : list;
+}
+
+/** 매거진(뉴스·이슈) 글만 */
+export async function getMagazinePosts(count?: number): Promise<Post[]> {
+  return getPostsByChannel("magazine", count);
+}
+
 export async function getLatestPosts(count?: number): Promise<Post[]> {
-  const all = await getVisiblePosts();
+  const all = await getMagazinePosts();
   return count ? all.slice(0, count) : all;
 }
 
 export async function getFeaturedPost(): Promise<Post | undefined> {
-  const all = await getVisiblePosts();
+  const all = await getMagazinePosts();
   return all.find((p) => p.featured) ?? all[0];
 }
 
@@ -153,7 +186,7 @@ export async function getPostsByCategory(
   label: string,
   count?: number,
 ): Promise<Post[]> {
-  const list = (await getVisiblePosts()).filter((p) => p.category === label);
+  const list = (await getMagazinePosts()).filter((p) => p.category === label);
   return count ? list.slice(0, count) : list;
 }
 
@@ -163,7 +196,10 @@ export async function getPostBySlug(slug: string): Promise<Post | undefined> {
 }
 
 export async function getRelatedPosts(post: Post, count = 4): Promise<Post[]> {
-  const all = (await getVisiblePosts()).filter((p) => p.slug !== post.slug);
+  // 같은 코너 안에서만 추천한다 (매거진 글 밑에 뮤직 글이 뜨지 않게)
+  const all = (await getVisiblePosts()).filter(
+    (p) => p.slug !== post.slug && channelKeyOf(p) === channelKeyOf(post),
+  );
   const same = all.filter((p) => p.category === post.category);
   const others = all.filter((p) => p.category !== post.category);
   return [...same, ...others].slice(0, count);
@@ -172,7 +208,13 @@ export async function getRelatedPosts(post: Post, count = 4): Promise<Post[]> {
 // ---- 관리자(검수/발행) ----
 export async function getDrafts(): Promise<Post[]> {
   const drafts = await readRedisPosts(K_DRAFTS, MAX_DRAFT_LOAD);
-  return drafts.sort((a, b) =>
+  // 파일로 미리 써 둔 원고(content/posts/*.json 중 status:"draft")도 검수함에 함께 보여준다.
+  // 사장님이 관리자 화면에서 읽어보고 발행 버튼만 누르면 올라간다.
+  const have = new Set(drafts.map((p) => p.slug));
+  const seedDrafts = readSeedPosts().filter(
+    (p) => p.status === "draft" && !have.has(p.slug),
+  );
+  return [...drafts, ...seedDrafts].sort((a, b) =>
     (b.createdAt ?? "") > (a.createdAt ?? "") ? 1 : -1,
   );
 }
@@ -227,8 +269,9 @@ export async function saveDraft(post: Post): Promise<void> {
 // 발행
 export async function publishPost(slug: string): Promise<boolean> {
   const raw = await kvGet(postKey(slug));
-  if (!raw) return false;
-  const post = JSON.parse(raw) as Post;
+  // 파일로 준비해 둔 원고는 아직 DB에 없다 → 그때만 파일에서 가져온다
+  const post = raw ? (JSON.parse(raw) as Post) : findSeedPost(slug);
+  if (!post) return false;
   post.status = "published";
   await kvSet(postKey(slug), JSON.stringify(post));
   await sadd(K_PUBLISHED, slug);
@@ -304,7 +347,60 @@ export async function getPostFresh(slug: string): Promise<Post | undefined> {
   } catch {
     /* Redis 실패 시 캐시로 폴백 */
   }
-  return getPostBySlug(slug);
+  return (await getPostBySlug(slug)) ?? findSeedPost(slug);
+}
+
+/**
+ * 관리자가 직접 쓴 글 저장 (새 글 / 수정 공통).
+ * status 값에 맞춰 소속 목록(발행함·검수함·보관함)까지 정리해 준다.
+ */
+export async function writePost(post: Post): Promise<void> {
+  const slug = post.slug;
+  await kvSet(postKey(slug), JSON.stringify(post));
+  const sets: Record<PostStatus, string> = {
+    published: K_PUBLISHED,
+    draft: K_DRAFTS,
+    queued: K_QUEUE,
+    archived: K_ARCHIVED,
+  };
+  const target = sets[post.status] ?? K_DRAFTS;
+  for (const [status, key] of Object.entries(sets)) {
+    if (key === target) continue;
+    void status;
+    await srem(key, slug);
+  }
+  await sadd(target, slug);
+}
+
+/** 목록에서 숨기기 / 다시 보이기 (글은 그대로 살아 있다) */
+export async function setHidden(slug: string, hidden: boolean): Promise<boolean> {
+  const raw = await kvGet(postKey(slug));
+  if (!raw) return false;
+  const post = JSON.parse(raw) as Post;
+  if (hidden) {
+    post.hidden = true;
+    post.hiddenAt = new Date().toISOString();
+  } else {
+    delete post.hidden;
+    delete post.hiddenAt;
+  }
+  await kvSet(postKey(slug), JSON.stringify(post));
+  return true;
+}
+
+/** 대표글(피처드) 지정 — 한 번에 하나만 */
+export async function setFeatured(slug: string): Promise<boolean> {
+  const all = await getPublishedRaw();
+  let found = false;
+  for (const p of all) {
+    const want = p.slug === slug;
+    if (want) found = true;
+    if (Boolean(p.featured) === want) continue;
+    if (want) p.featured = true;
+    else delete p.featured;
+    await kvSet(postKey(p.slug), JSON.stringify(p));
+  }
+  return found;
 }
 
 // 게시물 완전 삭제

@@ -3,6 +3,7 @@
 //    애초에 어두운 배경이어야 한다. 라이트모드에서도 고급스러운 다크 매거진으로 보인다.
 
 import type { Post } from "@/lib/posts";
+import { postUrl } from "@/lib/channels";
 
 const KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM || "ODDSBAG 오즈백 <onboarding@resend.dev>";
@@ -112,7 +113,7 @@ function featured(p: Post): string {
     ? `<img src="${p.cover}" width="600" height="250" alt="" style="display:block;width:100%;height:250px;object-fit:cover;border:0" />`
     : `<div style="height:140px;${bg("#2f2148")}text-align:center;line-height:140px;font-size:60px">${p.emoji ?? "📰"}</div>`;
   return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:0">
-    <a href="${SITE}/magazine/${p.slug}" style="text-decoration:none;color:inherit">
+    <a href="${SITE}${postUrl(p)}" style="text-decoration:none;color:inherit">
       ${img}
       <div style="padding:26px 28px 30px">
         <div style="font-size:11px;font-weight:900;letter-spacing:2px;color:${YELLOW}">오늘의 픽</div>
@@ -129,7 +130,7 @@ function featured(p: Post): string {
 
 function row(p: Post): string {
   return `<tr><td bgcolor="${CARD}" style="${bg(CARD)}padding:0 28px">
-    <a href="${SITE}/magazine/${p.slug}" style="text-decoration:none;color:inherit;display:block">
+    <a href="${SITE}${postUrl(p)}" style="text-decoration:none;color:inherit;display:block">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${LINE}">
         <tr>
           <td width="106" valign="top" style="padding:19px 14px 19px 0">${thumb(p, 92, 74)}</td>

@@ -1,5 +1,6 @@
 // RSS 피드 — 구글/네이버 색인과 뉴스 리더 유입 경로
 import { getVisiblePosts } from "@/lib/posts";
+import { postUrl } from "@/lib/channels";
 
 export const revalidate = 600;
 
@@ -13,8 +14,8 @@ export async function GET() {
     .map(
       (p) => `  <item>
     <title>${esc(p.title)}</title>
-    <link>${SITE}/magazine/${p.slug}</link>
-    <guid isPermaLink="true">${SITE}/magazine/${p.slug}</guid>
+    <link>${SITE}${postUrl(p)}</link>
+    <guid isPermaLink="true">${SITE}${postUrl(p)}</guid>
     <description>${esc(p.summary)}</description>
     <category>${esc(p.category)}</category>
     <pubDate>${new Date(p.publishedAt ?? p.date).toUTCString()}</pubDate>

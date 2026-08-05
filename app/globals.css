@@ -52,13 +52,14 @@ html {
   margin: 22px 0;
   word-break: keep-all;
 }
-.article-body > p.dropcap::first-letter {
-  float: left;
-  font-size: 74px;
-  line-height: 0.72;
-  font-weight: 900;
-  color: var(--oddsbag-purple);
-  padding: 8px 12px 0 0;
+/* 첫 문단(리드) — 첫 글자를 크게 띄우는 대신, 문단 전체를 살짝 크고 진하게.
+   글머리에서 눈이 자연스럽게 붙되 읽는 흐름은 깨지지 않는다. */
+.article-body > p.lead {
+  font-size: 20.5px;
+  line-height: 1.75;
+  font-weight: 500;
+  color: var(--oddsbag-dark);
+  margin-top: 4px;
 }
 .article-body > p mark,
 .article-body > ul mark {

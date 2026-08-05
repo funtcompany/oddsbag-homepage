@@ -2,12 +2,13 @@ import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/posts";
 import { categories } from "@/lib/categories";
 import { hubs } from "@/lib/hubs";
+import { postUrl } from "@/lib/channels";
 
 const BASE = "https://oddsbag.co.kr";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const staticRoutes = ["", "/magazine", "/link", "/apps"].map((path) => ({
+  const staticRoutes = ["", "/magazine", "/oddsbag", "/music", "/services", "/link"].map((path) => ({
     url: `${BASE}${path}`,
     lastModified: now,
     changeFrequency: "hourly" as const,
@@ -48,7 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 목록에서만 빠지고, 우선순위만 낮춘다.
   const posts = await getAllPosts();
   const postRoutes = posts.map((p, i) => ({
-    url: `${BASE}/magazine/${p.slug}`,
+    url: `${BASE}${postUrl(p)}`,
     lastModified: new Date(p.publishedAt ?? p.date),
     changeFrequency: p.hidden ? ("monthly" as const) : ("daily" as const),
     // 최신 글일수록 크롤러가 먼저 보게 한다

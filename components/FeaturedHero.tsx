@@ -1,11 +1,12 @@
 import Link from "next/link";
 import GenerativeCover from "@/components/GenerativeCover";
+import { postUrl } from "@/lib/channels";
 import type { Post } from "@/lib/posts";
 
 export default function FeaturedHero({ post }: { post: Post }) {
   return (
     <Link
-      href={`/magazine/${post.slug}`}
+      href={postUrl(post)}
       className="group block overflow-hidden rounded-3xl transition hover:shadow-xl hover:shadow-oddsbag-purple/15"
     >
       <GenerativeCover

@@ -7,6 +7,7 @@
 // 메타 API가 그 URL을 직접 가져가므로 별도 업로드/스토리지가 필요 없다.
 
 import type { Post } from "@/lib/posts";
+import { postUrl } from "@/lib/channels";
 import { buildCards, buildCaption, buildHashtags, firstCommentEmoji } from "@/lib/cards";
 import { kvGet, kvSet, sadd, scard } from "@/lib/store";
 
@@ -155,12 +156,12 @@ export async function postToFacebook(post: Post): Promise<string> {
     "",
     post.summary,
     "",
-    `자세히 보기 → ${SITE}/magazine/${post.slug}`,
+    `자세히 보기 → ${SITE}${postUrl(post)}`,
   ].join("\n");
 
   const r = await graph(`/${id}/feed`, {
     message,
-    link: `${SITE}/magazine/${post.slug}`,
+    link: `${SITE}${postUrl(post)}`,
   });
   return r.id as string;
 }

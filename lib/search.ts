@@ -14,8 +14,10 @@ function norm(s: string): string {
 }
 
 // 본문에서 태그를 걷어낸다 (본문에 HTML이 섞여 있어도 글자만 검색되게)
+// 도식 표시([즉답] [Q] 등)는 대괄호만 떼고 내용은 남긴다 → 검색은 되고 미리보기엔 안 보인다.
+const MARK_PREFIX = /^\[(키|경로|핵심|주의|즉답|버전|단계|확인|대안|[QA])\]\s*/gim;
 function plain(s: string): string {
-  return (s ?? "").replace(/<[^>]*>/g, " ");
+  return (s ?? "").replace(/<[^>]*>/g, " ").replace(MARK_PREFIX, "");
 }
 
 export interface SearchHit {

@@ -151,7 +151,12 @@ async function buildReel(post) {
     const mp3 = path.join(work, `n${i}.mp3`);
     await tts(reelSay(cards[i]), mp3);
     cards[i].narr = mp3;
-    cards[i].dur = Math.max(2.6, probe(mp3) + 0.75);
+    // ★ 카드 길이는 프레임 격자(1/FPS초)에 스냅한다.
+    //   영상 클립은 프레임 단위로만 만들어지므로(tpad·concat) 카드 컷 시각은 항상 프레임 단위인데,
+    //   나레이션은 offsets(=dur 누적합, 소수 그대로)에 놓인다. 스냅하지 않으면 그 소수 오차가
+    //   뒤 카드로 갈수록 쌓여, 나레이션이 영상 컷에서 밀린다(실측 14장에 최대 5.5프레임 어긋남).
+    //   스냅하면 dur×FPS가 정수가 되어 컷·나레이션·BGM 길이가 프레임 단위로 정확히 맞는다.
+    cards[i].dur = Math.round(Math.max(2.6, probe(mp3) + 0.75) * FPS) / FPS;
     acc += cards[i].dur;
   }
   // 세로영상 상한(기본 2:59=179초): 쇼츠·릴스·틱톡·네이버클립 모두 3분 이내면 안전.

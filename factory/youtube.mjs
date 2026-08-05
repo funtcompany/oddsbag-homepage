@@ -15,12 +15,14 @@ async function accessToken() {
   return j.access_token;
 }
 
-export async function uploadShort(mp4Path, { title, description, tags, privacy = "public" }) {
+// categoryId 는 채널 성격에 맞춰 넘긴다. 안 넘기면 지금까지처럼 25(뉴스·정치) — 오즈백 기본값.
+//   25 뉴스·정치 (오즈백)   26 노하우·스타일 (메모냅 인테리어 촬영)   22 인물·블로그
+export async function uploadShort(mp4Path, { title, description, tags, privacy = "public", categoryId = "25" }) {
   if (!CID || !CSECRET || !RTOKEN) throw new Error("유튜브 미설정 (토큰 없음)");
   const token = await accessToken();
 
   const meta = {
-    snippet: { title: title.slice(0, 100), description, tags, categoryId: "25" }, // 25 = News & Politics
+    snippet: { title: title.slice(0, 100), description, tags, categoryId },
     status: { privacyStatus: privacy, selfDeclaredMadeForKids: false },
   };
   const boundary = "oddsbag_boundary_" + title.length;

@@ -1,29 +1,25 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PostCard from "@/components/PostCard";
-import AdSlot from "@/components/AdSlot";
-import ReactionBar from "@/components/ReactionBar";
-import CommentSection from "@/components/CommentSection";
-import ViewTracker from "@/components/ViewTracker";
-import { getAllPosts, getPostBySlug, getRelatedPosts } from "@/lib/posts";
+import ArticleView from "@/components/ArticleView";
 import {
-  KeycapFigure,
-  PathFigure,
-  KeyPointFigure,
-  WarnFigure,
-} from "@/components/Figures";
+  getAllPosts,
+  getPostBySlug,
+  getRelatedPosts,
+  channelKeyOf,
+} from "@/lib/posts";
 import { categoryOf } from "@/lib/categories";
-import { getDesign, fxStyle } from "@/lib/design";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { articleJsonLd, articleMetadata } from "@/lib/articleMeta";
+import { postUrl } from "@/lib/channels";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 
 export const revalidate = 60;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
-  return (await getAllPosts()).map((post) => ({ slug: post.slug }));
+  return (await getAllPosts())
+    .filter((p) => channelKeyOf(p) === "magazine")
+    .map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -34,305 +30,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) return { title: "게시물을 찾을 수 없어요" };
-  // 글마다 전용 OG 이미지를 서버에서 생성 (사진이 없어도 타이포 디자인으로)
-  const image = `/api/og/${post.slug}`;
-  const url = `https://oddsbag.co.kr/magazine/${post.slug}`;
-  return {
-    title: post.title,
-    description: post.summary,
-    keywords: [...(post.tags ?? []), post.category, "오즈백", "이슈", "뉴스"],
-    alternates: { canonical: url },
-    openGraph: {
-      type: "article",
-      locale: "ko_KR",
-      siteName: "오즈백 ODDSBAG",
-      title: post.title,
-      description: post.summary,
-      url,
-      publishedTime: post.publishedAt ?? post.date,
-      modifiedTime: post.auditedAt ?? post.publishedAt ?? post.date,
-      section: post.category,
-      tags: post.tags,
-      images: [{ url: image, width: 1200, height: 630, alt: post.title }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: post.title,
-      description: post.summary,
-      images: [image],
-    },
-  };
-}
-
-// 검색엔진이 '뉴스 기사'로 이해하게 하는 구조화 데이터
-function articleJsonLd(post: {
-  slug: string;
-  title: string;
-  summary: string;
-  category: string;
-  date: string;
-  publishedAt?: string;
-  auditedAt?: string;
-  tags?: string[];
-}) {
-  const url = `https://oddsbag.co.kr/magazine/${post.slug}`;
-  return {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "NewsArticle",
-        headline: post.title.slice(0, 110),
-        description: post.summary,
-        image: [`https://oddsbag.co.kr/api/og/${post.slug}`],
-        datePublished: post.publishedAt ?? post.date,
-        dateModified: post.auditedAt ?? post.publishedAt ?? post.date,
-        articleSection: post.category,
-        keywords: (post.tags ?? []).join(", "),
-        inLanguage: "ko-KR",
-        mainEntityOfPage: { "@type": "WebPage", "@id": url },
-        author: { "@type": "Organization", name: "오즈백 ODDSBAG", url: "https://oddsbag.co.kr" },
-        publisher: {
-          "@type": "Organization",
-          name: "오즈백 ODDSBAG",
-          logo: { "@type": "ImageObject", url: "https://oddsbag.co.kr/og.png" },
-        },
-      },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "홈", item: "https://oddsbag.co.kr" },
-          { "@type": "ListItem", position: 2, name: "매거진", item: "https://oddsbag.co.kr/magazine" },
-          { "@type": "ListItem", position: 3, name: post.title, item: url },
-        ],
-      },
-    ],
-  };
-}
-
-// 인라인 강조 (**굵게** → 형광펜)
-function inline(text: string): ReactNode[] {
-  return text.split(/\*\*(.+?)\*\*/g).map((p, i) =>
-    i % 2 === 1 ? <mark key={i}>{p}</mark> : <span key={i}>{p}</span>,
-  );
-}
-
-// ---- 도식 줄 인식 ----
-// 새로 쓰는 글은 [키]/[경로]/[핵심]/[주의] 표시를 붙여서 온다.
-// 예전 글에는 표시가 없으므로, '그 줄 전체가 단축키뿐'인 경우만 조심스럽게 자동 인식한다.
-// (본문 중간에 섞인 단축키까지 건드리면 문장이 깨진다)
-const MODIFIERS =
-  /^(⌘|⌃|⌥|⇧|command|cmd|control|ctrl|option|opt|alt|shift|fn|win|윈도우 ?키|커맨드|컨트롤|옵션|시프트)$/i;
-
-function asKeycap(line: string): string[] | null {
-  const t = line.trim().replace(/\.$/, "");
-  if (t.length > 60 || !t.includes("+")) return null;
-  const parts = t.split("+").map((p) => p.trim());
-  if (parts.length < 2 || parts.some((p) => !p || p.length > 12)) return null;
-  // 적어도 하나는 조합키여야 한다 ("1 + 1 = 2" 같은 문장을 걸러낸다)
-  if (!parts.some((p) => MODIFIERS.test(p))) return null;
-  return parts;
-}
-
-function asPath(line: string): string[] | null {
-  const t = line.trim().replace(/\.$/, "");
-  if (t.length > 90) return null;
-  const sep = t.includes("→") ? "→" : t.includes(" > ") ? " > " : null;
-  if (!sep) return null;
-  const parts = t.split(sep).map((p) => p.trim());
-  if (parts.length < 2 || parts.length > 6) return null;
-  if (parts.some((p) => !p || p.length > 24)) return null;
-  return parts;
-}
-
-// 본문에서 소제목만 뽑아 목차를 만든다 ('오즈백 한 줄 정리'는 뺀다)
-function tableOfContents(body: string) {
-  const out: { id: string; text: string }[] = [];
-  let n = 0;
-  for (const line of body.split("\n")) {
-    if (!line.startsWith("## ")) continue;
-    const text = line.slice(3).trim().replace(/\*\*/g, "");
-    n++;
-    if (text.includes("오즈백 한 줄") || text.includes("한 줄 정리")) continue;
-    out.push({ id: `sec-${n}`, text });
-  }
-  return out;
-}
-
-// 마크다운 본문 → 에디토리얼 요소
-function renderBody(body: string) {
-  const lines = body.split("\n");
-  const out: ReactNode[] = [];
-  let firstPara = true;
-  let i = 0;
-  let key = 0;
-  let headingNo = 0; // 목차 링크와 맞추기 위한 소제목 번호
-  while (i < lines.length) {
-    const line = lines[i];
-    if (line.startsWith("## ")) {
-      const heading = line.slice(3).trim();
-      headingNo++;
-      if (heading.includes("오즈백 한 줄") || heading.includes("한 줄 정리")) {
-        i++;
-        const content: string[] = [];
-        while (i < lines.length && !lines[i].startsWith("## ")) {
-          if (lines[i].trim()) content.push(lines[i].trim());
-          i++;
-        }
-        out.push(
-          <div
-            key={key++}
-            className="relative my-9 overflow-hidden rounded-2xl bg-gradient-to-br from-[#2a1250] to-oddsbag-purple-dark p-7 text-white"
-          >
-            <span
-              className="absolute right-5 top-5 h-8 w-8 bg-oddsbag-yellow"
-              style={{
-                clipPath:
-                  "polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%)",
-              }}
-            />
-            <div className="text-xs font-black tracking-[0.16em] text-oddsbag-yellow">
-              오즈백 한 줄 정리
-            </div>
-            <p className="mt-2.5 text-lg font-extrabold leading-snug" style={{ color: "#fff" }}>
-              {content.join(" ").replace(/\*\*/g, "")}
-            </p>
-          </div>,
-        );
-        continue;
-      }
-      out.push(
-        <h2
-          key={key++}
-          id={`sec-${headingNo}`}
-          className="mt-12 flex scroll-mt-28 items-center gap-3 text-[26px] font-black leading-snug text-oddsbag-dark"
-          style={{ wordBreak: "keep-all" }}
-        >
-          <span className="mt-0.5 h-7 w-3 shrink-0 rounded bg-oddsbag-purple" />
-          {heading.replace(/\*\*/g, "")}
-        </h2>,
-      );
-      i++;
-      continue;
-    }
-    // 마크다운 표 — | 항목 | 설명 | / |---|---| / | 내용 | 내용 |
-    // 긴 정보성 글에서 조건·비교를 한눈에 보여주는 데 쓴다.
-    if (
-      line.trim().startsWith("|") &&
-      lines[i + 1] &&
-      /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])
-    ) {
-      const cells = (row: string) =>
-        row
-          .trim()
-          .replace(/^\||\|$/g, "")
-          .split("|")
-          .map((c) => c.trim());
-      const head = cells(line);
-      i += 2; // 제목 줄 + 구분선
-      const rows: string[][] = [];
-      while (i < lines.length && lines[i].trim().startsWith("|")) {
-        rows.push(cells(lines[i]));
-        i++;
-      }
-      out.push(
-        // 폰에서 표가 넘치면 페이지 전체가 옆으로 밀린다 → 표만 따로 스크롤시킨다
-        <div key={key++} className="my-7 -mx-1 overflow-x-auto">
-          <table className="w-full min-w-[420px] border-collapse text-[16px]">
-            <thead>
-              <tr>
-                {head.map((h, j) => (
-                  <th
-                    key={j}
-                    className="border-b-2 border-oddsbag-purple bg-oddsbag-light-gray/60 px-3 py-2.5 text-left font-black text-oddsbag-dark"
-                    style={{ wordBreak: "keep-all" }}
-                  >
-                    {inline(h)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, j) => (
-                <tr key={j} className="border-b border-oddsbag-light-gray">
-                  {r.map((c, k) => (
-                    <td
-                      key={k}
-                      className="px-3 py-2.5 align-top leading-relaxed text-oddsbag-dark/90"
-                      style={{ wordBreak: "keep-all" }}
-                    >
-                      {inline(c)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>,
-      );
-      continue;
-    }
-    if (line.startsWith("- ")) {
-      const items: string[] = [];
-      while (i < lines.length && lines[i].startsWith("- ")) {
-        items.push(lines[i].slice(2).trim());
-        i++;
-      }
-      out.push(
-        <ul key={key++} className="my-5 flex flex-col gap-3">
-          {items.map((it, j) => (
-            <li key={j} className="flex items-start gap-3.5 text-[18.5px] leading-relaxed text-oddsbag-dark/90" style={{ wordBreak: "keep-all" }}>
-              <span className="mt-2.5 h-2 w-2 shrink-0 rounded bg-oddsbag-yellow ring-4 ring-oddsbag-yellow/20" />
-              <span>{inline(it)}</span>
-            </li>
-          ))}
-        </ul>,
-      );
-      continue;
-    }
-    if (line.trim() === "") {
-      i++;
-      continue;
-    }
-
-    // ---- 도식 ----
-    const marked = line.trim().match(/^\[(키|경로|핵심|주의)\]\s*(.+)$/);
-    const rest = marked ? marked[2].trim() : line.trim();
-
-    if (marked?.[1] === "핵심") {
-      out.push(<KeyPointFigure key={key++}>{inline(rest)}</KeyPointFigure>);
-      i++;
-      continue;
-    }
-    if (marked?.[1] === "주의") {
-      out.push(<WarnFigure key={key++}>{inline(rest)}</WarnFigure>);
-      i++;
-      continue;
-    }
-    // [키]/[경로] 표시가 있으면 우선 그걸로, 없으면 줄 모양을 보고 판단
-    const keys = marked?.[1] === "키" ? rest.split("+").map((p) => p.trim()) : asKeycap(rest);
-    if (keys && keys.length >= 2) {
-      out.push(<KeycapFigure key={key++} keys={keys} />);
-      i++;
-      continue;
-    }
-    const path = marked?.[1] === "경로"
-      ? rest.split(/→|>/).map((p) => p.trim()).filter(Boolean)
-      : asPath(rest);
-    if (path && path.length >= 2) {
-      out.push(<PathFigure key={key++} steps={path} />);
-      i++;
-      continue;
-    }
-
-    out.push(
-      <p key={key++} className={firstPara ? "dropcap" : undefined}>
-        {inline(rest)}
-      </p>,
-    );
-    firstPara = false;
-    i++;
-  }
-  return out;
+  return articleMetadata(post);
 }
 
 export default async function PostPage({
@@ -343,162 +41,25 @@ export default async function PostPage({
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) notFound();
+  // 다른 코너 글이면 그 코너 주소로 보내준다 (같은 글이 주소 두 개로 갈리지 않게)
+  if (channelKeyOf(post) !== "magazine") redirect(postUrl(post));
 
-  const cat = categoryOf(post.category);
   const related = await getRelatedPosts(post, 4);
-  const d = getDesign(post);
-  const hasPhoto = Boolean(post.cover);
-  const toc = tableOfContents(post.body);
-  // 사진 위엔 흰 글자 + 그림자, 아니면 디자인 엔진 색
-  const headTitle = hasPhoto ? "#fff" : d.title;
-  const headCat = hasPhoto ? d.accent : d.catColor;
-  const headSub = hasPhoto ? "rgba(255,255,255,.8)" : d.sub;
-  const headShadow =
-    hasPhoto || d.light ? { textShadow: "0 3px 24px rgba(0,0,0,.45)" } : {};
+  const cat = categoryOf(post.category);
 
   return (
     <>
-      <ViewTracker slug={post.slug} />
-      {/* 검색엔진용 구조화 데이터 (구글 뉴스 노출) */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(post)) }}
       />
       <Header />
-      <main className="flex-1">
-        {/* 헤더 — 사진 있으면 사진+스크림, 없으면 생성형 배경 */}
-        <header className="relative overflow-hidden" style={{ background: d.bg }}>
-          {hasPhoto ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={post.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              <div
-                className="absolute inset-0"
-                style={{ background: "linear-gradient(to top, rgba(10,6,20,.93) 0%, rgba(10,6,20,.65) 45%, rgba(10,6,20,.3) 100%)" }}
-              />
-            </>
-          ) : (
-            <div className="absolute inset-0" style={fxStyle(d.fx, d.accent)} />
-          )}
-          <div className="relative mx-auto max-w-2xl px-4 py-14 sm:py-20">
-            <Link
-              href={`/category/${cat.slug}`}
-              className="text-[15px] font-bold hover:underline"
-              style={{ color: headTitle, opacity: 0.85 }}
-            >
-              ← {cat.label}
-            </Link>
-            <div
-              className="mt-4 text-[14px] font-black tracking-[0.1em]"
-              style={{ color: headCat, ...headShadow }}
-            >
-              {d.emoji} {post.category}
-            </div>
-            <h1
-              className="mt-3 text-[32px] font-black leading-[1.15] sm:text-[48px]"
-              style={{ color: headTitle, letterSpacing: "-0.03em", wordBreak: "keep-all", ...headShadow }}
-            >
-              {post.title}
-            </h1>
-            <p
-              className="mt-5 max-w-[60ch] text-[17px] font-medium leading-relaxed sm:text-[19px]"
-              style={{ color: headSub }}
-            >
-              {post.summary}
-            </p>
-            <div className="mt-6 flex items-center gap-2.5 text-[14px] font-semibold" style={{ color: headSub }}>
-              <span>{post.date}</span>
-              {post.readMinutes && (
-                <>
-                  <span className="opacity-40">·</span>
-                  <span>{post.readMinutes}분 읽기</span>
-                </>
-              )}
-            </div>
-            {post.imageCredit && (
-              <div className="mt-4 text-[11px]" style={{ color: headSub, opacity: 0.6 }}>
-                {post.imageCredit}
-              </div>
-            )}
-          </div>
-        </header>
-
-        <article className="mx-auto max-w-2xl px-4 py-9">
-          {/* 목차 — 소제목이 4개 이상인 긴 글에만. 짧은 글엔 오히려 방해가 된다. */}
-          {toc.length >= 4 && (
-            <nav
-              aria-label="목차"
-              className="mb-9 rounded-2xl border border-oddsbag-light-gray bg-oddsbag-light-gray/40 px-5 py-4"
-            >
-              <p className="text-xs font-black tracking-[0.14em] text-oddsbag-purple">
-                이 글에서 다루는 것
-              </p>
-              <ol className="mt-3 space-y-2">
-                {toc.map((t, i) => (
-                  <li key={t.id} className="flex gap-2.5 text-[15px] leading-snug">
-                    <span className="shrink-0 font-black text-oddsbag-purple/60">
-                      {i + 1}
-                    </span>
-                    <a
-                      href={`#${t.id}`}
-                      className="text-oddsbag-dark/85 transition hover:text-oddsbag-purple hover:underline"
-                      style={{ wordBreak: "keep-all" }}
-                    >
-                      {t.text}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          )}
-          <div className="article-body mt-1">{renderBody(post.body)}</div>
-
-          <div className="my-9">
-            <AdSlot />
-          </div>
-
-          <ReactionBar slug={post.slug} />
-
-          {post.sources && post.sources.length > 0 && (
-            <div className="mt-6 rounded-xl bg-oddsbag-light-gray/70 p-4">
-              <p className="text-xs font-bold text-oddsbag-gray">출처</p>
-              <ul className="mt-2 space-y-1">
-                {post.sources.map((s) => (
-                  <li key={s.url}>
-                    <a
-                      href={s.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-oddsbag-purple hover:underline"
-                    >
-                      {s.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="mt-8">
-            <CommentSection slug={post.slug} />
-          </div>
-        </article>
-
-        {related.length > 0 && (
-          <div className="border-t border-oddsbag-light-gray bg-oddsbag-light-gray/40">
-            <div className="mx-auto max-w-6xl px-4 py-10">
-              <h2 className="mb-4 text-xl font-black text-oddsbag-dark">
-                이런 글도 있어요
-              </h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {related.map((p) => (
-                  <PostCard key={p.slug} post={p} />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+      <ArticleView
+        post={post}
+        related={related}
+        backHref={`/category/${cat.slug}`}
+        backLabel={cat.label}
+      />
       <Footer />
     </>
   );

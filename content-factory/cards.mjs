@@ -15,6 +15,11 @@
 const MAX_BODY = 180; // 정보를 담아야 하므로 조금 넉넉히 (가독성 한계 안에서)
 const MAX_CARDS = 10; // 인스타 그래프 API 캐러셀 상한
 
+// 본문 도식 표시 — lib/guide.ts 와 반드시 같은 목록이어야 한다.
+//  (여기서 안 빼면 인스타 카드에 "[Q] …" 처럼 대괄호가 그대로 찍혀 나간다)
+const MARK_LINE = /^\[(키|경로|핵심|주의|즉답|버전|단계|확인|대안|[QA])\]\s*(.+)$/i;
+const isMarkLine = (line) => MARK_LINE.test(String(line ?? "").trim());
+
 // 큰 정밀 숫자를 읽기 좋게 반올림: "1463만2347점" → "약 1,463만 점" (눈으로도, TTS로도 편하게)
 export function humanizeNum(s) {
   return String(s)
@@ -53,9 +58,9 @@ function parseSections(body) {
       if (cur) out.push(cur);
       cur = { heading: line.slice(3).trim(), text: "" };
     } else if (cur) {
-      // 도식 표시([키]/[경로]/[핵심]/[주의])와 표 줄은 카드 본문에서 뺀다.
+      // 도식 표시([키]/[경로]/[핵심]/[주의] + 가이드 6종)와 표 줄은 카드 본문에서 뺀다.
       // 홈페이지는 이걸 그림으로 세우고, 여기서는 글자로 새어나오면 안 된다.
-      if (!/^\[(키|경로|핵심|주의)\]/.test(line) && !line.startsWith("|")) {
+      if (!isMarkLine(line) && !line.startsWith("|")) {
         cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
       }
     }

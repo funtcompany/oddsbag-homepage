@@ -15,10 +15,17 @@ export default function GenerativeCover({
   post,
   variant = "card",
   className = "",
+  showTitle = true,
+  watermark = false,
 }: {
   post: Post;
   variant?: Variant;
   className?: string;
+  /** 커버 안에 제목을 그릴지. 카드에서는 아래 글자칸에 제목이 또 있어 끈다. */
+  showTitle?: boolean;
+  /** @oddsbag_official 표시. 인스타 내보내기용이라 웹 화면에서는 기본으로 끈다.
+   *  (인스타·OG 이미지는 /api/card, /api/og 가 따로 만들므로 영향 없다) */
+  watermark?: boolean;
 }) {
   const d = getDesign(post);
   const v = V[variant];
@@ -52,6 +59,17 @@ export default function GenerativeCover({
         style={{
           background:
             "linear-gradient(to top, rgba(10,6,20,.92) 0%, rgba(10,6,20,.55) 42%, rgba(10,6,20,.12) 100%)",
+        }}
+      />,
+      // 위쪽에도 얕게 한 겹 더.
+      //  흰 종이·밝은 하늘 사진에서는 위쪽 어둠이 0.12뿐이라
+      //  흰 브랜드 마크와 카테고리가 배경에 녹아 안 보였다.
+      <div
+        key="scrim-top"
+        className="pointer-events-none absolute inset-0 z-[1]"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgba(10,6,20,.45) 0%, rgba(10,6,20,0) 22%)",
         }}
       />,
     );
@@ -105,12 +123,30 @@ export default function GenerativeCover({
     ...underline,
   };
 
-  const cat = (
+  // 사진 위에서는 글자만 두면 밝은 사진에 묻힌다 → 배경 있는 알약(칩)으로.
+  //  어떤 사진 위에서도 읽힌다.
+  const cat = hasPhoto ? (
+    <span
+      style={{
+        display: "inline-block",
+        marginBottom: 7,
+        padding: "3px 9px",
+        borderRadius: 999,
+        background: "rgba(0,0,0,.55)",
+        color: catColor,
+        fontSize: v.cat,
+        fontWeight: 900,
+        letterSpacing: "0.08em",
+      }}
+    >
+      {post.category}
+    </span>
+  ) : (
     <span style={{ color: catColor, fontSize: v.cat, fontWeight: 900, letterSpacing: "0.1em", display: "block", marginBottom: 7, ...shadow }}>
       {post.category}
     </span>
   );
-  const titleEl = <h3 style={titleStyle}>{post.title}</h3>;
+  const titleEl = showTitle ? <h3 style={titleStyle}>{post.title}</h3> : null;
 
   // 히어로는 항상 하단 배치 + 요약까지 (여백을 정보로 채움)
   if (variant === "hero") {
@@ -138,9 +174,11 @@ export default function GenerativeCover({
             )}
           </div>
         </div>
-        <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
-          @oddsbag_official
-        </span>
+        {watermark && (
+          <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
+            @oddsbag_official
+          </span>
+        )}
       </div>
     );
   }
@@ -149,7 +187,23 @@ export default function GenerativeCover({
   const layout = hasPhoto ? "bottom" : d.layout;
 
   let body;
-  if (layout === "center")
+  // 제목을 커버에 안 그리는 카드 — 시각 요소만 남긴다.
+  //  사진이 있으면 사진이 주인공이고, 없으면 큰 이모지가 주인공이다.
+  //  배경 무늬를 7종 랜덤으로 돌리는 대신 이모지 하나로 고정하는 편이 훨씬 깔끔하다.
+  if (!showTitle)
+    body = (
+      <div className="flex flex-1 flex-col justify-end">
+        {!hasPhoto && (
+          <div className="flex flex-1 items-center justify-center">
+            <span style={{ fontSize: variant === "card" ? 62 : 110, filter: "drop-shadow(0 4px 14px rgba(0,0,0,.28))" }}>
+              {d.emoji}
+            </span>
+          </div>
+        )}
+        <div>{cat}</div>
+      </div>
+    );
+  else if (layout === "center")
     body = <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">{cat}{titleEl}</div>;
   else if (layout === "topband")
     body = <div style={{ marginTop: 14 }}>{cat}{titleEl}</div>;
@@ -173,9 +227,11 @@ export default function GenerativeCover({
         </div>
         {body}
       </div>
-      <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: variant === "card" ? 10 : 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
-        @oddsbag_official
-      </span>
+      {watermark && (
+        <span className="absolute z-[4] font-extrabold" style={{ right: 12, bottom: 11, fontSize: variant === "card" ? 10 : 13, color: wmColor, opacity: 0.75, letterSpacing: "0.03em", textShadow: isLight ? "0 1px 6px rgba(0,0,0,.5)" : undefined }}>
+          @oddsbag_official
+        </span>
+      )}
     </div>
   );
 }
