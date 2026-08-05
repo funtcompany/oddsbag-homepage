@@ -95,6 +95,7 @@ export async function runPublish() {
   }
 
   // SNS 게시 (캐시 갱신 후에 해야 인스타가 카드 이미지를 가져갈 수 있다)
+  // 어느 채널에 올릴지는 social.mjs 가 정한다 (인스타=가이드만 / 페북=전부)
   if (socialEnabled) {
     for (const post of released) {
       try {

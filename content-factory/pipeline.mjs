@@ -7,7 +7,7 @@
 // 원칙: 속도보다 신뢰. 가짜뉴스 위험이 조금이라도 있으면 절대 자동 발행하지 않는다.
 
 import { collectAllIssues } from "./aggregate.mjs";
-import { pickEvergreenIssues } from "./evergreen.mjs";
+import { pickEvergreenIssues, remainingEvergreen } from "./evergreen.mjs";
 import { generateDraft } from "./ai.mjs";
 import { reviewDraft, reviseDraft } from "./quality.mjs";
 import { getLessons, recordReview } from "./learn.mjs";
@@ -26,7 +26,7 @@ import { makeIllustration, illustrateEnabled } from "./illustrate.mjs";
 import { resolveSourceText } from "./article.mjs";
 import { kvGet, kvSet } from "./store.mjs";
 
-const K_SEEN = "issues:seen";
+export const K_SEEN = "issues:seen";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const issueKey = (t) => t.replace(/\s+/g, "").slice(0, 30);
@@ -66,13 +66,18 @@ function allowedByNow() {
   return Math.min(WRITE_DAILY_CAP, WRITE_SLOTS_KST.filter((s) => h >= s).length);
 }
 
-// 오늘(한국 시간) 이미 쓴 글 수 — 발행분 + 대기열 둘 다 센다
+// 오늘(한국 시간) 이미 쓴 뉴스 편수 — 발행분 + 대기열 둘 다 센다.
+//
+// 【꿀팁을 빼고 세는 이유】 이 숫자는 '뉴스 슬롯(아침·저녁) 예산'을 계산하는 데만 쓴다.
+// 가이드(꿀팁)는 새벽 전용 회차가 따로 만들고, 그건 뉴스 슬롯과 무관하다.
+// 같이 세면 새벽에 가이드 한 편이 나간 것만으로 아침 슬롯이 통째로 막혀버린다.
+// 가이드 편수는 TIPS_PER_DAY 가 따로 막고 있다.
 async function writtenToday() {
   const day = kstDay();
   try {
     const [published, queued] = await Promise.all([getPublishedRaw(), getQueued()]);
     return [...published, ...queued].filter(
-      (p) => kstOf(p.createdAt ?? p.publishedAt ?? p.date) === day,
+      (p) => kstOf(p.createdAt ?? p.publishedAt ?? p.date) === day && p.category !== "꿀팁",
     ).length;
   } catch {
     return 0; // 못 세면 막지 않는다
@@ -199,6 +204,13 @@ async function recentCategoryCounts(window = SHARE_WINDOW) {
 export async function runCollection(opts) {
   const limit = Math.min(Math.max(opts.limit ?? 5, 1), 12);
   const autoPublish = opts.autoPublish !== false;
+  // 【가이드 전용 회차】 뉴스와 다른 시간대에 따로 돈다.
+  //   뉴스는 오늘 안 나가면 죽지만 가이드는 다음 주에 나가도 값이 같다.
+  //   그래서 뉴스 슬롯(아침·저녁)을 건드리지 않고 새벽에 가이드만 만든다.
+  //   · 뉴스 수집(외부 API)을 아예 하지 않는다 — 한도도 시간도 아낀다
+  //   · 뉴스용 하루 상한·시간대 슬롯의 적용을 받지 않는다 (새벽엔 뉴스 슬롯이 0이라 그냥 막힌다)
+  //   · 분야 비중 제한도 적용하지 않는다 (어차피 꿀팁만 만드는 회차다)
+  const guideOnly = opts.guideOnly ?? process.env.GUIDE_ONLY === "1";
   // 크론이 시간 초과로 죽지 않게 — 남은 건 다음 회차(30분 뒤)가 이어받는다
   const deadline = Date.now() + (opts.budgetMs ?? 540_000);
 
@@ -214,9 +226,10 @@ export async function runCollection(opts) {
 
   // ---- 하루 3편 한도 먼저 확인 ----
   // 수집(외부 API 호출)보다 앞에서 막아야 한도 소진 없이 그냥 끝난다.
+  // (가이드 전용 회차는 뉴스 슬롯과 무관하게 돌므로 이 한도를 쓰지 않는다)
   const wroteToday = await writtenToday();
-  const allowedNow = allowedByNow();
-  const dailyRoom = allowedNow - wroteToday;
+  const allowedNow = guideOnly ? Infinity : allowedByNow();
+  const dailyRoom = guideOnly ? limit : allowedNow - wroteToday;
   if (dailyRoom <= 0) {
     console.log(
       `오늘 ${wroteToday}편 작성 — 현재 시간대 상한(${allowedNow}편, 하루 ${WRITE_DAILY_CAP}편) 도달. 다음 시간대에 이어씀`,
@@ -225,7 +238,8 @@ export async function runCollection(opts) {
     return out;
   }
 
-  const issues = await collectAllIssues(opts.sources);
+  // 가이드 전용 회차는 뉴스를 수집하지 않는다 (외부 API를 아예 안 부른다)
+  const issues = guideOnly ? [] : await collectAllIssues(opts.sources);
   out.scanned = issues.length;
   const seen = new Set(await smembers(K_SEEN));
   const fresh = issues.filter((i) => !seen.has(issueKey(i.title)));
@@ -261,7 +275,9 @@ export async function runCollection(opts) {
   // 꿀팁은 하루 1건까지만 만든다. (매시간 돌면서 계속 만들어 피드를 도배했다)
   const tipsToday = await countTipsToday();
   const tipsCapped = tipsToday >= TIPS_PER_DAY;
-  const tipsOver = tipsCapped || isOverShare("꿀팁", recentCounts, recentTotal);
+  // 가이드 전용 회차는 분야 비중 제한을 받지 않는다 — 이 회차의 목적이 꿀팁을 만드는 것이다.
+  // (하루 상한 TIPS_PER_DAY 는 그대로 지킨다. 그게 도배를 막는 진짜 장치다)
+  const tipsOver = tipsCapped || (!guideOnly && isOverShare("꿀팁", recentCounts, recentTotal));
   const everWant = tipsOver ? 0 : Math.max(1, cap - ordered.length);
   const ever = everWant > 0 ? pickEvergreenIssues(seen, everWant) : [];
   if (ever.length) {
@@ -272,6 +288,16 @@ export async function runCollection(opts) {
     console.log(`꿀팁 오늘 ${tipsToday}건 — 하루 상한(${TIPS_PER_DAY})에 도달, 뉴스만 진행`);
   } else if (tipsOver) {
     console.log("꿀팁 비중이 목표(55%)를 넘어 이번 회차는 뉴스 위주로 진행");
+  }
+
+  // 가이드 전용 회차인데 만들 주제가 없으면 여기서 끝낸다 (뉴스로 대체하지 않는다)
+  if (guideOnly && !ordered.length) {
+    const why = tipsCapped
+      ? `꿀팁 오늘 ${tipsToday}건 — 하루 상한(${TIPS_PER_DAY}) 도달`
+      : `남은 가이드 주제 ${remainingEvergreen(seen)}개 — 주제 보충이 필요합니다`;
+    console.log(`가이드 전용 회차: ${why}`);
+    out.errors.push(why);
+    return out;
   }
 
   // 이번 회차에 쓴 분야를 세어, 한 회차가 한 분야로 채워지는 것도 막는다

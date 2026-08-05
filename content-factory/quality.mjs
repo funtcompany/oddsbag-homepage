@@ -10,7 +10,7 @@
 
 import { pick, hasBrokenChars } from "./ai.mjs";
 import { ask } from "./llm.mjs";
-import { machineVerify } from "./verify.mjs";
+import { machineVerify, verifyGuideTerms } from "./verify.mjs";
 
 const PASS_SCORE = 78; // 이 이상 + 위험 없음 → 자동 발행
 const HOLD_SCORE = 60; // 이 미만 → 바로 검수함
@@ -164,12 +164,87 @@ function promiseIssue(title, summary, body) {
   return `제목/요약이 ${promised}개를 약속했는데 본문 소제목(## )은 ${delivered}개뿐 — 본문 소제목을 ${promised}개로 맞추거나, 제목·요약의 개수를 실제 담긴 ${delivered}개로 낮출 것 (카드뉴스·쇼츠가 소제목 단위로 잘려 뒤 항목이 사라진다)`;
 }
 
+// ================= 가이드(꿀팁) 형식 게이트 (기계, AI 없이) =================
+// 왜: 가이드는 검색으로 들어온 사람이 첫 화면에서 답을 얻고 나가야 한다.
+//     · [즉답]이 없으면 글자 벽이 되고, 구글이 '추천 스니펫'으로 뽑아 갈 것이 없다.
+//     · [버전]이 없으면 "이거 옛날 얘기 아냐?"가 남는다.
+//     · [Q]/[A] 짝이 깨지면 구글 FAQ 접힘 표시(FAQPage)가 아예 안 붙는다.
+//     · 짧으면 검색 순위도 광고 심사도 통과 못 한다.
+// ※ lib/quality.ts 와 항상 같은 규칙이어야 한다 (쌍둥이 파일).
+const GUIDE_MIN_BODY = 1500; // 공백 포함
+
+/** 이 글이 가이드(꿀팁)인가 — 분야가 꿀팁이거나, 본문이 가이드 표시로 시작하면 */
+export function isGuideDraft(draft) {
+  if (draft?.category === "꿀팁") return true;
+  return /^\s*\[(즉답|버전|단계)\]/m.test(String(draft?.body ?? ""));
+}
+
+/** 가이드 형식 검사 — 고쳐야 할 것들을 사람 말로 돌려준다 (빈 배열이면 통과) */
+export function guideFormatIssues(draft) {
+  const body = String(draft?.body ?? "");
+  const lines = body.split("\n").map((l) => l.trim());
+  const issues = [];
+
+  const count = (mark) => lines.filter((l) => new RegExp(`^\\[${mark}\\]\\s*\\S`).test(l)).length;
+
+  // 1) 즉답 — 글 맨 위에 1개
+  const answers = count("즉답");
+  if (answers === 0) {
+    issues.push(
+      "글 맨 첫 줄에 '[즉답] …' 한 줄을 넣을 것 — 검색해서 온 사람이 스크롤 없이 답을 얻어야 한다 (60자 이내)",
+    );
+  } else {
+    const firstReal = lines.filter(Boolean)[0] ?? "";
+    if (!firstReal.startsWith("[즉답]"))
+      issues.push("[즉답] 줄을 글 맨 위로 올릴 것 — 첫 화면에 답이 보여야 한다");
+    if (answers > 1) issues.push("[즉답]은 글 전체에 1개만 둘 것");
+  }
+
+  // 2) 버전 — 언제·무엇 기준인지
+  if (count("버전") === 0) {
+    issues.push(
+      "[즉답] 바로 아래에 '[버전] macOS 15 기준 · 2026년 8월 확인' 처럼 기준 버전·확인 시점을 한 줄 넣을 것",
+    );
+  }
+
+  // 3) Q/A — [Q] 바로 다음 줄이 [A]여야 짝이 된다
+  let pairs = 0;
+  let broken = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\[Q\]\s*\S/.test(lines[i])) continue;
+    let j = i + 1;
+    while (j < lines.length && lines[j] === "") j++;
+    if (j < lines.length && /^\[A\]\s*\S/.test(lines[j])) pairs++;
+    else broken++;
+  }
+  const lonelyA = lines.filter((l) => /^\[A\]\s*\S/.test(l)).length - pairs;
+  if (broken > 0 || lonelyA > 0)
+    issues.push(`[Q]와 [A]의 짝이 맞지 않는다(${broken + Math.max(0, lonelyA)}건) — [Q] 바로 다음 줄에 반드시 [A]를 둘 것`);
+  else if (pairs < 3)
+    issues.push(`자주 묻는 질문을 [Q]/[A] 짝으로 3~5쌍 넣을 것 (지금 ${pairs}쌍) — 사람들이 실제로 검색창에 치는 문장으로`);
+
+  // 4) 따라하기 순서 — 있다면 3줄 이상이어야 순서로 읽힌다
+  const steps = count("단계");
+  if (steps > 0 && steps < 3) issues.push(`[단계] 줄이 ${steps}개뿐 — 따라할 순서는 3~7줄로 나눌 것`);
+
+  // 5) 분량
+  if (body.length < GUIDE_MIN_BODY)
+    issues.push(`본문이 ${body.length}자 — 가이드는 ${GUIDE_MIN_BODY}자 이상이어야 한다. 없는 사실을 지어내지 말고, 있는 내용을 더 자세히 풀어 쓸 것`);
+
+  return issues;
+}
+
 export async function reviewDraft(
   draft,
   source,
 ) {
   // --- 1단계: 기계 대조 (AI 없이, 문자 그대로) ---
   const machine = machineVerify(draft, source.context, source.title);
+
+  // 가이드(꿀팁)는 검사 항목이 다르다 — 단축키·메뉴 경로 대조 + 형식 게이트
+  const guide = isGuideDraft(draft);
+  const terms = guide ? verifyGuideTerms(draft.body, source.context) : null;
+  const formatIssues = guide ? guideFormatIssues(draft) : [];
 
   const factUser = `[원문 기사 — 오직 이것만이 사실의 근거다]
 수집처: ${source.from}
@@ -227,9 +302,23 @@ ${draft.body}
   }
   if (risk.flags.length) issues.push(...risk.flags.map((f) => `[위험] ${f}`));
 
+  // 가이드 전용 대조 — 근거에 없는 단축키·메뉴 경로는 뉴스의 '날조 인용문'과 같은 무게로 본다.
+  // 독자가 그대로 따라 했는데 그 메뉴가 없으면 그 자리에서 신뢰가 끝난다.
+  if (terms && !terms.ok) {
+    fakeRisk = worst(fakeRisk, "medium");
+    score = Math.min(score, 58);
+    if (terms.unknownKeys.length)
+      issues.unshift(`근거에 없는 단축키를 삭제할 것(다른 키로 바꾸지 말 것): ${terms.unknownKeys.slice(0, 3).join(" / ")}`);
+    if (terms.unknownPaths.length)
+      issues.unshift(`근거에 없는 메뉴 경로를 삭제할 것: ${terms.unknownPaths[0]}`);
+  }
+
   // 개수 약속 ↔ 본문 소제목 일치 (기계 대조) — 어긋나면 지적에 얹어 개선을 유도한다
   const pIssue = promiseIssue(draft.title, draft.summary, draft.body);
   if (pIssue) issues.unshift(pIssue);
+
+  // 가이드 형식 게이트 — 지적으로 얹는다 (발행 여부는 아래에서 판단)
+  if (formatIssues.length) issues.push(...formatIssues);
 
   let verdict;
   if (fakeRisk === "high") verdict = "hold";
@@ -241,6 +330,10 @@ ${draft.body}
   // 약속한 개수만큼 본문이 없으면 그대로 발행하지 않는다 — 개선(revise) 후 재심사로 돌린다
   if (pIssue && verdict === "publish") verdict = "revise";
 
+  // 가이드 형식이 어긋나면 그대로 발행하지 않는다 — 한 번 고쳐 쓰고 다시 본다.
+  // (여기서 막지 않으면 즉답도 FAQ도 없는 글자 벽이 그대로 나가고, 그러면 붙일 구조화 데이터가 없다)
+  if (formatIssues.length && verdict === "publish") verdict = "revise";
+
   return {
     score,
     fakeRisk,
@@ -250,6 +343,7 @@ ${draft.body}
     scores: rv.scores,
     machine,
     risk,
+    guide: guide ? { terms, formatIssues } : undefined,
   };
 }
 
@@ -262,6 +356,17 @@ const REVISE_SYSTEM = `너는 '오즈백' 매거진 에디터다. 편집장의 �
 - 원래 글의 소제목 개수와 분량을 그대로 유지한다. 지적된 곳만 고치고, 멀쩡한 절을 삭제해 글을 줄이지 마라.
   (꿀팁 같은 긴 정보성 글을 짧게 줄이면 검색 유입과 광고 심사에서 손해다)
 - 표(| 항목 | 설명 |)가 있으면 형식을 깨지 말고 그대로 둔다.
+
+【가이드(꿀팁) 글이면 도식 표시를 지켜라 — 한 줄에 하나씩, 그 줄에 다른 문장을 붙이지 않는다】
+  [즉답] 답 한두 문장 (글 맨 첫 줄, 1개, 60자 이내)
+  [버전] macOS 15 세쿼이아 기준 · 2026년 8월 확인 (즉답 바로 밑, 1개)
+  [단계] 시스템 설정을 연다 (연속 3~7줄. 번호는 쓰지 마라 — 홈페이지가 매긴다)
+  [확인] 케이블을 다른 포트에 꽂아봤다 (연속 2~6줄)
+  [Q] 질문 한 줄 ← 바로 다음 줄에 반드시 [A] 답. 글 끝에 3~5쌍을 모은다
+  [대안] 이 방법이 안 될 때의 차선책 / [핵심] 기억할 한 줄 / [주의] 조심할 점
+  [키] Command + Control + Q / [경로] 시스템 설정 > 키보드 > 단축키
+  ※ [키]와 [경로]에 쓰는 글자는 원문(근거)에 그대로 있는 것만 쓴다. 없으면 그 줄을 통째로 뺀다.
+  ※ '지적사항'이 [즉답]·[버전]·[Q]/[A]를 넣으라고 하면, 원문에 있는 내용만으로 만들어 넣어라.
 
 출력은 반드시 아래 형식 그대로. 다른 말 금지.
 <title>제목</title>
@@ -350,9 +455,14 @@ ${post.body}
   );
   const { score, fakeRisk } = rv;
 
+  // 이미 발행된 가이드도 형식 게이트를 통과해야 한다.
+  // 여기서 걸리면 내리는 게 아니라 '고쳐서 발행 유지'(revise)다 — 옛 가이드를 시간이 지나며 끌어올린다.
+  const gIssues = isGuideDraft(post) ? guideFormatIssues(post) : [];
+  if (gIssues.length) rv.issues = [...(rv.issues ?? []), ...gIssues].slice(0, 8);
+
   let verdict;
   if (fakeRisk === "high") verdict = "hold";
-  else if (fakeRisk === "medium" || score < 70) verdict = "revise";
+  else if (fakeRisk === "medium" || score < 70 || gIssues.length) verdict = "revise";
   else verdict = "publish";
 
   return { ...rv, verdict };

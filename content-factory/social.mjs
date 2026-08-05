@@ -17,16 +17,20 @@ const G = "https://graph.facebook.com/v21.0";
 
 export const socialEnabled = Boolean(IG_ID && TOKEN);
 
-// 【하루 2개 정책】 인스타에는 하루 2개만 올린다 — 카드뉴스 1 + 릴스 1.
-// 여기(카드뉴스)는 1개, 릴스 1개는 factory/make-reels.mjs 가 따로 센다.
-// 페이스북도 같은 방식으로 링크 1 + 영상 1 = 2개가 된다.
-// 많이 올린다고 도달이 늘지 않는다. 피드가 빽빽하면 오히려 언팔당한다.
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 1);
+// 【인스타 카드뉴스 하루 상한】 인스타는 가이드 전용 채널이 됐다(사장님 지시 2026-08-05).
+// 가이드를 하루 2편 만드니 카드뉴스도 2개까지 올린다. 릴스 1개는 factory/make-reels.mjs 가 따로 센다.
+// → 인스타 하루 3개(카드뉴스 2 + 릴스 1). 전부 가이드다.
+// 빈도를 더 늘릴 때는 이 값과 SOCIAL_GAP_MIN 을 같이 봐야 한다. 간격이 길면 상한만 올려도 안 올라간다.
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
+
+// 페이스북은 링크 게시라 인스타처럼 피드를 잡아먹지 않는다 → 뉴스·가이드 전부 올린다.
+const FB_DAILY_CAP = Number(process.env.FB_DAILY_CAP || 3);
 
 // 하루의 기준은 '한국 시간'이다. UTC로 세면 오전 9시에 날짜가 바뀌어
 // "하루 3개"가 실제로는 아침에 리셋되며 어긋난다.
 const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-const dayKey = () => `social:shared:${kstDay()}`;
+const dayKey = () => `social:shared:${kstDay()}`; // 인스타 카드뉴스
+const fbDayKey = () => `social:fb:${kstDay()}`; // 페이스북 링크 게시
 
 // 한도만으론 부족하다 — 홈페이지 발행이 몰리면 SNS도 한꺼번에 올라간다.
 // 게시 사이 최소 간격을 둬서 하루에 고르게 퍼지게 한다. (몰아 올리면 스팸으로 보이고 도달도 떨어진다)
@@ -208,40 +212,49 @@ export async function shareEverywhere(
   const out = { errors: [] };
   if (!socialEnabled) return out;
 
-  // 【인스타 피드 정책】 꿀팁은 당분간 인스타에 올리지 않는다.
-  // 꿀팁이 피드를 도배해 매거진(뉴스)이 묻혔다. 홈페이지 발행과 검색 유입은 그대로 두고,
-  // 인스타 피드는 매거진 위주로 되돌린다. 꿀팁은 릴스로 내보낸다.
-  // (SOCIAL_TIPS=on 으로 환경변수를 주면 다시 올라간다)
-  if (post.category === "꿀팁" && process.env.SOCIAL_TIPS !== "on") {
-    out.skipped = "꿀팁은 인스타 게시 보류 (피드는 매거진 위주)";
-    return out;
-  }
+  // ═══ 채널 배분 (사장님 지시 2026-08-05) ═══
+  //   홈페이지 — 기사 이슈를 전반적으로 다 다룬다
+  //   유튜브   — 기사·가이드·꿀팁 전부 올린다
+  //   인스타   — **가이드(꿀팁)만.** 퀄리티를 계속 올리면서 빈도를 늘려간다
+  //   페이스북 — 전부 (링크 게시라 피드 자리를 다투지 않는다)
+  //
+  // 인스타와 페북의 하루 한도를 따로 센다. 같이 세면 뉴스 한 편이 그날 인스타 자리까지
+  // 먹어버려서, 정작 올려야 할 가이드가 밀려난다.
+  const igAllowed = post.category === "꿀팁" || process.env.IG_NEWS === "on";
 
-  // 하루 한도를 넘으면 SNS만 건너뛴다 (홈페이지 발행은 그대로 유지)
-  if ((await sharedToday()) >= DAILY_CAP) {
+  // ── 인스타 ──
+  if (!igAllowed) {
+    out.skipped = "뉴스는 인스타에 올리지 않는다 (인스타는 가이드 전용)";
+  } else if ((await sharedToday()) >= DAILY_CAP) {
     out.capped = true;
-    return out;
+  } else {
+    // 직전 게시로부터 최소 간격이 안 지났으면 이번엔 올리지 않는다 (다음 회차가 다시 시도)
+    const wait = await tooSoon();
+    if (wait > 0) {
+      out.tooSoon = wait;
+    } else {
+      try {
+        out.ig = await postToInstagram(post);
+      } catch (e) {
+        out.errors.push(`IG: ${e.message}`);
+      }
+    }
   }
 
-  // 직전 게시로부터 최소 간격이 안 지났으면 이번엔 올리지 않는다 (다음 회차가 다시 시도)
-  const wait = await tooSoon();
-  if (wait > 0) {
-    out.tooSoon = wait;
-    return out;
-  }
-
+  // ── 페이스북 ── 인스타에 올라갔든 아니든 따로 판단한다
   try {
-    out.ig = await postToInstagram(post);
-  } catch (e) {
-    out.errors.push(`IG: ${e.message}`);
-  }
-  try {
-    out.fb = await postToFacebook(post);
+    const fbDone = await scard(fbDayKey());
+    if (fbDone >= FB_DAILY_CAP) {
+      out.fbCapped = true;
+    } else {
+      out.fb = await postToFacebook(post);
+      if (out.fb) await sadd(fbDayKey(), post.slug).catch(() => {});
+    }
   } catch (e) {
     out.errors.push(`FB: ${e.message}`);
   }
 
-  if (out.ig || out.fb) {
+  if (out.ig) {
     try {
       await sadd(dayKey(), post.slug);
       await kvSet(K_LAST_SHARED, new Date().toISOString()); // 다음 게시 간격 계산 기준

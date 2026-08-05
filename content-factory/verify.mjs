@@ -51,6 +51,73 @@ function quoteFound(quote, source) {
   return hit / chunks.length >= 0.5;
 }
 
+// ===== 가이드(꿀팁) 전용 대조 — 단축키와 메뉴 경로 =====
+//
+// 뉴스는 '수치·인용문'을 지어내면 가짜뉴스가 된다.
+// 가이드는 다르다. '없는 단축키'와 '없는 메뉴 이름'을 지어내는 것이 치명상이다.
+// 독자가 그대로 따라 했는데 그 메뉴가 없으면 그 자리에서 신뢰가 끝난다.
+//
+// 그래서 [키] · [경로] 줄에 적힌 글자는 근거 자료(facts) 안에 그대로 있어야만 통과시킨다.
+
+// 맥 기호를 이름으로 펴서 비교한다 (⌘ 과 Command 가 같은 것으로 보이게)
+const KEYSYM = { "⌘": "command", "⌥": "option", "⌃": "control", "⇧": "shift", "⏎": "return", "⌫": "delete" };
+function normKey(s) {
+  let t = String(s);
+  for (const [sym, name] of Object.entries(KEYSYM)) t = t.split(sym).join(name);
+  return norm(t.replace(/키$/, ""));
+}
+
+/** 본문에서 [표시] 줄의 내용만 뽑는다 */
+function markLines(body, mark) {
+  const out = [];
+  for (const line of String(body ?? "").split("\n")) {
+    const m = line.trim().match(new RegExp(`^\\[${mark}\\]\\s*(.+)$`));
+    if (m) out.push(m[1].trim());
+  }
+  return out;
+}
+
+/**
+ * 가이드 글의 단축키·메뉴 경로가 근거 자료 안에 실제로 있는지 대조한다.
+ * 근거 자료가 너무 짧으면(대조할 게 없으면) 검사하지 않는다 — 오탐이 더 해롭다.
+ */
+export function verifyGuideTerms(body, factsText) {
+  const facts = String(factsText ?? "");
+  if (facts.length < 120) {
+    return { ok: true, unknownKeys: [], unknownPaths: [], note: "근거 자료가 짧아 용어 대조 생략" };
+  }
+  const factsKey = normKey(facts);
+  const factsPlain = norm(facts);
+
+  // 1) [키] — 조합 전체가 근거에 그대로 있어야 한다 (부분 토큰만 맞는 건 인정하지 않는다)
+  const unknownKeys = markLines(body, "키").filter((k) => {
+    const combo = normKey(k);
+    return combo.length >= 2 && !factsKey.includes(combo);
+  });
+
+  // 2) [경로] — 단계마다 그 메뉴 이름이 근거에 있어야 한다
+  const unknownPaths = [];
+  for (const p of markLines(body, "경로")) {
+    const missing = p
+      .split(/[>›»]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 2)
+      .filter((s) => !factsPlain.includes(norm(s)));
+    if (missing.length) unknownPaths.push(`${p} (근거에 없음: ${missing.join(", ")})`);
+  }
+
+  const parts = [];
+  if (unknownKeys.length) parts.push(`근거에 없는 단축키 ${unknownKeys.length}건: ${unknownKeys.slice(0, 3).join(" / ")}`);
+  if (unknownPaths.length) parts.push(`근거에 없는 메뉴 경로 ${unknownPaths.length}건: ${unknownPaths[0]}`);
+
+  return {
+    ok: unknownKeys.length === 0 && unknownPaths.length === 0,
+    unknownKeys,
+    unknownPaths,
+    note: parts.join(" / ") || "단축키·메뉴 경로 모두 근거와 일치",
+  };
+}
+
 export function machineVerify(draft, sourceText, sourceTitle) {
   const source = norm(sourceTitle + " " + sourceText);
   const text = `${draft.title}\n${draft.summary}\n${draft.body}`;

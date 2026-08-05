@@ -102,8 +102,18 @@ async function pickPending(limit) {
   const fresh = (pubSlugs || []).filter((s) => !done.has(s));
   const posts = (await Promise.all(fresh.map((s) => getJSON(`post:${s}`)))).filter(Boolean).filter((p) => p.status === "published");
   posts.sort((a, b) => (b.publishedAt ?? b.date ?? "").localeCompare(a.publishedAt ?? a.date ?? ""));
+  // 꿀팁(가이드)을 앞으로 — 인스타는 가이드만 올리는 채널이 됐다(사장님 지시 2026-08-05).
+  // 뉴스가 먼저 잡히면 그날 인스타 릴스 자리가 그냥 비어버린다.
+  // 유튜브는 어차피 전부 올리므로, 순서만 바뀌고 빠지는 글은 없다.
+  const guideFirst = (arr) => [
+    ...arr.filter((p) => p.category === "꿀팁"),
+    ...arr.filter((p) => p.category !== "꿀팁"),
+  ];
   // 재제작 대상(우선순위) 먼저, 그다음 최신 발행글
-  return [...posts.filter((p) => prio.has(p.slug)), ...posts.filter((p) => !prio.has(p.slug))].slice(0, limit);
+  return [
+    ...guideFirst(posts.filter((p) => prio.has(p.slug))),
+    ...guideFirst(posts.filter((p) => !prio.has(p.slug))),
+  ].slice(0, limit);
 }
 
 async function buildReel(post) {
@@ -302,6 +312,11 @@ async function buildReel(post) {
   }
   catch (e) { console.log("  · 유튜브 건너뜀:", e.message); }
   try {
+    // 【인스타는 가이드 전용】 사장님 지시 2026-08-05 — 유튜브는 기사·가이드 전부 올리지만
+    // 인스타는 꿀팁·가이드만 올린다. 퀄리티를 계속 올리면서 빈도를 늘려가는 채널로 쓴다.
+    // (뉴스도 올리려면 IG_NEWS=on)
+    if (post.category !== "꿀팁" && process.env.IG_NEWS !== "on")
+      throw new Error("뉴스는 인스타에 올리지 않는다 (인스타는 가이드 전용)");
     const igToday = await readDaily("ig:reels").catch(() => 0);
     if (igToday >= IG_REEL_CAP) throw new Error(`인스타 릴스 하루 상한(${IG_REEL_CAP}개) 도달`);
     // 인스타는 메타 호환 호스트(uguu 등, tmpfiles 제외)에만 올린다. 영상 실패면 인스타 자체를 건너뛴다.

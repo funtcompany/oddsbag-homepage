@@ -1,6 +1,7 @@
 name: 오즈백 예약 발행
 
-# 15분마다 대기열을 확인해 시간이 된 글을 올린다. 실제 발행은 하루 2편까지. (Vercel 크론 대체 — 무료)
+# 15분마다 대기열을 확인해 시간이 된 글을 올린다. 실제 발행은 하루 3편까지
+# (뉴스 1 + 가이드 2). Vercel 크론 대체 — 무료.
 on:
   schedule:
     - cron: "*/15 * * * *"
@@ -22,11 +23,11 @@ jobs:
       - name: 발행 실행
         working-directory: content-factory
         env:
-          TIPS_PER_DAY: "1" # 꿀팁 하루 생산 상한 (피드 도배 방지)
-          PUBLISH_DAILY_CAP: "2" # 홈페이지 하루 발행 상한
+          TIPS_PER_DAY: "2" # 꿀팁 하루 생산 상한 (새벽 슬롯 1 + 아침 슬롯 1)
+          PUBLISH_DAILY_CAP: "3" # 홈페이지 하루 발행 상한 (뉴스 1 + 가이드 2)
           PUBLISH_MAX_PER_RUN: "1" # 한 회차에 1편씩만
-          SOCIAL_DAILY_CAP: "1" # 인스타 카드뉴스 1개 (+릴스 1개 = 하루 2개)
-          SOCIAL_GAP_MIN: "600" # SNS 게시 최소 간격 10시간
+          SOCIAL_DAILY_CAP: "2" # 인스타 카드뉴스 2개 — 전부 가이드 (+릴스 1개 = 인스타 하루 3개)
+          SOCIAL_GAP_MIN: "360" # 인스타 게시 최소 간격 6시간 (하루 2개가 실제로 나가려면 짧아야 한다)
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}

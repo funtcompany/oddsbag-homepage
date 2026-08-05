@@ -19,6 +19,8 @@
 //     · content-factory/cards.mjs   — 카드뉴스(자동화 쪽 쌍둥이)에서 빼기
 //     · factory/render.mjs          — 릴스 자막·나레이션에서 빼기
 //     · content-factory/ai.mjs      — AI에게 이 표시를 쓰라고 알려주기
+//     · content-factory/quality.mjs + lib/quality.ts — 형식 게이트(guideFormatIssues)
+//     · content-factory/verify.mjs  + lib/verify.ts  — [키]·[경로] 근거 대조(verifyGuideTerms)
 
 export type MarkName =
   | "키"
