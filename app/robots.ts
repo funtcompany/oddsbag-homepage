@@ -12,7 +12,11 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "Twitterbot", allow: "/" },
       { userAgent: "facebookexternalhit", allow: "/" },
     ],
-    sitemap: "https://oddsbag.co.kr/sitemap.xml",
+    // 뉴스 사이트맵은 최근 48시간 글만 담는 별도 규격 — 구글 뉴스·디스커버 노출용
+    sitemap: [
+      "https://oddsbag.co.kr/sitemap.xml",
+      "https://oddsbag.co.kr/sitemap-news.xml",
+    ],
     host: "https://oddsbag.co.kr",
   };
 }
