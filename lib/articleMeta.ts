@@ -21,6 +21,15 @@ export function articleUrl(post: Post): string {
   return `${SITE}${channelOf(post.channel).base}/${post.slug}`;
 }
 
+// 구글은 기사 이미지를 "화면비가 다른 여러 장"으로 주는 걸 권장한다.
+//  한 장만 주면 디스커버·이미지 검색에서 자리를 못 잡는 화면비가 생긴다.
+//  둘 다 이미 서버에서 즉시 만들어지는 이미지라 새로 만들 게 없다.
+//   · /api/og   → 1200x630 (가로, 링크 공유용)
+//   · /api/card → 1440x1800 (세로, 인스타 카드 1장째)
+function articleImages(post: Post): string[] {
+  return [`${SITE}/api/og/${post.slug}`, `${SITE}/api/card/${post.slug}?i=0`];
+}
+
 export function articleMetadata(post: Post): Metadata {
   const image = `/api/og/${post.slug}`;
   const url = articleUrl(post);
@@ -68,7 +77,7 @@ export function articleJsonLd(post: Post) {
             : "Article",
         headline: post.title.slice(0, 110),
         description: post.summary,
-        image: [`${SITE}/api/og/${post.slug}`],
+        image: articleImages(post),
         datePublished: post.publishedAt ?? post.date,
         dateModified: post.auditedAt ?? post.publishedAt ?? post.date,
         articleSection: post.category,
@@ -112,7 +121,7 @@ export function articleJsonLd(post: Post) {
         "@type": "HowTo",
         name: post.title.slice(0, 110),
         description: parts.answer || post.summary,
-        image: [`${SITE}/api/og/${post.slug}`],
+        image: articleImages(post),
         inLanguage: "ko-KR",
         mainEntityOfPage: { "@type": "WebPage", "@id": url },
         step: steps.map((t, i) => ({
