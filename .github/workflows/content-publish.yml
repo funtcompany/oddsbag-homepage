@@ -26,7 +26,10 @@ jobs:
           TIPS_PER_DAY: "2" # 꿀팁 하루 생산 상한 (새벽 슬롯 1 + 아침 슬롯 1)
           PUBLISH_DAILY_CAP: "3" # 홈페이지 하루 발행 상한 (뉴스 1 + 가이드 2)
           PUBLISH_MAX_PER_RUN: "1" # 한 회차에 1편씩만
-          SOCIAL_DAILY_CAP: "2" # 인스타 카드뉴스 2개 — 전부 가이드 (+릴스 1개 = 인스타 하루 3개)
+          # 2026-08-08 실측: 카드뉴스 29개의 도달 합계가 0이었다(해시태그를 붙인 10개도 0).
+          # 인스타 도달 1,337은 전부 릴스에서 나왔다. 그래서 카드뉴스는 2 → 1로 줄이고
+          # 그 자리를 릴스에 넘긴다(reels.yml REEL_LIMIT 2). 인스타 하루 3개는 그대로.
+          SOCIAL_DAILY_CAP: "1" # 인스타 카드뉴스 1개 (+릴스 2개 = 인스타 하루 3개)
           SOCIAL_GAP_MIN: "360" # 인스타 게시 최소 간격 6시간 (하루 2개가 실제로 나가려면 짧아야 한다)
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
