@@ -41,6 +41,28 @@ jobs:
         working-directory: factory
         run: npm ci
 
+      # 무엇이 실제로 사람에게 닿았는지 매일 재서 남긴다.
+      # 이걸 안 봤기 때문에 카드뉴스가 29개 연속 도달 0인 걸 3주 동안 몰랐다.
+      #
+      # ★ 왜 업로드보다 '먼저' 재는가 (2026-08-08)
+      #   유튜브 하루 한도는 10,000점인데 영상 1편 올리는 데 1,600점이 든다.
+      #   게다가 오즈백 5개 채널(오피셜·뮤직·메모냅·키즈·테일즈)이 같은 구글 프로젝트를 쓴다
+      #   = 한도 10,000점을 다섯이 나눠 쓴다. 다른 트랙이 먼저 올리면 우리 차례엔 남는 게 없다.
+      #   성적표 읽기는 5점밖에 안 드는데, 뒤에 두면 그 5점이 없어서 못 잰다.
+      #   실제로 2026-08-08 에 한도 소진으로 못 쟀다. 그래서 맨 앞으로 옮겼다.
+      - name: 채널 성적표 (읽기 전용)
+        working-directory: factory
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: node channel-report.mjs || true
+
       - name: 릴스 제작 (+ 게시)
         working-directory: factory
         env:
@@ -104,19 +126,6 @@ jobs:
           INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
         run: node check-coverage.mjs || true
-
-      # 무엇이 실제로 사람에게 닿았는지 매일 재서 남긴다.
-      # 이걸 안 봤기 때문에 카드뉴스가 29개 연속 도달 0인 걸 3주 동안 몰랐다.
-      - name: 채널 성적표 (읽기 전용)
-        if: always()
-        working-directory: factory
-        env:
-          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
-          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
-          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
-          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-        run: node channel-report.mjs || true
 
       - name: 완성 영상 보관 (다운로드용)
         uses: actions/upload-artifact@v4
