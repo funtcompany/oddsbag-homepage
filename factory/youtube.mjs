@@ -17,13 +17,26 @@ async function accessToken() {
 
 // categoryId 는 채널 성격에 맞춰 넘긴다. 안 넘기면 지금까지처럼 25(뉴스·정치) — 오즈백 기본값.
 //   25 뉴스·정치 (오즈백)   26 노하우·스타일 (메모냅 인테리어 촬영)   22 인물·블로그
-export async function uploadShort(mp4Path, { title, description, tags, privacy = "public", categoryId = "25" }) {
+//
+// publishAt 을 넘기면 **유튜브 예약 게시**가 된다 (Date 또는 ISO 문자열).
+//   지금 비공개로 올려두고, 그 시각에 유튜브가 스스로 공개로 바꾼다.
+//   → 맥이 꺼져 있어도 예정대로 나간다. 예약할 때 privacyStatus 는 반드시 private 여야 한다
+//     (public 인 채로 publishAt 을 넣으면 구글이 무시하고 즉시 공개해버린다).
+export async function uploadShort(mp4Path, { title, description, tags, privacy = "public", categoryId = "25", publishAt = null }) {
   if (!CID || !CSECRET || !RTOKEN) throw new Error("유튜브 미설정 (토큰 없음)");
   const token = await accessToken();
 
+  const 예약시각 = publishAt ? new Date(publishAt) : null;
+  if (예약시각 && isNaN(예약시각)) throw new Error("publishAt 시각을 못 읽었습니다: " + publishAt);
+  if (예약시각 && 예약시각 <= new Date()) throw new Error(`예약 시각이 이미 지났습니다 (${예약시각.toISOString()})`);
+
+  const status = 예약시각
+    ? { privacyStatus: "private", publishAt: 예약시각.toISOString(), selfDeclaredMadeForKids: false }
+    : { privacyStatus: privacy, selfDeclaredMadeForKids: false };
+
   const meta = {
     snippet: { title: title.slice(0, 100), description, tags, categoryId },
-    status: { privacyStatus: privacy, selfDeclaredMadeForKids: false },
+    status,
   };
   const boundary = "oddsbag_boundary_" + title.length;
   const pre = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: video/mp4\r\n\r\n`;
@@ -37,9 +50,23 @@ export async function uploadShort(mp4Path, { title, description, tags, privacy =
   });
   const j = await r.json();
   if (!j.id) throw new Error("업로드 실패: " + JSON.stringify(j).slice(0, 200));
-  console.log(`  · 유튜브 쇼츠 게시: https://youtu.be/${j.id}`);
+  if (예약시각) {
+    // 요청만 보내고 믿지 않는다 — 유튜브가 실제로 예약으로 받았는지 되물어 확인한다.
+    const v = await (await fetch(`https://www.googleapis.com/youtube/v3/videos?part=status&id=${j.id}`,
+      { headers: { Authorization: `Bearer ${token}` } })).json();
+    const st = v.items?.[0]?.status || {};
+    if (!st.publishAt) throw new Error(`예약이 안 걸렸습니다 (지금 상태: ${st.privacyStatus}). 즉시 공개됐을 수 있으니 확인하세요 — https://youtu.be/${j.id}`);
+    console.log(`  · 유튜브 쇼츠 예약됨: ${st.publishAt} → https://youtu.be/${j.id}`);
+  } else {
+    console.log(`  · 유튜브 쇼츠 게시: https://youtu.be/${j.id}`);
+  }
   return j.id;
 }
+
+// ※ 썸네일 추출 함수를 여기에 두지 않는다.
+//    make-reels.mjs 가 이미 뽑고 있고, 그쪽은 '첫 프레임'이 아니라 2.5초 지점을 쓴다.
+//    첫 프레임은 카드가 아직 밀려 들어오는 중(ENTER_FRAMES)이라 표지가 어정쩡하게 잡힌다.
+//    2.5초 지점이라야 목록에 뜨는 그림과 지정 썸네일이 일치한다 (사장님 지시 2026-07-29).
 
 // 카테고리 재생목록("오즈백 · 경제" 등)에 영상 자동 분류. 없으면 만들고, 있으면 담는다.
 export async function addToCategoryPlaylist(videoId, category) {
