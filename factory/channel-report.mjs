@@ -156,7 +156,8 @@ async function 유튜브성적() {
   }
 
   const 상위 = [...공개].sort((a, b) => b.조회 - a.조회).slice(0, 5);
-  console.log("\n  많이 본 영상 5개");
+  // 제목에 실제로 보여주는 개수를 쓴다. 2개만 찍으면서 "5개"라고 하면 성적표가 거짓말을 한다.
+  console.log(`\n  많이 본 영상 ${상위.length}개`);
   for (const v of 상위) {
     console.log(`    ${v.공개일.slice(0, 10)} ${String(v.조회).padStart(5)}회 ♥${v.좋아요} ${v.제목.slice(0, 38)}`);
   }
