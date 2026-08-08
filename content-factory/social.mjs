@@ -26,7 +26,7 @@ export const socialEnabled = Boolean(IG_ID && TOKEN);
 //   (social:shared:날짜 하나를 넷이 같이 본다). 그래서 한 곳만 2로 남겨두면
 //   그 회차가 2개째를 올려버려 결정이 조용히 뒤집힌다. 고칠 땐 반드시 4곳을 같이 고친다.
 // 빈도를 더 늘릴 때는 이 값과 SOCIAL_GAP_MIN 을 같이 봐야 한다. 간격이 길면 상한만 올려도 안 올라간다.
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 1);
 
 // 페이스북은 링크 게시라 인스타처럼 피드를 잡아먹지 않는다 → 뉴스·가이드 전부 올린다.
 const FB_DAILY_CAP = Number(process.env.FB_DAILY_CAP || 3);

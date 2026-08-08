@@ -28,7 +28,7 @@ export const socialEnabled = Boolean(IG_ID && TOKEN);
 // ※ content-factory/social.mjs 와 항상 같은 규칙이어야 한다 (쌍둥이 파일).
 // ★ 이 값은 워크플로 4곳(collect·publish·guide·audit)에 각각 박혀 있는데 세는 곳은 한 곳이다.
 //   한 곳만 2로 남겨두면 그 회차가 2개째를 올려 결정이 조용히 뒤집힌다. 고칠 땐 4곳을 같이.
-const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
+const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 1);
 // 페이스북은 링크 게시라 피드를 잡아먹지 않는다 → 뉴스·가이드 전부 올린다.
 const FB_DAILY_CAP = Number(process.env.FB_DAILY_CAP || 3);
 // 하루 기준은 한국 시간 (UTC로 세면 오전 9시에 날짜가 바뀐다)
