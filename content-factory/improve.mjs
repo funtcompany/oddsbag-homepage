@@ -161,7 +161,11 @@ export async function runImprove() {
   const lessons = await getLessons();
   let subs = 0;
   try {
-    subs = (await smembers("newsletter:subscribers")).length;
+    // 구독자가 실제로 저장되는 키는 "subscribers" 다 (app/api/subscribe/route.ts).
+    // 여기서 "newsletter:subscribers" 라는 없는 키를 읽는 바람에, 명단이 몇 명이든
+    // 2일 리포트가 늘 0명으로 보고했다. 명단 수는 이 부서의 1번 지표인데 그게 거짓이었다.
+    // 키 이름을 바꾸려면 저장·발송(app/api/admin/newsletter)·여기 세 곳을 같이 고쳐야 한다.
+    subs = (await smembers("subscribers")).length;
   } catch {
     /* ignore */
   }
