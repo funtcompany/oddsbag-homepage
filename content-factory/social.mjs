@@ -18,8 +18,13 @@ const G = "https://graph.facebook.com/v21.0";
 export const socialEnabled = Boolean(IG_ID && TOKEN);
 
 // 【인스타 카드뉴스 하루 상한】 인스타는 가이드 전용 채널이 됐다(사장님 지시 2026-08-05).
-// 가이드를 하루 2편 만드니 카드뉴스도 2개까지 올린다. 릴스 1개는 factory/make-reels.mjs 가 따로 센다.
-// → 인스타 하루 3개(카드뉴스 2 + 릴스 1). 전부 가이드다.
+// → 인스타 하루 3개 = 카드뉴스 1 + 릴스 2. 전부 가이드다. 릴스는 factory/make-reels.mjs 가 따로 센다.
+//   2026-08-08 에 카드뉴스 2 + 릴스 1 에서 뒤집었다 — 카드뉴스 29개가 전부 도달 0이었고
+//   인스타 도달은 100% 릴스에서 나왔다. 도달 0인 쪽에 일의 3분의 2를 넣고 있었다.
+//
+// ★ 이 값은 워크플로 4곳(collect·publish·guide·audit)에 각각 박혀 있고, 세는 곳은 한 곳이다
+//   (social:shared:날짜 하나를 넷이 같이 본다). 그래서 한 곳만 2로 남겨두면
+//   그 회차가 2개째를 올려버려 결정이 조용히 뒤집힌다. 고칠 땐 반드시 4곳을 같이 고친다.
 // 빈도를 더 늘릴 때는 이 값과 SOCIAL_GAP_MIN 을 같이 봐야 한다. 간격이 길면 상한만 올려도 안 올라간다.
 const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
 

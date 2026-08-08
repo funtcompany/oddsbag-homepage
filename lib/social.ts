@@ -23,8 +23,11 @@ export const socialEnabled = Boolean(IG_ID && TOKEN);
 //  · 메타 API 한도(인스타 24시간 50건)에 걸리고
 //  · 팔로워가 스팸으로 느껴 언팔한다
 // 그래서 SNS만 따로 하루 한도를 둔다.
-// 【하루 3개 정책】 인스타 카드뉴스 2개 (+릴스 1개 = 인스타 하루 3개)
+// 【하루 3개 정책】 인스타 카드뉴스 1개 (+릴스 2개 = 인스타 하루 3개) · 2026-08-08 결정
+//   카드뉴스 29개가 전부 도달 0이었고 인스타 도달은 100% 릴스에서 나왔다.
 // ※ content-factory/social.mjs 와 항상 같은 규칙이어야 한다 (쌍둥이 파일).
+// ★ 이 값은 워크플로 4곳(collect·publish·guide·audit)에 각각 박혀 있는데 세는 곳은 한 곳이다.
+//   한 곳만 2로 남겨두면 그 회차가 2개째를 올려 결정이 조용히 뒤집힌다. 고칠 땐 4곳을 같이.
 const DAILY_CAP = Number(process.env.SOCIAL_DAILY_CAP || 2);
 // 페이스북은 링크 게시라 피드를 잡아먹지 않는다 → 뉴스·가이드 전부 올린다.
 const FB_DAILY_CAP = Number(process.env.FB_DAILY_CAP || 3);

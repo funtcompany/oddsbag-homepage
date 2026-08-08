@@ -24,7 +24,7 @@ jobs:
         env:
           TIPS_PER_DAY: "1" # 꿀팁 하루 생산 상한 (피드 도배 방지)
           PUBLISH_DAILY_CAP: "3" # 홈페이지 하루 발행 상한
-          SOCIAL_DAILY_CAP: "2" # 인스타 카드뉴스 2개 (+릴스 1개 = 하루 3개)
+          SOCIAL_DAILY_CAP: "1" # 인스타 카드뉴스 1개 (+릴스 2개 = 인스타 하루 3개) · 2026-08-08 결정
           SOCIAL_GAP_MIN: "360" # SNS 게시 최소 간격 6시간
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
