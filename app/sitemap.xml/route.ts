@@ -9,8 +9,11 @@ const BASE = "https://oddsbag.co.kr";
 //  Next 의 sitemap.ts 규약은 빌드할 때 파일 하나로 구워진다.
 //  revalidate 를 적어놔도 다시 만들어지지 않아서, 8/6 배포 시점 목록에 그대로 멈춰 있었다.
 //  (그 뒤에 낸 글 6편이 구글에 제출되지 않았다)
-//  feed.xml · sitemap-news.xml 처럼 라우트로 만들면 정상적으로 다시 만들어진다 — 같은 방식으로 맞춘다.
-export const revalidate = 600;
+//  라우트로 옮겨도 마찬가지였다. Next 는 'sitemap.xml' 이라는 이름 자체를 특별 취급해서
+//  빌드 때 구워버린다 (이름이 다른 feed.xml · sitemap-news.xml 은 정상적으로 다시 만들어진다).
+//  그래서 "매 요청마다 새로 만들라"고 못 박는다.
+//  DB 부하는 걱정 없다 — getAllPosts 가 60초짜리 캐시라 크롤러가 몰려와도 DB는 분당 1회만 읽는다.
+export const dynamic = "force-dynamic";
 
 const esc = (s: string) =>
   s
