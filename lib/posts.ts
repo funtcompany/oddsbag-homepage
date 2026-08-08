@@ -83,6 +83,9 @@ export interface Post {
   factsCheckedAt?: string;
   /** 확인일이 지나 "갱신 필요"로 표시된 것. 내용은 건드리지 않고 리포트에만 올린다 */
   staleGuide?: { flaggedAt: string; days: number };
+  // 사실은 멀쩡한데 가이드 형식([즉답]·[버전]·[Q]/[A]·분량)만 모자란 글.
+  // 내리지 않고 발행을 유지한 채 표시만 해 둔다 — 2일 점검 리포트에서 사람이 본다.
+  needsFormat?: { issues: string[]; flaggedAt: string };
 }
 
 const POSTS_DIR = path.join(process.cwd(), "content", "posts");

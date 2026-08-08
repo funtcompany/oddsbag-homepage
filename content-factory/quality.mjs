@@ -465,7 +465,12 @@ ${post.body}
   else if (fakeRisk === "medium" || score < 70 || gIssues.length) verdict = "revise";
   else verdict = "publish";
 
-  return { ...rv, verdict };
+  // 걸린 게 '형식'뿐인가 — 사실관계는 멀쩡한데 [즉답]·[버전]·[Q]/[A]·분량 같은 모양새만 어긋난 경우.
+  // 이건 독자를 속이지 않는다. 그런데도 내리면 검색 순위와 인스타 공급만 잃는다.
+  // (2026-08-08 실측: 검수함에 밀린 8월 글 23건 중 21건이 여기였다. AI 심사는 100점을 준 글까지 있었다)
+  const formatOnly = verdict === "revise" && fakeRisk === "low" && score >= 70 && gIssues.length > 0;
+
+  return { ...rv, verdict, formatOnly, formatIssues: gIssues };
 }
 
 // ================= 발행글 개선 (원문 없이) =================

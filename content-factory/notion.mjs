@@ -138,19 +138,58 @@ export async function addCollectedPage(
 }
 
 // 노션 페이지 상태 변경 (품질 점검에서 문제 발견 → 검수필요로 내림)
+//
+// ※ 왜 재시도하나 (2026-08-08)
+//   노션은 초당 3건까지만 받는다. 한 회차에 25건씩 몰아 보내면 상당수가 429로 튕긴다.
+//   예전에는 그 실패를 조용히 삼켜서 홈페이지와 노션이 갈라졌다 —
+//   홈페이지에서는 지워졌는데 노션 검수함에는 '검수필요'로 남은 유령이 152건까지 쌓였고,
+//   사장님이 검수함을 열어볼 수 없는 크기가 됐다.
+//   이제 실패하면 되돌려 알린다(false). 홈페이지를 막지는 않되, 점검 리포트에 숫자로 남는다.
 export async function setNotionStatus(
   pageId,
   status,
   note,
 ) {
-  if (!notionEnabled || !pageId) return;
+  if (!notionEnabled || !pageId) return false;
   const properties = { 상태: { select: { name: status } } };
   if (note) properties["심사메모"] = { rich_text: rt(note) };
-  try {
-    await notion(`/pages/${pageId}`, "PATCH", { properties });
-  } catch {
-    /* 노션 실패가 홈페이지를 막지 않는다 */
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await notion(`/pages/${pageId}`, "PATCH", { properties });
+      return true;
+    } catch (e) {
+      const msg = String(e?.message ?? "");
+      const retriable = /Notion (429|5\d\d)/.test(msg) || /fetch|network|timeout/i.test(msg);
+      if (!retriable || attempt === 3) return false;
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
   }
+  return false;
+}
+
+// 특정 상태의 페이지 목록 (id·slug·제목만) — 홈페이지와 대조할 때 쓴다
+export async function listNotionByStatus(status, max = 300) {
+  if (!notionEnabled) return [];
+  const out = [];
+  let cursor;
+  do {
+    const q = await notion(`/databases/${DB}/query`, "POST", {
+      filter: { property: "상태", select: { equals: status } },
+      page_size: 100,
+      start_cursor: cursor,
+    });
+    for (const page of q.results ?? []) {
+      const p = page.properties ?? {};
+      out.push({
+        id: page.id,
+        slug: (p["slug"]?.rich_text ?? []).map((r) => r.plain_text).join(""),
+        title: (p["제목"]?.title ?? []).map((r) => r.plain_text).join(""),
+      });
+      if (out.length >= max) return out;
+    }
+    cursor = q.has_more ? q.next_cursor : undefined;
+  } while (cursor);
+  return out;
 }
 
 // 상태=발행 페이지들을 Post 로 변환해 반환

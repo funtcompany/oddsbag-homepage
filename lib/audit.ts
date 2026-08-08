@@ -21,7 +21,7 @@ import {
   type Post,
 } from "@/lib/posts";
 import { staleGuides } from "@/lib/guideAge";
-import { notionEnabled, setNotionStatus } from "@/lib/notion";
+import { notionEnabled, setNotionStatus, listNotionByStatus } from "@/lib/notion";
 import { syncFromNotion } from "@/lib/sync";
 import { shareEverywhere, socialEnabled } from "@/lib/social";
 import { revalidateTag } from "next/cache";
@@ -32,6 +32,7 @@ const RECHECK_HOURS = 36; // 이 시간이 지난 발행글은 다시 감사
 const ARCHIVE_AFTER_DAYS = 7; // 이만큼 지난 '위험 high' 초안은 보관함으로
 const ARCHIVE_PER_RUN = 25; // 회차당 보관 처리 상한
 const STALE_MARK_PER_RUN = 20; // 회차당 '확인일 지남' 표시 상한 (한꺼번에 쓰지 않는다)
+const RECONCILE_PER_RUN = 40; // 회차당 노션 표시 바로잡기 상한 (노션은 초당 3건 제한)
 
 const nowIso = () => new Date().toISOString();
 const hoursSince = (iso?: string) =>
@@ -46,6 +47,9 @@ export interface AuditResult {
   rescued: { slug: string; title: string; score: number }[]; // 검수함 → 발행
   archived: { slug: string; title: string }[]; // 검수함 → 보관함 (되돌릴 수 있음)
   stale: { slug: string; title: string; days: number }[]; // 확인일 지난 가이드 (표시만, 안 고침)
+  formatFlagged: { slug: string; title: string; issues: string[] }[]; // 형식만 모자람 (발행 유지, 표시만)
+  reconciled: { slug: string; title: string; to: string }[]; // 노션 표시를 홈페이지 실제와 맞춘 것
+  notionFailed: number; // 노션에 반영하지 못한 횟수 (쌓이면 검수함이 유령으로 부푼다)
   social: { ig: number; fb: number };
   lessons: string;
   errors: string[];
@@ -61,6 +65,9 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
     rescued: [],
     archived: [],
     stale: [],
+    formatFlagged: [],
+    reconciled: [],
+    notionFailed: 0,
     social: { ig: 0, fb: 0 },
     lessons: "",
     errors: [],
@@ -137,6 +144,33 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
           out.fixed.push({ slug: post.slug, title: post.title, score: recheck.score });
           continue;
         }
+        // 못 고쳤는데 걸린 게 '형식'뿐이면 내리지 않는다.
+        //
+        // 왜: 형식 지적은 "본문을 1500자 이상으로 늘려라"인데, 개선 프롬프트는
+        //     "없는 사실을 새로 만들지 마라"고 못 박는다. 두 지시가 정면으로 부딪혀서
+        //     AI가 몇 번을 돌려도 절대 통과하지 못하는 자리다.
+        //     내려봐야 고쳐지지 않고 검수함만 쌓인다 — 2026-08-08 실측 21건.
+        //     사실관계는 멀쩡하므로 발행은 유지하고, 무엇이 모자란지 표시만 남겨
+        //     2일 점검 리포트에서 사람이 보게 한다.
+        if (recheck.formatOnly) {
+          post.auditedAt = nowIso();
+          post.needsFormat = { issues: recheck.formatIssues ?? [], flaggedAt: nowIso() };
+          post.quality = {
+            score: recheck.score,
+            fakeRisk: recheck.fakeRisk,
+            verdict: "publish",
+            reviewedAt: nowIso(),
+            rounds: (post.quality?.rounds ?? 0) + 1,
+            note: recheck.note,
+          };
+          await upsertPublished(post);
+          out.formatFlagged.push({
+            slug: post.slug,
+            title: post.title,
+            issues: recheck.formatIssues ?? [],
+          });
+          continue;
+        }
         review.note = recheck.note || review.note;
         review.score = recheck.score;
       }
@@ -148,7 +182,7 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
           : `품질 미달 (${review.score}점): ${review.note}`;
       await unpublishPost(post.slug, reason);
       if (notionEnabled && post.notionId) {
-        await setNotionStatus(post.notionId, "검수필요", reason);
+        if (!(await setNotionStatus(post.notionId, "검수필요", reason))) out.notionFailed++;
       }
       out.pulled.push({ slug: post.slug, title: post.title, reason });
     } catch (e) {
@@ -199,7 +233,7 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
       await archiveDraft(post.slug, reason);
       archivedSlugs.add(post.slug);
       if (notionEnabled && post.notionId) {
-        await setNotionStatus(post.notionId, "보관", reason);
+        if (!(await setNotionStatus(post.notionId, "보관", reason))) out.notionFailed++;
       }
       out.archived.push({ slug: post.slug, title: post.title });
     } catch (e) {
@@ -252,7 +286,8 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
         await upsertPublished(post);
         await publishPost(post.slug);
         if (notionEnabled && post.notionId) {
-          await setNotionStatus(post.notionId, "발행", `자동 개선 ${rounds}회 → ${after.score}점`);
+          if (!(await setNotionStatus(post.notionId, "발행", `자동 개선 ${rounds}회 → ${after.score}점`)))
+            out.notionFailed++;
         }
         rescuedPosts.push(post);
         out.rescued.push({ slug: post.slug, title: post.title, score: after.score });
@@ -263,6 +298,47 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
       }
     } catch (e) {
       out.errors.push(`구조 ${post.slug}: ${(e as Error).message}`);
+    }
+  }
+
+  // ---- C-2. 노션 ↔ 홈페이지 대조 (표시가 실제와 다른 것 맞추기) ----
+  //
+  // 왜 필요한가 (2026-08-08):
+  //   노션에 상태를 쓰다 실패하면 홈페이지와 노션이 갈라진다. 홈페이지에서는 지워지거나
+  //   보관됐는데 노션에는 '검수필요'로 남는다. 이 유령이 152건까지 쌓여서
+  //   사장님이 검수함을 열어봐도 뭘 봐야 하는지 알 수 없는 상태가 됐다.
+  //   그래서 회차마다 노션 검수함을 홈페이지 실제와 대조해 표시를 바로잡는다.
+  //   ※ 여기서는 홈페이지를 고치지 않는다. 노션 '표시'만 실제에 맞춘다.
+  // ※ 홈페이지를 한 글자도 못 읽은 회차에는 대조하지 않는다.
+  //    Redis가 잠깐 죽었을 때 '홈페이지에 없음'으로 오해해서
+  //    멀쩡한 검수 대기 글을 통째로 보관으로 밀어버리는 사고를 막는다.
+  const 홈페이지읽힘 = published.length > 0 || drafts.length > 0;
+  if (notionEnabled && 홈페이지읽힘) {
+    try {
+      const { getPostBySlug } = await import("@/lib/posts");
+      const 노션검수함 = await listNotionByStatus("검수필요", 300);
+      let 고친수 = 0;
+      for (const page of 노션검수함) {
+        if (고친수 >= RECONCILE_PER_RUN) break; // 남은 건 다음 회차가 이어받는다
+        if (!page.slug) continue; // slug 없으면 짝을 확신할 수 없다 — 건드리지 않는다
+        const post = await getPostBySlug(page.slug);
+        const 실제 = post?.status ?? "없음";
+        if (실제 === "draft") continue; // 노션과 홈페이지가 일치 — 진짜 검수 대기
+        const 맞출상태 =
+          실제 === "published" ? "발행" : 실제 === "queued" ? "예약" : "보관";
+        const 사유 =
+          실제 === "없음"
+            ? "홈페이지에 없는 글 — 노션 표시만 남아 있어 정리"
+            : `홈페이지 실제 상태(${실제})에 맞춤`;
+        if (await setNotionStatus(page.id, 맞출상태, 사유)) {
+          out.reconciled.push({ slug: page.slug, title: page.title, to: 맞출상태 });
+          고친수++;
+        } else {
+          out.notionFailed++;
+        }
+      }
+    } catch (e) {
+      out.errors.push(`노션 대조: ${(e as Error).message}`);
     }
   }
 
