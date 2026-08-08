@@ -1,0 +1,39 @@
+name: 오즈백 대표 보고 (주 2회)
+
+# 사장님께 현황·상태를 주 2회 메일로 보낸다.
+# 월요일 = 이번 주에 무엇을 할지 / 목요일 = 어디까지 왔는지.
+#
+# 시각: 한국시간 월·목 아침 8시 = UTC 월·목 23시(전날). cron 은 UTC 로만 돈다.
+#   → 일요일 23시 UTC = 월요일 08시 KST, 수요일 23시 UTC = 목요일 08시 KST
+#
+# 2일 1회 '점검 리포트'(content-improve.yml)와 다른 것이다.
+#   점검 리포트 = 품질·발행 이야기 (기계가 잘 돌고 있나)
+#   이 보고     = 현황·결정 이야기 (사장님이 알아야 할 것, 결정해줄 것)
+on:
+  schedule:
+    - cron: "0 23 * * 0,3"
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # '지난 보고 이후 한 일'을 git 기록에서 가져오므로 최근 이력이 필요하다.
+          # 기본값(1)이면 커밋이 한 개만 보여서 매번 "코드 변경 없음"이 된다.
+          fetch-depth: 50
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 보고서 만들고 보내기
+        working-directory: content-factory
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+        run: node owner-report.mjs
