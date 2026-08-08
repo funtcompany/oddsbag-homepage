@@ -105,6 +105,19 @@ jobs:
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
         run: node check-coverage.mjs || true
 
+      # 무엇이 실제로 사람에게 닿았는지 매일 재서 남긴다.
+      # 이걸 안 봤기 때문에 카드뉴스가 29개 연속 도달 0인 걸 3주 동안 몰랐다.
+      - name: 채널 성적표 (읽기 전용)
+        if: always()
+        working-directory: factory
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+        run: node channel-report.mjs || true
+
       - name: 완성 영상 보관 (다운로드용)
         uses: actions/upload-artifact@v4
         with:

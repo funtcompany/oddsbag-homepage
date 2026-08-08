@@ -20,6 +20,8 @@ export async function getJSON(key) {
   const v = await cmd(["GET", key]);
   return v ? JSON.parse(v) : null;
 }
+// 값 저장 (채널 성적표처럼 날짜별로 쌓아 두는 기록에 쓴다)
+export const kvSet = (key, value) => cmd(["SET", key, value]);
 export const redisReady = Boolean(URL && TOKEN);
 
 // 줄 세우기(LIST) — 폐기 대기줄처럼 "먼저 넣은 것부터 하나씩" 꺼낼 때 쓴다.
