@@ -107,12 +107,15 @@ export function buildCards(post) {
     cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clip(closing.text, 120) });
   }
 
-  // 5) 마무리 — 저장 + 팔로우(미리 알림). 홈페이지 유입에 기대지 않는다.
+  // 5) 마무리 — 저장 + 팔로우. 홈페이지 유입에 기대지 않는다.
+  //    ★ 2026-08-08: "팔로우하세요"만으로는 안 누른다. 한 편이 좋아도 다음 편을 기대할 이유가 없기 때문.
+  //      그래서 슬로건으로 시리즈를 약속한다 — '매일 하나씩'이 곧 팔로우할 이유다. (채널-성장전략.md 3장 ④)
+  //    ※ lib/cards.ts 의 같은 카드와 글자까지 똑같이 맞춘다 — 그림은 lib 쪽이 그리고 나레이션은 이 파일이 읽는다.
   cards.push({
     kind: "cta",
     label: "@oddsbag_official",
-    title: "저장해두면\n필요할 때 바로 꺼내 봅니다",
-    body: "팔로우하면 이런 정보를 매일 받아볼 수 있어요",
+    title: "이상하게 필요한 것들,\n오즈백이 매일 하나씩",
+    body: "저장해두면 필요할 때 꺼내 보고, 팔로우하면 내일 것도 옵니다",
   });
 
   return cards.slice(0, MAX_CARDS);
@@ -129,7 +132,7 @@ export function buildCaption(post) {
     post.summary,
     "",
     "📌 저장해두면 필요할 때 바로 꺼내 볼 수 있어요",
-    "🔔 팔로우하면 이런 알짜 정보가 매일 피드에 떠요 → @oddsbag_official",
+    "🔔 이상하게 필요한 것들, 오즈백이 매일 하나씩 찾아드립니다 → @oddsbag_official",
   ]
     .filter((l) => l !== undefined)
     .join("\n")
