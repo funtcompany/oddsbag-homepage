@@ -45,3 +45,4 @@ next-env.d.ts
 
 # 손으로 치운 파일 보관 (배포에 포함하지 않음)
 _삭제보관/
+reports/status-*.md

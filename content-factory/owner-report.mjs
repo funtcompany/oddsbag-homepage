@@ -64,8 +64,11 @@ function 바뀐것(일수) {
   }
 }
 
+// ★ 반드시 저장소 안(homepage/reports/)에 둔다.
+//   전에 저장소 바깥(01_오피셜/보고/)을 가리켰는데, GitHub Actions 는 저장소만 내려받으므로
+//   그 경로는 크론에서 영원히 안 보인다 → 매번 "결정할 것 없습니다" 로 나갔을 것이다.
 function 결정대기() {
-  const p = path.join(여기, "..", "..", "보고", "결정대기.md");
+  const p = path.join(여기, "..", "reports", "pending-decisions.md");
   try {
     const t = fs.readFileSync(p, "utf8").trim();
     return t || null;
@@ -168,11 +171,12 @@ async function main() {
   const 글 = 줄글(d);
   console.log("\n" + 글 + "\n");
 
-  // 사람이 나중에 찾아볼 수 있게 파일로도 남긴다
+  // 사람이 나중에 찾아볼 수 있게 파일로도 남긴다.
+  // (크론에서는 실행이 끝나면 사라진다 — 남는 건 메일이다. 손으로 돌릴 때 쓸모가 있다)
   try {
-    const 폴더 = path.join(여기, "..", "..", "보고");
+    const 폴더 = path.join(여기, "..", "reports");
     fs.mkdirSync(폴더, { recursive: true });
-    fs.writeFileSync(path.join(폴더, `현황_${날짜(KST())}.md`), 글 + "\n");
+    fs.writeFileSync(path.join(폴더, `status-${날짜(KST())}.md`), 글 + "\n");
   } catch (e) {
     console.log("파일 저장 건너뜀:", e.message);
   }
