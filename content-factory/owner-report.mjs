@@ -173,10 +173,17 @@ async function main() {
 
   // 사람이 나중에 찾아볼 수 있게 파일로도 남긴다.
   // (크론에서는 실행이 끝나면 사라진다 — 남는 건 메일이다. 손으로 돌릴 때 쓸모가 있다)
+  //
+  // md 와 html 을 같이 낸다 — 회사 규칙(policy.json 의 결과물_형식).
+  // 사장님이 보실 것은 html 이다. md 는 우리가 읽는 원본.
+  // 메일용 html 을 그대로 쓰므로 변환 도구를 따로 부르지 않는다
+  // (company/도구/ 는 이 저장소 밖이라 크론에서는 애초에 안 보인다).
   try {
     const 폴더 = path.join(여기, "..", "reports");
     fs.mkdirSync(폴더, { recursive: true });
-    fs.writeFileSync(path.join(폴더, `status-${날짜(KST())}.md`), 글 + "\n");
+    const 이름 = `status-${날짜(KST())}`;
+    fs.writeFileSync(path.join(폴더, `${이름}.md`), 글 + "\n");
+    fs.writeFileSync(path.join(폴더, `${이름}.html`), html(d));
   } catch (e) {
     console.log("파일 저장 건너뜀:", e.message);
   }
