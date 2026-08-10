@@ -5,7 +5,7 @@
 //        APPLY=1 node repost-cards.mjs   → 실제 교체
 import fs from "node:fs";
 import { getJSON } from "./redis.mjs";
-import { buildCards, buildCaption, buildHashtags, firstCommentEmoji } from "../content-factory/cards.mjs";
+import { buildCards, buildCaption, buildHashtags, firstComment } from "../content-factory/cards.mjs";
 
 const APPLY = process.env.APPLY === "1";
 const SLUGS = JSON.parse(fs.readFileSync("/tmp/broken-slugs.json", "utf8"));
@@ -112,7 +112,7 @@ for (const { p, m } of targets.slice(0, q.left)) {
     }
     let tag = "해시태그 OK";
     try {
-      const cm = await graph(`/${id}/comments`, { message: firstCommentEmoji(p) });
+      const cm = await graph(`/${id}/comments`, { message: firstComment(p) });
       await graph(`/${cm.id}/replies`, { message: buildHashtags(p) });
     } catch (e) { tag = "해시태그 실패(" + e.message.slice(0, 40) + ")"; }
     console.log(`  ✅ ${p.title}\n       옛 ${m.id} 삭제 → 새 ${id} 게시 · ${tag}`);

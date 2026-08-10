@@ -6,7 +6,7 @@
 // 이미지는 /api/card/[slug]?i=N 이 서버에서 즉시 생성한다.
 // 메타 API가 그 URL을 직접 가져가므로 별도 업로드/스토리지가 필요 없다.
 
-import { buildCards, buildCaption, buildHashtags, firstCommentEmoji } from "./cards.mjs";
+import { buildCards, buildCaption, buildHashtags, firstComment } from "./cards.mjs";
 import { kvGet, kvSet, sadd, scard } from "./store.mjs";
 
 const IG_ID = process.env.INSTAGRAM_ACCOUNT_ID;
@@ -144,7 +144,7 @@ export async function postToInstagram(post) {
 //  · 대댓글 달기: POST /{ig-comment-id}/replies
 //  (인스타 토큰에 instagram_manage_comments 권한이 있어야 동작)
 async function attachHashtagsInComment(post, mediaId) {
-  const c = await graph(`/${mediaId}/comments`, { message: firstCommentEmoji(post) });
+  const c = await graph(`/${mediaId}/comments`, { message: firstComment(post) });
   await graph(`/${c.id}/replies`, { message: buildHashtags(post) });
 }
 

@@ -8,7 +8,7 @@
 
 import type { Post } from "@/lib/posts";
 import { postUrl } from "@/lib/channels";
-import { buildCards, buildCaption, buildHashtags, firstCommentEmoji } from "@/lib/cards";
+import { buildCards, buildCaption, buildHashtags, firstComment } from "@/lib/cards";
 import { kvGet, kvSet, sadd, scard } from "@/lib/store";
 
 const IG_ID = process.env.INSTAGRAM_ACCOUNT_ID;
@@ -126,7 +126,7 @@ export async function postToInstagram(post: Post): Promise<string> {
 //  · 대댓글 달기: POST /{ig-comment-id}/replies
 //  (인스타 토큰에 instagram_manage_comments 권한이 있어야 동작)
 async function attachHashtagsInComment(post: Post, mediaId: string): Promise<void> {
-  const c = await graph(`/${mediaId}/comments`, { message: firstCommentEmoji(post) });
+  const c = await graph(`/${mediaId}/comments`, { message: firstComment(post) });
   await graph(`/${c.id as string}/replies`, { message: buildHashtags(post) });
 }
 

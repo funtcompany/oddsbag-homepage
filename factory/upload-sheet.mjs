@@ -23,7 +23,7 @@ function block(label, value, hint = "") {
 
 /**
  * @param {object} p  { slug, title, category, videoFile, thumbFile, ytTitle, ytDesc, ytTags,
- *                      igCaption, igTags, fbCaption, seconds }
+ *                      igCaption, igTags, igComment, fbCaption, seconds }
  * @returns {string} 만들어진 html 파일 경로
  */
 export function writeUploadSheet(outDir, p) {
@@ -70,7 +70,7 @@ ${block("유튜브 제목", p.ytTitle, "100자 제한")}
 ${block("유튜브 설명", p.ytDesc)}
 ${block("유튜브 태그", (p.ytTags || []).join(", "), "쉼표로 구분해서 붙여넣기")}
 ${block("인스타 캡션", p.igCaption)}
-${block("인스타 해시태그", p.igTags, "첫 댓글에 붙여넣기")}
+${block("인스타 첫 댓글", p.igComment ?? p.igTags, "맨 앞 @줄까지 통째로 첫 댓글에 붙여넣기")}
 ${block("페이스북 글", p.fbCaption)}
 
 <ol>
@@ -111,7 +111,7 @@ function copyIt(id, btn) {
           slug: p.slug, 제목: p.title, 카테고리: p.category, 길이초: p.seconds ?? null,
           영상파일: p.videoFile, 썸네일파일: p.thumbFile ?? null,
           유튜브: { 제목: p.ytTitle, 설명: p.ytDesc, 태그: p.ytTags ?? [] },
-          인스타: { 캡션: p.igCaption, 태그: p.igTags ?? [] },
+          인스타: { 캡션: p.igCaption, 태그: p.igTags ?? [], 첫댓글: p.igComment ?? p.igTags ?? "" },
           페북: { 캡션: p.fbCaption },
         },
         null,

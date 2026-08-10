@@ -441,14 +441,18 @@ export function buildRoundupCaption(posts: Post[]): string {
 //  캡션에 태그를 몰아넣으면 지저분해 보인다. 그래서 캡션은 훅+요약+행동유도만,
 //  해시태그 30개는 buildHashtags 로 뽑아 대댓글에 붙인다 (social.ts).
 //  【원칙】 링크로 넘기지 않는다 — 정보는 게시물 안에서 끝나고, CTA는 저장·팔로우다.
+//  【변경 1 · 2026-08-11】 훅 바로 다음 줄에 계정 태그를 올린다 (빈 줄 없이 붙인다).
+//   캡션은 첫 줄만 보이고 나머지는 접힌다. 맨 아래 @멘션은 접힌 안쪽이라 사실상 없는 것과 같았다.
+//   @멘션은 캡션에서 누를 수 있는 유일한 요소다. 아래쪽 CTA 줄에서는 @를 뺐다 — 한 캡션에 두 번 적을 이유가 없다.
 export function buildCaption(post: Post): string {
   return [
     post.hook || post.title,
+    "@oddsbag_official 이 매일 하나씩",
     "",
     post.summary,
     "",
     "📌 저장해두면 필요할 때 바로 꺼내 볼 수 있어요",
-    "🔔 이상하게 필요한 것들, 오즈백이 매일 하나씩 찾아드립니다 → @oddsbag_official",
+    "🔔 이상하게 필요한 것들, 오즈백이 매일 하나씩 찾아드립니다",
   ]
     .filter((l) => l !== undefined)
     .join("\n")
@@ -467,6 +471,13 @@ const CATEGORY_EMOJI: Record<string, string> = {
 };
 export function firstCommentEmoji(post: Post): string {
   return post.emoji || CATEGORY_EMOJI[post.category] || "🔎";
+}
+
+// 첫 댓글 전문 — 이모지 + 계정으로 가는 한 줄
+//  【변경 3 · 2026-08-11】 첫 댓글은 접히지 않고 그대로 보이는 자리다. 그 자리에 계정 링크를 둔다.
+//  해시태그 30개는 지금처럼 대댓글로 나가므로 검색 유입 손해는 없다.
+export function firstComment(post: Post): string {
+  return `${firstCommentEmoji(post)} 이 시리즈 다른 편 → @oddsbag_official`;
 }
 
 // 대댓글용 해시태그 (기본 30개) — 검색 유입용

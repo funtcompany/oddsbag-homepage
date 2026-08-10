@@ -303,7 +303,16 @@ async function buildReel(post) {
   //            대신 tags 필드(500자)에 키워드를 30개까지 넣어 검색을 노린다.
   const igTags = hashtags(post, 30);
   // 【원칙】 링크로 넘기지 않는다 — 내용은 영상 안에서 끝내고, CTA는 저장·구독(미리 알림)이다.
-  const igCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 팔로우하면 이런 알짜 정보가 매일 피드에 떠요 → @oddsbag_official`;
+  //
+  // 【변경 1 · 2026-08-11】 훅 바로 다음 줄에 계정 태그를 올린다 (빈 줄 없이 붙인다).
+  //   릴스 캡션은 첫 줄만 보이고 나머지는 접힌다. 아래쪽 @멘션은 접힌 안쪽이라 사실상 없는 것과 같았다.
+  //   @멘션은 캡션에서 누를 수 있는 유일한 요소이고, 영상을 끝까지 안 본 사람에게도 닿는다.
+  //   ※ 빈 줄을 넣으면 인스타가 거기서 잘라 접으므로, 반드시 훅 바로 아랫줄이어야 한다.
+  const igCaption = `${lead}\n@oddsbag_official 이 매일 하나씩\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 팔로우하면 이런 알짜 정보가 매일 피드에 떠요`;
+  // 【변경 3 · 2026-08-11】 첫 댓글 맨 앞에 계정으로 가는 한 줄을 얹는다.
+  //   첫 댓글은 릴스에서 접히지 않고 그대로 보이는 자리인데, 지금은 해시태그 30개가 그 자리를 다 쓰고 있었다.
+  //   태그 개수는 그대로 두므로 검색 유입 손해는 없다.
+  const igComment = `이 시리즈 다른 편 → @oddsbag_official\n${igTags}`;
   // 유튜브 설명은 검색에 걸릴 본문이 있어야 한다 — content-factory/youtube-seo.mjs 참고
   const ytDesc = youtubeDescription(post);
   const fbCaption = `${lead}\n\n📌 저장해두면 필요할 때 바로 꺼내 봅니다\n🔔 오즈백 페이지 팔로우하고 매일 새 소식 받기\n\n${hashtags(post, 30)}`;
@@ -316,7 +325,7 @@ async function buildReel(post) {
       videoFile: path.basename(final),
       thumbFile: thumbTop ? path.basename(thumbTop) : null,
       ytTitle: youtubeTitle(post), ytDesc, ytTags: youtubeTags(post),
-      igCaption, igTags, fbCaption,
+      igCaption, igTags, igComment, fbCaption,
     });
     console.log(`  · 업로드 양식: ${sheet}`);
   } catch (e) { console.log("  · 업로드 양식 건너뜀:", e.message); }
@@ -361,7 +370,7 @@ async function buildReel(post) {
       try { coverUrl = await uploadPublic(thumb, { metaSafe: true }); }
       catch (e) { console.log("  · 인스타 커버 생략(첫 프레임 사용):", e.message); } // 커버 실패해도 릴스는 올린다
     }
-    const mid = await postReel(url, igCaption, coverUrl, igTags);
+    const mid = await postReel(url, igCaption, coverUrl, igComment);
     await bumpDaily("ig:reels").catch(() => {});
     if (mid) 일지.push({ 채널: 채널_인스타, 제목: post.title, 링크: (await igPermalink(mid)) ?? undefined });
   }
