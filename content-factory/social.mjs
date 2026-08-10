@@ -37,6 +37,9 @@ const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10
 const dayKey = () => `social:shared:${kstDay()}`; // 인스타 카드뉴스
 const fbDayKey = () => `social:fb:${kstDay()}`; // 페이스북 링크 게시
 
+// 카드뉴스로 인스타에 나간 글의 누적 목록 (날짜와 무관). 릴스가 중복을 피하는 데 쓴다.
+const K_IG_CAROUSEL = "social:ig:carousel";
+
 // 한도만으론 부족하다 — 홈페이지 발행이 몰리면 SNS도 한꺼번에 올라간다.
 // 게시 사이 최소 간격을 둬서 하루에 고르게 퍼지게 한다. (몰아 올리면 스팸으로 보이고 도달도 떨어진다)
 const MIN_GAP_MIN = Number(process.env.SOCIAL_GAP_MIN || 600);
@@ -262,6 +265,12 @@ export async function shareEverywhere(
   if (out.ig) {
     try {
       await sadd(dayKey(), post.slug);
+      // 날짜 키와 별개로 '카드뉴스로 나간 글'을 누적해 둔다 (2026-08-10 추가).
+      //   날짜 키만 있으면 어제 나간 글을 오늘 릴스가 또 집어서, 같은 제목이 피드에 두 번 뜬다.
+      //   실제로 55편 중 14편(25%)이 그렇게 중복됐다. 릴스는 이 집합을 보고 뒤로 미룬다
+      //   (제외가 아니라 후순위 — 인스타 도달은 100% 릴스에서 나오므로 릴스를 굶기면 안 된다).
+      //   → 보는 곳: factory/make-reels.mjs 의 pickPending
+      await sadd(K_IG_CAROUSEL, post.slug);
       await kvSet(K_LAST_SHARED, new Date().toISOString()); // 다음 게시 간격 계산 기준
     } catch {
       /* 카운트 실패가 게시를 막지는 않는다 */

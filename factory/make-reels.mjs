@@ -48,6 +48,8 @@ const FB_VIDEO_CAP = Number(process.env.FB_VIDEO_DAILY_CAP || 1);
 const OUT = path.resolve("out");
 fs.mkdirSync(OUT, { recursive: true });
 const K_PUB = "posts:published", DONE = "reels:done";
+// 카드뉴스로 인스타에 나간 글 목록 — 기록하는 곳: content-factory/social.mjs
+const K_CARD = "social:ig:carousel";
 const sh = (c) => execSync(c, { stdio: "inherit" });
 
 // ── 노션 작업일지에 쓸 채널 이름 ──
@@ -97,18 +99,30 @@ async function pickPending(limit) {
     const want = process.env.REEL_SLUGS.split(",").map((s) => s.trim()).filter(Boolean);
     return (await Promise.all(want.map((s) => getJSON(`post:${s}`)))).filter(Boolean);
   }
-  const [pubSlugs, doneArr, prioArr] = await Promise.all([smembers(K_PUB), smembers(DONE), smembers("reels:priority")]);
+  const [pubSlugs, doneArr, prioArr, cardArr] = await Promise.all([
+    smembers(K_PUB), smembers(DONE), smembers("reels:priority"), smembers(K_CARD),
+  ]);
   const done = new Set(doneArr || []);
   const prio = new Set((prioArr || []).filter((s) => !done.has(s)));
+  // 카드뉴스로 이미 인스타에 나간 글 — 릴스로 또 내면 피드에 같은 제목이 두 번 뜬다.
+  //   (2026-08-10 실측: 게시물 55편 중 14편(25%)이 그렇게 중복돼 있었다)
+  //   빼지 않고 뒤로만 미룬다. 인스타 도달은 100% 릴스에서 나오므로,
+  //   후보가 없다고 릴스를 아예 못 만드는 쪽이 중복보다 나쁘다.
+  const card = new Set(cardArr || []);
   const fresh = (pubSlugs || []).filter((s) => !done.has(s));
   const posts = (await Promise.all(fresh.map((s) => getJSON(`post:${s}`)))).filter(Boolean).filter((p) => p.status === "published");
   posts.sort((a, b) => (b.publishedAt ?? b.date ?? "").localeCompare(a.publishedAt ?? a.date ?? ""));
   // 꿀팁(가이드)을 앞으로 — 인스타는 가이드만 올리는 채널이 됐다(사장님 지시 2026-08-05).
   // 뉴스가 먼저 잡히면 그날 인스타 릴스 자리가 그냥 비어버린다.
   // 유튜브는 어차피 전부 올리므로, 순서만 바뀌고 빠지는 글은 없다.
+  // 카드뉴스로 이미 나간 글은 같은 묶음 안에서 뒤로 (빼지는 않는다)
+  const 안겹친것먼저 = (arr) => [
+    ...arr.filter((p) => !card.has(p.slug)),
+    ...arr.filter((p) => card.has(p.slug)),
+  ];
   const guideFirst = (arr) => [
-    ...arr.filter((p) => p.category === "꿀팁"),
-    ...arr.filter((p) => p.category !== "꿀팁"),
+    ...안겹친것먼저(arr.filter((p) => p.category === "꿀팁")),
+    ...안겹친것먼저(arr.filter((p) => p.category !== "꿀팁")),
   ];
   // 재제작 대상(우선순위) 먼저, 그다음 최신 발행글
   return [

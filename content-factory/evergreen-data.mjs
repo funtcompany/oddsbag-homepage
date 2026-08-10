@@ -2413,10 +2413,31 @@ export const AITRUST = [
 // ─────────────────────────────────────────────
 // 전체 묶음 — 파이프라인은 이것만 쓴다
 // ─────────────────────────────────────────────
-export const ALL_EVERGREEN = [
-  ...MAC, ...WINDOWS, ...IPHONE, ...ANDROID,
-  ...WEB, ...OFFICE, ...APPS, ...FIXIT,
-  ...HOME, ...SAVE, ...TRIP, ...WORK,
-  ...SHOP, ...PHOTO, ...FOOD, ...HABIT, ...SEASONLIFE,
-  ...MONEY, ...LEARN, ...MISC, ...AIUSE, ...AIHOWTO, ...AIASK, ...AITRUST,
-];
+//
+// 【순서가 곧 발행 순서다】 (2026-08-10 수정)
+//   주제는 이 배열 앞에서부터 순서대로 소진된다(evergreen.mjs 의 pickEvergreenIssues).
+//   전에는 기술 묶음을 통째로 앞에 두어서, 맥·윈도우·아이폰·브라우저·엑셀 70편을
+//   다 쓸 때까지 집안일·여행·음식 같은 생활 주제가 한 편도 나오지 않았다.
+//   실제로 인스타 55편이 전부 PC 팁으로 도배됐고 — 오즈백 컨셉(이상하게 필요한 것들)과
+//   어긋나는 데다 인스타에서 가장 경쟁이 심한 분야라 반응이 0이었다.
+//
+//   그래서 묶음을 통째로 잇지 않고 한 편씩 번갈아 뽑는다. 매일 다른 결의 주제가 나간다.
+//   ※ 이미 다룬 주제는 seen 으로 걸러지므로, 순서를 바꿔도 같은 글이 다시 나오지 않는다.
+
+/** 여러 묶음에서 한 편씩 번갈아 뽑아 하나로 엮는다 (짧은 묶음이 떨어지면 건너뛴다). */
+const 번갈아 = (...묶음들) => {
+  const out = [];
+  const 최대 = Math.max(...묶음들.map((b) => b.length));
+  for (let i = 0; i < 최대; i++) {
+    for (const b of 묶음들) if (b[i]) out.push(b[i]);
+  }
+  return out;
+};
+
+// 뽑는 차례 — 생활 주제를 앞세우고 그 사이사이에 기술·AI 를 끼운다.
+export const ALL_EVERGREEN = 번갈아(
+  HOME, WINDOWS, FOOD, IPHONE, TRIP, WEB,
+  HABIT, MAC, SAVE, OFFICE, MISC, ANDROID,
+  WORK, FIXIT, SHOP, AIHOWTO, SEASONLIFE, APPS,
+  MONEY, AIASK, PHOTO, AIUSE, LEARN, AITRUST,
+);
