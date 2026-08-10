@@ -26,7 +26,9 @@ const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 // 구글 애널리틱스 측정ID.
 //  이 값은 비밀키가 아니라 페이지 소스에 그대로 노출되는 공개 식별자다.
 //  그래서 Vercel 환경변수가 빠져도 측정이 멈추지 않도록 기본값을 함께 둔다.
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-G4PMTWJ0XC";
+//  2026-08-11 방을 옮겼다 — 로봇 계정이 읽을 수 있는 속성(548621262)의 스트림으로.
+//  전 주소 G-G4PMTWJ0XC 는 로봇에 권한이 없는 다른 속성이라, 숫자가 쌓여도 자동으로 못 읽었다.
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-ESQ2EQ7TN9";
 
 // 검색엔진에 '이 사이트가 뭔지' 알려주는 구조화 데이터
 const SITE_JSONLD = {
