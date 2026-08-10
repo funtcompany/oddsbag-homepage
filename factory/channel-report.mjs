@@ -15,6 +15,7 @@
 // 하는 일
 //   · 유튜브: 구독자·총조회수, 어제 대비 늘어난 조회수, 상위 영상
 //   · 인스타: 형식별(릴스/카드뉴스) 도달·반응 + 프로필방문·팔로우(2026-08-10 추가)
+//   · 검색: 서치콘솔 클릭·노출·평균순위와 상위 검색어 (2026-08-11 추가 — 광고비 0원의 유일한 길)
 //   · 최근 7일과 그 앞 7일을 비교해 나아졌는지 나빠졌는지 보여준다
 //   · 결과를 Redis 에 날짜별로 쌓아 둔다 (2일 점검 리포트가 가져다 쓴다)
 //
@@ -391,16 +392,124 @@ async function 인스타파트() {
   };
 }
 
+// ── 검색 유입 (서치콘솔) ─────────────────────────────────────────────
+// SNS 도달은 우리가 밀어서 나온 숫자지만, 검색 클릭은 사람이 찾아서 들어온 숫자다.
+// 광고비 0원으로 크려면 결국 이 칸이 자라야 한다. 2026-08-11부터 잰다.
+//
+// 로봇 계정(서비스 계정)으로 읽는다 — 열쇠가 없으면 조용히 건너뛴다.
+// ★ 서치콘솔은 데이터가 2~3일 늦게 채워진다. 그래서 어제까지가 아니라
+//   「이틀 전까지의 7일」을 본다. 안 그러면 최근 칸이 늘 낮게 나와 매일 나빠지는 것처럼 보인다.
+async function 검색유입() {
+  const email = process.env.GOOGLE_SA_EMAIL;
+  const key = process.env.GOOGLE_SA_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const site = process.env.GSC_SITE_URL || "https://oddsbag.co.kr/";
+  if (!email || !key) return null;
+
+  const { default: crypto } = await import("node:crypto");
+  const b64 = (s) =>
+    Buffer.from(s).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const now = Math.floor(Date.now() / 1000);
+  const head = b64(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claim = b64(
+    JSON.stringify({
+      iss: email,
+      scope: "https://www.googleapis.com/auth/webmasters.readonly",
+      aud: "https://oauth2.googleapis.com/token",
+      exp: now + 3600,
+      iat: now,
+    }),
+  );
+  const sig = b64(crypto.sign("RSA-SHA256", Buffer.from(`${head}.${claim}`), key));
+  const tr = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: `${head}.${claim}.${sig}`,
+    }),
+  }).then((r) => r.json());
+  if (!tr.access_token) throw new Error(`출입증 실패 ${JSON.stringify(tr).slice(0, 120)}`);
+
+  const 날 = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  const 물어보기 = async (body) => {
+    const r = await fetch(
+      `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site)}/searchAnalytics/query`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tr.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    ).then((x) => x.json());
+    if (r.error) throw new Error(`${r.error.status} ${r.error.message.slice(0, 100)}`);
+    return r.rows ?? [];
+  };
+
+  const 합 = (rows) => {
+    const r = rows[0];
+    return {
+      클릭: r?.clicks ?? 0,
+      노출: r?.impressions ?? 0,
+      순위: r?.position ? Number(r.position.toFixed(1)) : null,
+    };
+  };
+
+  const [최근, 이전, 검색어, 페이지] = await Promise.all([
+    물어보기({ startDate: 날(8), endDate: 날(2), dimensions: [] }).then(합),
+    물어보기({ startDate: 날(15), endDate: 날(9), dimensions: [] }).then(합),
+    물어보기({ startDate: 날(30), endDate: 날(2), dimensions: ["query"], rowLimit: 5 }),
+    물어보기({ startDate: 날(30), endDate: 날(2), dimensions: ["page"], rowLimit: 3 }),
+  ]);
+
+  console.log("\n검색 유입 (서치콘솔)");
+  console.log(`  최근 7일 (${날(8)}~${날(2)}) — 클릭 ${최근.클릭} · 노출 ${최근.노출} · 평균순위 ${최근.순위 ?? "-"}`);
+  console.log(`  그 앞 7일 (${날(15)}~${날(9)}) — 클릭 ${이전.클릭} · 노출 ${이전.노출} · 평균순위 ${이전.순위 ?? "-"}`);
+
+  const 증감 = (a, b, 이름) => {
+    if (b === 0) return a > 0 ? `  · ${이름} ${b}→${a} (0을 깼다)` : null;
+    const p = Math.round(((a - b) / b) * 100);
+    return `  · ${이름} ${b}→${a} (${p >= 0 ? "+" : ""}${p}%)`;
+  };
+  for (const 줄 of [증감(최근.클릭, 이전.클릭, "클릭"), 증감(최근.노출, 이전.노출, "노출")])
+    if (줄) console.log(줄);
+
+  if (검색어.length) {
+    console.log("  최근 30일 상위 검색어");
+    for (const x of 검색어) console.log(`    · ${x.keys[0]} — 클릭 ${x.clicks} / 노출 ${x.impressions}`);
+  } else {
+    console.log("  최근 30일 검색어: 아직 없음");
+  }
+  if (페이지.length) {
+    console.log("  검색으로 들어온 글");
+    for (const x of 페이지)
+      console.log(`    · ${x.keys[0].replace(/^https?:\/\/[^/]+/, "")} — 클릭 ${x.clicks}`);
+  }
+
+  // 노출은 나는데 클릭이 없다 = 검색 결과에 뜨긴 뜨는데 제목이 안 눌린다는 뜻이다.
+  if (최근.노출 >= 20 && 최근.클릭 === 0)
+    console.log("  · 노출은 있는데 클릭이 0이다. 순위 문제가 아니라 제목·설명이 안 눌리는 것이다.");
+
+  return {
+    최근7일: 최근,
+    앞7일: 이전,
+    상위검색어: 검색어.map((x) => ({ 말: x.keys[0], 클릭: x.clicks, 노출: x.impressions })),
+    상위페이지: 페이지.map((x) => ({ 주소: x.keys[0], 클릭: x.clicks })),
+  };
+}
+
 async function main() {
   // 채널을 따로 세운다 — 한쪽 토큰이 만료돼도 다른 쪽 숫자는 계속 나와야 한다.
   // (전에는 인스타 자격증명이 없으면 여기서 전부 끝나서, 살아있는 유튜브까지 같이 눈이 멀었다)
-  const [유튜브, 인스타] = await Promise.all([
+  const [유튜브, 인스타, 검색] = await Promise.all([
     유튜브성적().catch((e) => {
       console.log(`\n유튜브 조회 실패: ${e.message}`);
       return null;
     }),
     인스타파트().catch((e) => {
       console.log(`\n인스타 조회 실패: ${e.message}`);
+      return null;
+    }),
+    검색유입().catch((e) => {
+      console.log(`\n검색 유입 조회 실패: ${e.message}`);
       return null;
     }),
   ]);
@@ -422,7 +531,10 @@ async function main() {
 
   if (!기록안함) {
     const 오늘 = new Date().toISOString().slice(0, 10);
-    await kvSet(`channel:report:${오늘}`, JSON.stringify({ 날짜: 오늘, 유튜브, ...(인스타 ?? {}) }));
+    await kvSet(
+      `channel:report:${오늘}`,
+      JSON.stringify({ 날짜: 오늘, 유튜브, 검색, ...(인스타 ?? {}) }),
+    );
     console.log(`\n기록 완료 — channel:report:${오늘}`);
   }
 }
