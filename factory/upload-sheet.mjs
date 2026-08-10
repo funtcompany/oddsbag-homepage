@@ -97,5 +97,29 @@ function copyIt(id, btn) {
 </div></body></html>`;
 
   fs.writeFileSync(file, html);
+
+  // 【사람용 html 옆에 기계용 json 도 같이 둔다】 (2026-08-10 추가)
+  //   대표가 유튜브에 올린 뒤 제목·설명·태그·썸네일을 자동으로 채우려면
+  //   이 값들을 프로그램이 읽어야 한다. html 을 되읽어 파싱하는 방법은
+  //   서식을 조금만 손대도 조용히 깨진다 — 그래서 원본 값을 그대로 남긴다.
+  //   읽는 곳: 01_오피셜/유튜브대기/받아오기.mjs → 업로드계획.json 을 만든다.
+  try {
+    fs.writeFileSync(
+      path.join(outDir, `${p.slug}.json`),
+      JSON.stringify(
+        {
+          slug: p.slug, 제목: p.title, 카테고리: p.category, 길이초: p.seconds ?? null,
+          영상파일: p.videoFile, 썸네일파일: p.thumbFile ?? null,
+          유튜브: { 제목: p.ytTitle, 설명: p.ytDesc, 태그: p.ytTags ?? [] },
+          인스타: { 캡션: p.igCaption, 태그: p.igTags ?? [] },
+          페북: { 캡션: p.fbCaption },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  } catch { /* 양식(html)은 이미 나왔다 — json 실패가 영상 제작을 막지는 않는다 */ }
+
   return file;
 }

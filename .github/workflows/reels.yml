@@ -134,5 +134,9 @@ jobs:
           path: |
             factory/out/*.mp4
             factory/out/*.html
+            factory/out/*.jpg
+            factory/out/*.json
           if-no-files-found: ignore
-          retention-days: 7
+          # 대표가 직접 올리는 분업으로 바뀌었다(2026-08-10). 며칠 못 올리셔도 영상이
+          # 사라지지 않도록 7일 → 30일. 받아오는 쪽: 01_오피셜/유튜브대기/받아오기.mjs
+          retention-days: 30

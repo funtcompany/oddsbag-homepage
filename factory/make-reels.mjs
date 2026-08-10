@@ -282,6 +282,18 @@ async function buildReel(post) {
     }
   } catch (e) { console.log("  · 썸네일 렌더 건너뜀:", e.message); thumb = null; }
 
+  // 썸네일을 영상 옆(out 바로 아래)에도 같은 이름으로 둔다 (2026-08-10 추가).
+  //   원본은 작업폴더 out/<slug>/thumb.jpg 안에 있는데, 결과물 보관(artifact)은
+  //   out 바로 아래만 담는다 — 그래서 대표가 내려받으면 썸네일만 빠져 있었다.
+  //   영상·썸네일·양식·json 을 같은 자리에 나란히 두면 받아서 바로 쓸 수 있다.
+  let thumbTop = null;
+  if (thumb && fs.existsSync(thumb)) {
+    try {
+      thumbTop = path.join(OUT, `${slug}.jpg`);
+      fs.copyFileSync(thumb, thumbTop);
+    } catch (e) { console.log("  · 썸네일 복사 건너뜀:", e.message); thumbTop = null; }
+  }
+
   // 게시 (자격증명 있을 때만) — 유입 최적화: 훅 첫줄 + 명확한 CTA + 태그(10~30개)
   const lead = (post.hook || post.title).trim();
   // 【채널마다 태그 개수가 다르다】
@@ -302,6 +314,7 @@ async function buildReel(post) {
     const sheet = writeUploadSheet(OUT, {
       slug, title: post.title, category: post.category, seconds: totalDur,
       videoFile: path.basename(final),
+      thumbFile: thumbTop ? path.basename(thumbTop) : null,
       ytTitle: youtubeTitle(post), ytDesc, ytTags: youtubeTags(post),
       igCaption, igTags, fbCaption,
     });
