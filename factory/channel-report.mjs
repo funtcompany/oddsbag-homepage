@@ -14,7 +14,7 @@
 //
 // 하는 일
 //   · 유튜브: 구독자·총조회수, 어제 대비 늘어난 조회수, 상위 영상
-//   · 인스타: 형식별(릴스/카드뉴스) 도달·반응
+//   · 인스타: 형식별(릴스/카드뉴스) 도달·반응 + 프로필방문·팔로우(2026-08-10 추가)
 //   · 최근 7일과 그 앞 7일을 비교해 나아졌는지 나빠졌는지 보여준다
 //   · 결과를 Redis 에 날짜별로 쌓아 둔다 (2일 점검 리포트가 가져다 쓴다)
 //
@@ -43,6 +43,9 @@ const 값 = (d, name) => {
   const m = (d.data ?? []).find((x) => x.name === name);
   return m?.values?.[0]?.value ?? m?.total_value?.value ?? 0;
 };
+// 값()은 항목이 아예 없어도 0 을 준다 — "진짜 0" 과 "못 잰 것" 이 똑같이 보인다.
+// 프로필방문처럼 0 인지 아닌지가 판단의 전부인 숫자는 이걸로 구분해야 한다.
+const 왔나 = (d, name) => (d.data ?? []).some((x) => x.name === name);
 
 // 게시물 하나의 성적 — 인사이트는 게시물마다 따로 물어야 한다
 //
@@ -51,30 +54,69 @@ const 값 = (d, name) => {
 //   · 평균시청시간(릴스): 첫 3초를 고쳤는지 아닌지가 여기 바로 찍힌다. 도달보다 빠른 신호다.
 //   metric 을 한 번에 물었다가 하나라도 지원 안 되면 호출 전체가 죽으므로, 실패하면 reach 만 다시 묻는다.
 async function 성적(mediaId, 릴스인가) {
-  const 기본 = { reach: 0, saved: 0, shares: 0, 시청초: 0 };
-  const metric = 릴스인가
-    ? "reach,saved,shares,ig_reels_avg_watch_time"
-    : "reach,saved,shares";
-  try {
-    const d = await meta(`/${mediaId}/insights`, { metric });
-    return {
-      reach: 값(d, "reach"),
-      saved: 값(d, "saved"),
-      shares: 값(d, "shares"),
-      // 메타는 밀리초로 준다 → 초로 바꿔 사람이 읽을 수 있게
-      시청초: 릴스인가 ? +(값(d, "ig_reels_avg_watch_time") / 1000).toFixed(1) : 0,
-    };
-  } catch {
+  const 기본 = { reach: 0, saved: 0, shares: 0, 시청초: 0, 프로필방문: 0, 팔로우: 0, 프로필잼: false };
+  const 시청 = 릴스인가 ? ",ig_reels_avg_watch_time" : "";
+  // 넓은 것부터 좁은 것까지 차례로 시도한다.
+  // 한 항목이라도 거부당하면 호출 전체가 죽으므로, 프로필방문이 안 되는 게시물에서도
+  // 저장·공유·평균시청은 그대로 살아남아야 한다. (전에는 곧바로 reach 만 남았다)
+  const 후보 = [
+    `reach,saved,shares,profile_visits,follows${시청}`,
+    `reach,saved,shares${시청}`,
+    "reach",
+  ];
+  for (const metric of 후보) {
     try {
-      const d = await meta(`/${mediaId}/insights`, { metric: "reach" });
-      return { ...기본, reach: 값(d, "reach") };
+      const d = await meta(`/${mediaId}/insights`, { metric });
+      return {
+        reach: 값(d, "reach"),
+        saved: 값(d, "saved"),
+        shares: 값(d, "shares"),
+        // ★ 2026-08-10 추가 (3채널-통합전략 4-0)
+        //   인스타에서 남은 질문은 "본 사람이 계정을 눌러보나" 하나뿐인데, 성적표가 그걸 안 물었다.
+        //   안 재면 무엇을 고쳐서 무엇이 움직였는지 영원히 모른다.
+        프로필방문: 값(d, "profile_visits"),
+        팔로우: 값(d, "follows"),
+        프로필잼: 왔나(d, "profile_visits"), // 진짜 0 인지, 메타가 안 준 건지 구분용
+        // 메타는 밀리초로 준다 → 초로 바꿔 사람이 읽을 수 있게
+        시청초: 릴스인가 ? +(값(d, "ig_reels_avg_watch_time") / 1000).toFixed(1) : 0,
+      };
     } catch {
-      return 기본; // 너무 오래됐거나 권한이 없으면 0 으로 둔다
+      // 다음 후보로 좁혀서 다시 묻는다
     }
   }
+  return 기본; // 너무 오래됐거나 권한이 없으면 0 으로 둔다
 }
 
 const 일수 = (iso) => (Date.now() - new Date(iso).getTime()) / 864e5;
+
+// 계정 전체 인사이트 — 프로필 방문의 '진짜 기준값'은 여기서 나온다.
+//
+// ★ 2026-08-10 실측으로 알아낸 것
+//   릴스는 게시물별로 프로필방문을 아예 못 잰다. 메타가 이렇게 답한다:
+//   "The Media Insights API does not support the profile_visits metric for this media product type."
+//   (카드뉴스는 된다. 그런데 카드뉴스는 도달이 0이라 잴 게 없다 — 사람이 닿는 건 릴스뿐이다)
+//   그래서 게시물별 숫자만 보면 정작 알고 싶은 값이 통째로 빈다.
+//   계정 단위 profile_views 는 릴스·검색·태그·프로필 직접방문을 전부 합쳐서 준다. 이쪽이 답이다.
+//   ※ profile_views 는 metric_type=total_value 를 반드시 같이 보내야 한다(안 보내면 거부당한다).
+async function 계정인사이트(며칠 = 7) {
+  const now = Math.floor(Date.now() / 1000);
+  const 공통 = { period: "day", metric_type: "total_value", since: String(now - 며칠 * 86400), until: String(now) };
+  const 하나 = async (metric) => {
+    try {
+      const d = await meta(`/${IG}/insights`, { metric, ...공통 });
+      const m = (d.data ?? [])[0];
+      return m ? (m.total_value?.value ?? 0) : null; // 항목 자체가 안 오면 null = 못 쟀다 (0 과 구분)
+    } catch {
+      return null;
+    }
+  };
+  const [프로필방문, 도달, 링크탭] = await Promise.all([
+    하나("profile_views"),
+    하나("reach"),
+    하나("profile_links_taps"),
+  ]);
+  return { 며칠, 프로필방문, 도달, 링크탭 };
+}
 
 // ───────────────────────── 유튜브 ─────────────────────────
 // 오즈백에서 유일하게 사람이 보는 채널이다. 여기 숫자가 판단의 근거다.
@@ -217,6 +259,10 @@ async function 인스타파트() {
     const c = list.reduce((s, m) => s + (m.comments_count ?? 0), 0);
     const sv = list.reduce((s, m) => s + (m.saved ?? 0), 0);
     const sh = list.reduce((s, m) => s + (m.shares ?? 0), 0);
+    const pv = list.reduce((s, m) => s + (m.프로필방문 ?? 0), 0);
+    const fo = list.reduce((s, m) => s + (m.팔로우 ?? 0), 0);
+    // 프로필방문이 실제로 온 게시물 수. 이게 0이면 합계 0은 "안 눌렀다"가 아니라 "못 쟀다"다.
+    const pv잰것 = list.filter((m) => m.프로필잼).length;
     // 평균시청시간은 실제로 값이 온 것만 평균한다 (0인 것까지 넣으면 평균이 가짜로 내려간다)
     const 시청 = list.filter((m) => m.시청초 > 0);
     return {
@@ -227,6 +273,9 @@ async function 인스타파트() {
       댓글: c,
       저장: sv,
       공유: sh,
+      프로필방문: pv,
+      팔로우: fo,
+      프로필잰개수: pv잰것,
       반응률: r ? +((l / r) * 100).toFixed(2) : 0,
       // ★ 좋아요만 세면 꿀팁 콘텐츠를 과소평가한다 — 이런 글에는 '저장'으로 반응한다.
       //   단 댓글은 넣지 않는다. 도달 0인 카드뉴스에도 댓글이 20개 달려 있다 = 사람이 아니라 스팸이다.
@@ -248,6 +297,11 @@ async function 인스타파트() {
       `        └ 저장 ${s.저장} · 공유 ${s.공유} · 참여율 ${s.참여율}% (댓글 ${s.댓글}은 스팸으로 보여 제외)` +
         (s.평균시청초 ? ` · 평균시청 ${s.평균시청초}초` : ""),
     );
+    console.log(
+      s.프로필잰개수
+        ? `        └ 프로필방문 ${s.프로필방문} · 팔로우 ${s.팔로우}  (${s.프로필잰개수}/${s.개수}건 측정됨)`
+        : `        └ 프로필방문 — 메타가 안 줌 (0이 아니라 '못 쟀다'는 뜻)`,
+    );
   }
 
   // ---- 최근 7일 vs 그 앞 7일 ----
@@ -260,6 +314,18 @@ async function 인스타파트() {
   console.log(`  도달합계 ${a.도달} ← ${b.도달}  ${화살표(a.도달, b.도달)}`);
   console.log(`  평균도달 ${a.평균도달} ← ${b.평균도달}  ${화살표(a.평균도달, b.평균도달)}`);
   console.log(`  좋아요   ${a.좋아요} ← ${b.좋아요}  ${화살표(a.좋아요, b.좋아요)}`);
+  if (a.프로필잰개수 || b.프로필잰개수) {
+    console.log(`  프로필방문 ${a.프로필방문} ← ${b.프로필방문}  ${화살표(a.프로필방문, b.프로필방문)}`);
+    console.log(`  팔로우   ${a.팔로우} ← ${b.팔로우}  ${화살표(a.팔로우, b.팔로우)}`);
+  }
+
+  // ---- 계정 전체 (프로필 방문의 기준값) ----
+  const 계정 = await 계정인사이트(7);
+  console.log("\n계정 전체 · 최근 7일");
+  console.log(
+    `  도달 ${계정.도달 ?? "―"} · 프로필 방문 ${계정.프로필방문 ?? "못 쟀음"} · 프로필 링크 누름 ${계정.링크탭 ?? "―"}`,
+  );
+  console.log("  ※ 릴스는 게시물별로 프로필 방문을 못 잰다(메타가 지원 안 함). 이 계정 숫자가 기준이다.");
 
   // ---- 페이스북 ----
   let 페북 = null;
@@ -296,6 +362,21 @@ async function 인스타파트() {
         `  · 평균시청이 30초를 못 넘는다. 60~179초짜리를 만들고 있으니 뒤쪽은 사실상 아무도 안 본다. 길이를 줄이는 안을 검토할 것.`,
       );
   }
+  // ★ 인스타에서 지금 우리가 판단하려는 숫자는 이것 하나다 (3채널-통합전략 4장)
+  //   "도달한 사람이 계정을 눌러보나". 계정 전체 숫자로 본다 — 릴스는 게시물별로 못 재기 때문.
+  if (계정.프로필방문 === null)
+    console.log(
+      "  · 프로필 방문을 메타가 안 준다. 자동으로 못 잰다 — 앱 인사이트를 눈으로 볼 것. (0으로 읽지 말 것)",
+    );
+  else if (계정.프로필방문 === 0)
+    console.log(
+      `  · 프로필 방문 7일 0회 (같은 기간 도달 ${계정.도달 ?? "?"}). 닿기는 하는데 계정을 누른 사람이 한 명도 없다 — 화면에 '누를 이유'가 없다는 뜻이다.`,
+    );
+  else
+    console.log(
+      `  · 프로필 방문 7일 ${계정.프로필방문}회 (도달 ${계정.도달 ?? "?"}). 0을 깼다 — 이 숫자를 매일 비교할 것.`,
+    );
+
   if (prof.followers_count === 0)
     console.log("  · 팔로워가 아직 0명이다. 도달이 늘어도 팔로우로 이어지지 않으면 계정이 안 큰다.");
 
@@ -305,6 +386,7 @@ async function 인스타파트() {
     형식별: Object.fromEntries(Object.entries(묶음).map(([k, v]) => [k, 요약(v)])),
     최근7일: a,
     앞7일: b,
+    계정7일: 계정, // 프로필 방문 기준값 — 2일 리포트가 추이를 보려면 이게 매일 쌓여야 한다
     페북,
   };
 }
