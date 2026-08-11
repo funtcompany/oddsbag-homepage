@@ -20,11 +20,22 @@ import { fileURLToPath } from "node:url";
 import { buildCards, fitCard, reelSay } from "./render.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// 열쇠 파일 위치 — 이 파일이 homepage/factory/ 로 옮겨오면서 경로가 어긋나 있었다(homepage/homepage/ 를 보고 있었다).
+//  그래서 이 검사는 그동안 첫 줄에서 죽었다. 후보를 순서대로 보고, 없으면 이미 들어온 환경변수를 쓴다(깃허브 액션). (2026-08-11)
 const ENV = {};
-for (const l of fs.readFileSync(path.join(__dirname, "..", "homepage", ".env.local"), "utf8").split("\n")) {
-  const m = l.match(/^([A-Z0-9_]+)=(.*)$/);
-  if (m) ENV[m[1]] = m[2].replace(/^["']|["']$/g, "").trim();
+const 후보 = [
+  path.join(__dirname, "..", ".env.local"),          // homepage/factory → homepage/.env.local  ★지금 위치
+  path.join(__dirname, "..", "homepage", ".env.local"), // 01_오피셜/factory → homepage/.env.local (옛 사본)
+];
+const envPath = 후보.find((p) => fs.existsSync(p));
+if (envPath) {
+  for (const l of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const m = l.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (m) ENV[m[1]] = m[2].replace(/^["']|["']$/g, "").trim();
+  }
 }
+for (const k of ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]) ENV[k] ||= process.env[k];
+if (!ENV.UPSTASH_REDIS_REST_URL) throw new Error("Redis 열쇠를 못 찾았다 — .env.local 위치를 확인할 것");
 const redis = async (cmd) => (await (await fetch(ENV.UPSTASH_REDIS_REST_URL, {
   method: "POST", headers: { Authorization: `Bearer ${ENV.UPSTASH_REDIS_REST_TOKEN}`, "Content-Type": "application/json" },
   body: JSON.stringify(cmd),

@@ -135,7 +135,9 @@ export function buildCards(post) {
     body: budget ? clipWhole(s.text, budget) : clipWhole(s.text, 1), // 0이면 첫 문장만
   }));
   if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clipWhole(closing.text, 140) });
-  cards.push({ kind: "cta", label: "@oddsbag_official", title: "전체 글은\n오즈백 매거진에서", body: "프로필 링크 → oddsbag.co.kr" });
+  // 마무리 — 릴스에는 링크가 없다. "매거진에서 보세요"는 할 수 없는 부탁이라 아무도 안 움직인다.
+  //  캐러셀(lib/cards.ts)과 같은 말로 맞춘다 — 같은 계정에서 끝맺음이 두 가지면 시리즈로 안 읽힌다. (2026-08-11)
+  cards.push({ kind: "cta", label: "@oddsbag_official", title: "이상하게 필요한 것들,\n오즈백이 매일 하나씩", body: "저장해두면 필요할 때 꺼내 보고, 팔로우하면 내일 것도 옵니다" });
   return cards.slice(0, MAX_CARDS);
 }
 // 카드에 담긴 텍스트를 '있는 그대로 온전히' 읽는다.
@@ -156,7 +158,8 @@ export function reelSay(card) {
       return `${head} ${body}`;
     }
     case "quote": case "conclusion": return `오즈백 한 줄 정리. ${sayClean(card.title)}`;
-    case "cta": return "전체 글은 오즈백 매거진에서 확인하세요.";
+    // 화면과 같은 방향을 가리켜야 한다. 릴스에는 링크가 없어 '매거진에서 확인하세요'는 실행 불가능한 부탁이었다.
+    case "cta": return "이런 거 매일 하나씩 올립니다. 오즈백 계정 눌러서 팔로우하고 가세요.";
     default: return sayClean(card.title);
   }
 }

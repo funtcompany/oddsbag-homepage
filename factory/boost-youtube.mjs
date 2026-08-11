@@ -4,7 +4,11 @@
 // 실행: node boost-youtube.mjs         → 현황만 리포트(읽기전용)
 //       APPLY=1 node boost-youtube.mjs → 실제 반영
 import { smembers, getJSON, redisReady } from "./redis.mjs";
-import { hashtags, keywords } from "./hashtags.mjs";
+// 설명·태그는 새 영상과 같은 원본에서 만든다. (2026-08-11)
+//  전에는 이 파일이 설명을 자체 문구로 덮어쓰고 태그도 다른 계산기(hashtags.mjs, 30개)를 썼다.
+//  새 영상은 youtube-seo.mjs(20개)로 나가므로, 이 도구를 돌릴 때마다 방금 잘 올라간 영상이
+//  옛 규칙으로 되돌아갔다. '다르면 고친다'는 판정도 영원히 참이 되어 한도만 태웠다.
+import { youtubeDescription, youtubeTags } from "../content-factory/youtube-seo.mjs";
 
 const CID = process.env.YOUTUBE_CLIENT_ID, CSECRET = process.env.YOUTUBE_CLIENT_SECRET, RTOKEN = process.env.YOUTUBE_REFRESH_TOKEN;
 const APPLY = process.env.APPLY === "1";
@@ -73,7 +77,7 @@ async function main() {
     if (!p) continue;
     matched++;
     (byCat[p.category] ||= []).push(v);
-    const want = keywords(p, 30);
+    const want = youtubeTags(p);
     if (v.tags.length < 15 || !same(v.tags.map((t) => String(t).toLowerCase()), want.map((t) => t.toLowerCase()))) {
       toBoost.push({ v, p });
     }
@@ -93,7 +97,7 @@ async function main() {
   if (!APPLY) {
     for (const { v, p } of 대상.slice(0, 8)) {
       console.log(`  · 보강예정: ${v.title}\n      지금: ${v.tags.slice(0, 8).join(", ") || "(없음)"}${v.tags.length > 8 ? " …" : ""}`);
-      console.log(`      바뀜: ${keywords(p, 30).slice(0, 8).join(", ")} …`);
+      console.log(`      바뀜: ${youtubeTags(p).slice(0, 8).join(", ")} …`);
     }
     return;
   }
@@ -101,10 +105,10 @@ async function main() {
   // ① 태그+설명 보강
   let done = 0;
   for (const { v, p } of 대상) {
-    const lead = (p.hook || p.title).trim();
-    const desc = `${lead}\n\n👉 oddsbag.co.kr 에서 전체 글 보기\n📌 @oddsbag_official 구독\n\n${hashtags(p, 15)}`;
+    // 새 영상과 똑같은 설명을 만든다 — 훅 → 글 링크(UTM) → 요약 → 다루는 것 → 구독 → 해시태그
+    const desc = youtubeDescription(p);
     try {
-      await api("videos?part=snippet", { method: "PUT", body: JSON.stringify({ id: v.id, snippet: { title: v.title, description: desc, tags: keywords(p, 30), categoryId: v.categoryId || "25" } }) });
+      await api("videos?part=snippet", { method: "PUT", body: JSON.stringify({ id: v.id, snippet: { title: v.title, description: desc, tags: youtubeTags(p), categoryId: v.categoryId || "25" } }) });
       done++; console.log(`  ✅ 태그보강 ${done}/${대상.length}: ${v.title}`);
     } catch (e) { console.log(`  ✗ ${v.title}: ${e.message}`); }
     await sleep(200);

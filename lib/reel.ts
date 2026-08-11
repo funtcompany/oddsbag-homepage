@@ -38,8 +38,10 @@ export function reelSay(card: Card): string {
     }
     case "quote":
       return `오즈백 한 줄 정리. ${sayClean(card.title)}`;
+    // 화면과 같은 방향을 가리켜야 한다. 릴스에는 링크가 없어 '매거진에서 확인하세요'는 실행 불가능한 부탁이었다.
+    //  factory/render.mjs 의 같은 자리와 글자까지 똑같이 맞춘다. (2026-08-11)
     case "cta":
-      return "전체 글은 오즈백 매거진에서 확인하세요.";
+      return "이런 거 매일 하나씩 올립니다. 오즈백 계정 눌러서 팔로우하고 가세요.";
     default:
       return sayClean(card.title);
   }

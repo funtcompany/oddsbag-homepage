@@ -2,6 +2,7 @@ import PostCard from "@/components/PostCard";
 import AdSlot from "@/components/AdSlot";
 import ReactionBar from "@/components/ReactionBar";
 import CommentSection from "@/components/CommentSection";
+import SubscribeBox from "@/components/SubscribeBox";
 import ViewTracker from "@/components/ViewTracker";
 import {
   KeycapFigure,
@@ -484,6 +485,12 @@ export default function ArticleView({
               </ul>
             </div>
           )}
+
+          {/* 구독 칸 — 검색·유튜브로 들어온 사람이 도착하는 자리는 홈이 아니라 여기다. (2026-08-11)
+              ★ 기사 페이지에는 이 한 곳에만 둔다. 두 개 넣으면 둘 다 무시당한다. */}
+          <div className="mt-10">
+            <SubscribeBox />
+          </div>
 
           <div className="mt-8">
             <CommentSection slug={post.slug} />

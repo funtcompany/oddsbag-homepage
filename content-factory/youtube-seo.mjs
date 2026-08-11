@@ -39,9 +39,36 @@ function sections(post) {
 }
 
 /**
+ * 홈페이지로 보내는 링크 한 줄. (2026-08-11 신설 — 2주계획 8/12)
+ *
+ * 【왜 함수로 뺐나】 설명을 만드는 곳이 두 군데다 — 새 영상은 이 파일이,
+ *   이미 올라간 영상은 `factory/boost-youtube.mjs`가 만든다. 문구를 각자 적어두면
+ *   소급 도구가 새 템플릿을 덮어써서 되돌린다. 한 곳에서만 만든다.
+ *
+ * 【왜 뒤에 물음표가 붙나】 유튜브가 보낸 사람이 몇 명인지 지금은 셀 방법이 없다.
+ *   이 표식(UTM)이 붙어 있으면 애널리틱스가 "유튜브에서 온 사람"으로 자동 분류한다.
+ *   글 주소의 대표주소(canonical)는 물음표와 무관하게 고정이라 검색 손해는 없다.
+ */
+export function articleLink(slug) {
+  if (!slug) return "";
+  return `${SITE}/magazine/${slug}?utm_source=youtube&utm_medium=shorts`;
+}
+
+/** 설명란·소급도구가 함께 쓰는 링크 줄 */
+export function articleLinkLine(slug) {
+  const url = articleLink(slug);
+  return url ? `👉 전체 내용 정리본: ${url}` : "";
+}
+
+/**
  * 유튜브 설명란.
  *
  * 앞 150자 안에 제목의 핵심 말이 들어가게 짠다 — 검색 결과 미리보기가 거기서 잘린다.
+ *
+ * 【2026-08-11 순서 변경】 링크를 훅 바로 다음으로 올렸다. 전에는 요약과 목록 8줄을
+ *   다 지나야 링크가 나왔는데, 쇼츠는 설명이 기본으로 접혀 있어서 펼친 사람조차
+ *   거기까지 안 내려간다. 유튜브가 유일하게 사람이 오는 채널이고 홈페이지로 보내는
+ *   길이 이 한 줄뿐이라, 미리보기 글자 몇 자를 내주더라도 위로 올린다.
  */
 export function youtubeDescription(post) {
   const lead = String(post.hook || post.title || "").trim();
@@ -54,17 +81,18 @@ export function youtubeDescription(post) {
   // 1) 첫 줄 — 검색 미리보기에 그대로 나온다
   조각.push(lead);
 
-  // 2) 요약 — 제목의 말이 한 번 더 나오게 한다 (키워드 반복은 과하지 않게 한 번)
+  // 2) 글로 더 보기 — 접히기 전에 보이라고 여기에 둔다
+  const 링크 = articleLinkLine(post.slug);
+  if (링크) 조각.push("", 링크);
+
+  // 3) 요약 — 제목의 말이 한 번 더 나오게 한다 (키워드 반복은 과하지 않게 한 번)
   if (summary && summary !== lead) 조각.push("", summary);
 
-  // 3) 이 영상에서 다루는 것 — 검색에 걸릴 면적을 넓히는 부분
+  // 4) 이 영상에서 다루는 것 — 검색에 걸릴 면적을 넓히는 부분
   if (secs.length) {
     조각.push("", "📌 이 영상에서 다루는 것");
     for (const s of secs) 조각.push(`· ${s}`);
   }
-
-  // 4) 글로 더 보기 — 홈페이지 유입
-  if (post.slug) 조각.push("", `👉 글로 자세히 보기: ${SITE}/magazine/${post.slug}`);
 
   조각.push("", "🔔 구독하면 이런 정보를 놓치지 않습니다 — @ODDSBAG");
   조각.push("", tags);

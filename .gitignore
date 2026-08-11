@@ -1,7 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+#  factory/ 는 자체 package.json 으로 따로 부품을 받는다(워크플로가 factory 안에서 npm ci 를 돈다).
+#  최상위만 막아두면 그 부품 수천 개가 깃에 딸려 들어간다. 어느 깊이든 막는다. (2026-08-11)
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
