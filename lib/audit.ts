@@ -109,6 +109,10 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
         review.issues,
       );
 
+      // 심사관 답을 못 읽었다 → 판정이 없는 것이다. 아무것도 건드리지 않고 넘긴다. (2026-08-11)
+      //  감사 시각도 갱신하지 않는다 — 그래야 다음 회차에 이 글이 다시 후보로 올라온다.
+      if (review.verdict === "skip") continue;
+
       if (review.verdict === "publish") {
         // 이상 없음 — 감사 시각만 갱신
         post.auditedAt = nowIso();
@@ -171,6 +175,8 @@ export async function runAudit(opts: { share?: boolean } = {}): Promise<AuditRes
           });
           continue;
         }
+        // 고쳐 쓴 뒤 재심사에서 답을 못 읽었으면, 그것도 판정이 아니다. 내리지 않는다. (2026-08-11)
+        if (recheck.verdict === "skip") continue;
         review.note = recheck.note || review.note;
         review.score = recheck.score;
       }

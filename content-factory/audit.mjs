@@ -49,6 +49,7 @@ export async function runAudit(opts = {}) {
     archived: [],
     stale: [],
     formatFlagged: [], // 형식만 모자람 (발행 유지, 표시만)
+    skipped: [], // 심사관 답을 못 읽어 판정을 못 한 것 (건드리지 않고 넘김) — 이 숫자가 크면 AI 쪽을 봐야 한다
     reconciled: [], // 노션 표시를 홈페이지 실제와 맞춘 것
     notionFailed: 0, // 노션에 반영하지 못한 횟수 (쌓이면 검수함이 유령으로 부푼다)
     social: { ig: 0, fb: 0 },
@@ -91,6 +92,14 @@ export async function runAudit(opts = {}) {
         },
         review.issues,
       );
+
+      // 심사관 답을 못 읽었다 → 판정이 없는 것이다. 아무것도 건드리지 않고 넘긴다. (2026-08-11)
+      //  전에는 이게 '0점'으로 둔갑해 멀쩡한 글이 내려갔다. 218편이 이 길로 사라졌다.
+      //  감사 시각도 갱신하지 않는다 — 그래야 다음 회차에 이 글이 다시 후보로 올라온다.
+      if (review.verdict === "skip") {
+        out.skipped.push({ slug: post.slug, title: post.title });
+        continue;
+      }
 
       if (review.verdict === "publish") {
         // 이상 없음 — 감사 시각만 갱신
@@ -152,6 +161,11 @@ export async function runAudit(opts = {}) {
             title: post.title,
             issues: recheck.formatIssues ?? [],
           });
+          continue;
+        }
+        // 고쳐 쓴 뒤 재심사에서 답을 못 읽었으면, 그것도 판정이 아니다. 내리지 않는다. (2026-08-11)
+        if (recheck.verdict === "skip") {
+          out.skipped.push({ slug: post.slug, title: post.title });
           continue;
         }
         review.note = recheck.note || review.note;

@@ -89,9 +89,27 @@ const RISK_SYSTEM = `너는 언론사의 법무·윤리 심사관이다.
 <note>한 줄 심사평</note>`;
 
 // ---- 파서 ----
-function parseReview(text, defaultRisk) {
-  const n = (k, max) =>
-    Math.max(0, Math.min(max, parseInt(pick(text, k) || "0", 10) || 0));
+//
+// 【2026-08-11 — 여기가 글 218편을 내린 자리다】
+//   심사관(AI) 답에서 점수를 못 찾으면 `|| 0` 때문에 **글이 0점**이 됐다. 위험도도 못 찾으면
+//   defaultRisk(medium)로 가정했다. 그러면 재감사에서 `medium 또는 70점 미만` → 고쳐쓰기 → 또 실패 → **내림**.
+//   즉 글이 나빠서가 아니라 **심사관이 삐끗해서** 내려갔다. 무료 AI 한도가 밀려 약한 예비 엔진으로
+//   넘어가면 형식이 자주 깨지는데, 그때마다 멀쩡한 글이 0점을 받았다(내려간 글 품질 중앙값 56점·최고 100점).
+//
+//   그래서 「0점」과 「점수를 못 읽었다」를 구분한다. 못 읽은 답은 **그 글이 나쁘다는 증거가 아니다.**
+//   가짜뉴스 판정이 제대로 나온 글은 지금과 똑같이 걸러진다 — 방어가 약해지지 않는다.
+const SCORE_KEYS = [
+  ["accuracy", 40],
+  ["readability", 20],
+  ["tone", 15],
+  ["useful", 15],
+  ["titleScore", 10],
+];
+
+// export 인 이유: 글을 내릴지 말지를 정하는 자리라 시험으로 증명할 수 있어야 한다.
+export function parseReview(text, defaultRisk) {
+  const raw = (k) => String(pick(text, k) ?? "").trim();
+  const n = (k, max) => Math.max(0, Math.min(max, parseInt(raw(k) || "0", 10) || 0));
   const scores = {
     accuracy: n("accuracy", 40),
     readability: n("readability", 20),
@@ -101,13 +119,20 @@ function parseReview(text, defaultRisk) {
   };
   const score = scores.accuracy + scores.readability + scores.tone + scores.useful + scores.title;
   const r = pick(text, "fakeRisk").toLowerCase();
-  const fakeRisk = r === "low" || r === "medium" || r === "high" ? r : defaultRisk;
+  const riskRead = r === "low" || r === "medium" || r === "high";
+  const fakeRisk = riskRead ? r : defaultRisk;
   const issues = pick(text, "issues")
     .split("\n")
     .map((l) => l.replace(/^[-•*]\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 8);
-  return { score, fakeRisk, verdict: "hold", issues, note: pick(text, "note"), scores };
+  // 점수 칸을 하나도 못 읽었으면 이 심사는 쓸 수 없는 답이다. (위험도만 읽힌 경우도 점수는 0이라 마찬가지)
+  const 읽은점수칸 = SCORE_KEYS.filter(([k]) => raw(k) !== "").length;
+  const parsed = 읽은점수칸 > 0;
+  return {
+    score, fakeRisk, verdict: "hold", issues, note: pick(text, "note"), scores,
+    parsed, riskRead,
+  };
 }
 
 function parseRisk(text) {
@@ -465,7 +490,10 @@ ${post.body}
   if (gIssues.length) rv.issues = [...(rv.issues ?? []), ...gIssues].slice(0, 8);
 
   let verdict;
-  if (fakeRisk === "high") verdict = "hold";
+  // 심사관 답을 못 읽었으면 판정 자체가 없는 것이다. 발행글을 건드리지 않고 다음 회차로 넘긴다.
+  //  (36시간마다 다시 심사하므로 진짜 문제가 있으면 다음번에 잡힌다)
+  if (!rv.parsed) verdict = "skip";
+  else if (fakeRisk === "high") verdict = "hold";
   else if (fakeRisk === "medium" || score < 70 || gIssues.length) verdict = "revise";
   else verdict = "publish";
 

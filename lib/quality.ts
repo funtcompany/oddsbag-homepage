@@ -12,7 +12,9 @@ import { pick, hasBrokenChars, type DraftDraft } from "@/lib/ai";
 import { ask } from "@/lib/llm";
 import { machineVerify, verifyGuideTerms, type MachineCheck, type GuideTermCheck } from "@/lib/verify";
 
-export type Verdict = "publish" | "revise" | "hold";
+// skip — 심사관 답을 읽지 못해 '판정을 못 한' 상태. 발행글을 건드리지 않고 다음 회차로 넘긴다.
+//        (0점과 구분하려고 2026-08-11 에 추가. 이 구분이 없어서 멀쩡한 글 218편이 내려갔다)
+export type Verdict = "publish" | "revise" | "hold" | "skip";
 export type FakeRisk = "low" | "medium" | "high";
 
 export interface RiskReview {
@@ -25,6 +27,8 @@ export interface Review {
   score: number; // 0~100
   fakeRisk: FakeRisk;
   verdict: Verdict;
+  /** 심사관 답에서 점수 칸을 하나라도 읽었는가. false 면 이 심사는 쓸 수 없는 답이다 */
+  parsed: boolean;
   issues: string[];
   note: string;
   scores: {
@@ -117,9 +121,23 @@ const RISK_SYSTEM = `너는 언론사의 법무·윤리 심사관이다.
 <note>한 줄 심사평</note>`;
 
 // ---- 파서 ----
+//
+// 【2026-08-11 — content-factory/quality.mjs 와 같은 자리다. 둘을 반드시 같이 고친다】
+//   심사관(AI) 답에서 점수를 못 찾으면 `|| 0` 때문에 글이 0점이 되고, 위험도는 medium 으로 가정됐다.
+//   재감사에서 그 둘이면 '고쳐쓰기 → 또 실패 → 내림'이라, 심사관이 삐끗한 것만으로 멀쩡한 글이 내려갔다.
+//   그래서 「0점」과 「점수를 못 읽었다」를 구분한다. 못 읽은 답은 그 글이 나쁘다는 증거가 아니다.
+const SCORE_KEYS: [string, number][] = [
+  ["accuracy", 40],
+  ["readability", 20],
+  ["tone", 15],
+  ["useful", 15],
+  ["titleScore", 10],
+];
+
 function parseReview(text: string, defaultRisk: FakeRisk): Review {
+  const raw = (k: string) => String(pick(text, k) ?? "").trim();
   const n = (k: string, max: number) =>
-    Math.max(0, Math.min(max, parseInt(pick(text, k) || "0", 10) || 0));
+    Math.max(0, Math.min(max, parseInt(raw(k) || "0", 10) || 0));
   const scores = {
     accuracy: n("accuracy", 40),
     readability: n("readability", 20),
@@ -135,7 +153,9 @@ function parseReview(text: string, defaultRisk: FakeRisk): Review {
     .map((l) => l.replace(/^[-•*]\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 8);
-  return { score, fakeRisk, verdict: "hold", issues, note: pick(text, "note"), scores };
+  // 점수 칸을 하나도 못 읽었으면 이 심사는 쓸 수 없는 답이다.
+  const parsed = SCORE_KEYS.filter(([k]) => raw(k) !== "").length > 0;
+  return { score, fakeRisk, verdict: "hold", issues, note: pick(text, "note"), scores, parsed };
 }
 
 function parseRisk(text: string): RiskReview {
@@ -385,6 +405,9 @@ ${draft.body}
     score,
     fakeRisk,
     verdict,
+    // 새 원고 쪽은 판정을 바꾸지 않는다 — 심사를 못 읽었으면 지금처럼 hold(검수함)가 맞다.
+    //  못 읽은 답으로 '발행'을 내주면 안 되기 때문이다. 발행글 재감사와 방향이 반대인 게 맞다.
+    parsed: rv.parsed,
     issues: issues.slice(0, 8),
     note: [rv.note, risk.level !== "low" ? `위험: ${risk.note}` : ""].filter(Boolean).join(" / "),
     scores: rv.scores,
@@ -519,7 +542,9 @@ ${post.body}
   const issues = [...(pIssue ? [pIssue] : []), ...rv.issues, ...gIssues].slice(0, 8);
 
   let verdict: Verdict;
-  if (fakeRisk === "high") verdict = "hold";
+  // 심사관 답을 못 읽었으면 판정 자체가 없는 것이다. 발행글을 건드리지 않고 다음 회차로 넘긴다. (2026-08-11)
+  if (!rv.parsed) verdict = "skip";
+  else if (fakeRisk === "high") verdict = "hold";
   else if (fakeRisk === "medium" || score < 70 || pIssue || gIssues.length) verdict = "revise";
   else verdict = "publish";
 
