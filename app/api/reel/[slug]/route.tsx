@@ -11,6 +11,7 @@ import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { getPostFresh } from "@/lib/posts";
 import { buildCards, type Card } from "@/lib/cards";
+import { cachedProfileCount } from "@/lib/igProfile";
 import {
   REEL_W, REEL_H, REEL_FPS, ENTER_FRAMES,
   reelSay, wrapLines, easeOut, paletteFor, bgmStyleFor, type Pal,
@@ -122,9 +123,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ slug: strin
   const post = await getPostFresh(slug);
   if (!post) return new Response("not found", { status: 404 });
 
-  const cards = buildCards(post);
-  const total = cards.length;
   const sp = req.nextUrl.searchParams;
+  // 마지막 카드가 약속하는 '프로필에 쌓인 게시물 수' — 카드 API(/api/card)와 같은 규칙. (2026-08-11)
+  const pcParam = Number(sp.get("pc"));
+  const cards = buildCards(post, {
+    profileCount: Number.isFinite(pcParam) && pcParam > 0 ? pcParam : await cachedProfileCount(),
+  });
+  const total = cards.length;
 
   // ---- 매니페스트 (프레임 파라미터 c 가 없으면) ----
   if (sp.get("c") === null) {

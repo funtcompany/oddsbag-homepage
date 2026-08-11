@@ -14,6 +14,7 @@
 import type { Post } from "@/lib/posts";
 import { markOf, isMarkLine } from "@/lib/guide";
 import { hashtagText } from "@/lib/tags";
+import { ctaTitle, CTA_BODY } from "@/lib/igProfile";
 
 // hook/intro/point/quote/cta : 단일 글 카드뉴스 (buildCards)
 // lead/body/conclusion       : "이슈 모아보기" 카드뉴스 (buildRoundupCards) — 이슈 1건을 서론·본론·결론 3장으로
@@ -256,7 +257,12 @@ function parseSections(body: string): Section[] {
   return out.filter((s) => s.heading);
 }
 
-export function buildCards(post: Post): Card[] {
+/**
+ * 단일 글 카드뉴스.
+ * @param opts.profileCount 인스타 프로필에 쌓인 게시물 수. 마지막 카드가 이 숫자를 약속한다.
+ *   모르면 넘기지 않는다 — 그러면 숫자 없는 옛 문구로 나간다. **추정치를 넣지 않는다.**
+ */
+export function buildCards(post: Post, opts: { profileCount?: number | null } = {}): Card[] {
   const cards: Card[] = [];
 
   // 1) 훅
@@ -316,12 +322,17 @@ export function buildCards(post: Post): Card[] {
 
   // 5) 마무리 — 저장 + 팔로우. 홈페이지 유입에 기대지 않는다.
   //    ★ 2026-08-08: "팔로우하세요"만으로는 안 누른다. 한 편이 좋아도 다음 편을 기대할 이유가 없기 때문.
-  //      그래서 슬로건으로 시리즈를 약속한다 — '매일 하나씩'이 곧 팔로우할 이유다. (채널-성장전략.md 3장 ④)
+  //      그래서 슬로건으로 시리즈를 약속했다 — '매일 하나씩'.
+  //    ★ 2026-08-11 「변경 4」: 그런데 '매일 하나씩'은 **미래 약속**이라 지금 누를 이유가 못 된다.
+  //      "지금 프로필에 N개가 쌓여 있다"로 바꾼다 — 지금 당장 갈 이유다. (3채널-통합전략 4-2)
+  //      숫자는 인스타가 알려준 게시물 수만 쓴다(lib/igProfile.ts). 모르면 옛 문구 그대로 나간다.
+  //    ※ content-factory/cards.mjs · factory/render.mjs 의 같은 카드와 글자까지 똑같이 맞춘다 —
+  //      그림은 이 파일이 그리고 목소리는 저 파일들이 읽는다. 다르면 "화면에 없는 말을 읽는" 사고다.
   cards.push({
     kind: "cta",
     label: "@oddsbag_official",
-    title: "이상하게 필요한 것들,\n오즈백이 매일 하나씩",
-    body: "저장해두면 필요할 때 꺼내 보고, 팔로우하면 내일 것도 옵니다",
+    title: ctaTitle(opts.profileCount),
+    body: CTA_BODY,
   });
 
   return cards.slice(0, MAX_CARDS);

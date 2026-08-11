@@ -8,6 +8,7 @@
 
 import { buildCards, buildCaption, buildHashtags, firstComment } from "./cards.mjs";
 import { kvGet, kvSet, sadd, scard } from "./store.mjs";
+import { profileCount } from "./ig-profile.mjs";
 
 const IG_ID = process.env.INSTAGRAM_ACCOUNT_ID;
 const TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
@@ -99,14 +100,18 @@ async function waitContainerReady(id, tries = 15) {
 export async function postToInstagram(post) {
   if (!socialEnabled) throw new Error("인스타 미설정");
 
-  const cards = buildCards(post);
+  // 마지막 카드가 약속할 숫자 — 프로필에 실제로 쌓인 게시물 수. 못 세면 null (숫자 없는 문구). (2026-08-11)
+  //  ★ 그림은 홈페이지(/api/card)가 그린다. 그래서 같은 숫자를 주소에 실어 보낸다(pc).
+  //    안 실어 보내면 홈페이지는 제가 적어둔 옛 값을 쓰고, 캡션·나레이션과 숫자가 어긋난다.
+  const pc = await profileCount().catch(() => null);
+  const cards = buildCards(post, { profileCount: pc });
   const n = Math.min(Math.max(cards.length, 5), 10); // 인스타 캐러셀 규격: 2~10
 
   // 1) 각 장을 캐러셀 아이템으로 등록
   const children = [];
   for (let i = 0; i < n; i++) {
     const r = await graph(`/${IG_ID}/media`, {
-      image_url: `${SITE}/api/card/${post.slug}?i=${i}`,
+      image_url: `${SITE}/api/card/${post.slug}?i=${i}${pc ? `&pc=${pc}` : ""}`,
       is_carousel_item: "true",
     });
     children.push(r.id);

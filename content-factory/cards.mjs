@@ -12,6 +12,7 @@
 //
 // ※ 인스타 API 캐러셀 상한이 10장이라 10장에 맞춰 구성한다.
 import { hashtagText } from "./tags.mjs";
+import { ctaTitle, ctaSay, CTA_BODY } from "./ig-profile.mjs";
 
 // 카드 한 장에 담는 설명 글자수 — 여기서는 '나레이션이 읽는 분량'이 된다.
 // ★ 2026-08-08: 180 → 100. 릴스 평균시청 20초인데 74~83초짜리를 만들고 있었다.
@@ -75,7 +76,11 @@ function parseSections(body) {
   return out.filter((s) => s.heading);
 }
 
-export function buildCards(post) {
+/**
+ * @param opts.profileCount 인스타 프로필에 쌓인 게시물 수 (ig-profile.mjs 가 센다).
+ *   모르면 넘기지 않는다 — 숫자 없는 옛 문구로 나간다. **추정치를 넣지 않는다.**
+ */
+export function buildCards(post, opts = {}) {
   const cards = [];
 
   // 1) 훅
@@ -114,13 +119,17 @@ export function buildCards(post) {
 
   // 5) 마무리 — 저장 + 팔로우. 홈페이지 유입에 기대지 않는다.
   //    ★ 2026-08-08: "팔로우하세요"만으로는 안 누른다. 한 편이 좋아도 다음 편을 기대할 이유가 없기 때문.
-  //      그래서 슬로건으로 시리즈를 약속한다 — '매일 하나씩'이 곧 팔로우할 이유다. (채널-성장전략.md 3장 ④)
+  //      그래서 슬로건으로 시리즈를 약속했다 — '매일 하나씩'.
+  //    ★ 2026-08-11 「변경 4」: '매일 하나씩'은 미래 약속이라 지금 누를 이유가 못 된다.
+  //      "지금 프로필에 N개가 쌓여 있다"로 바꾼다. 숫자는 인스타가 알려준 게시물 수만 쓴다(ig-profile.mjs).
   //    ※ lib/cards.ts 의 같은 카드와 글자까지 똑같이 맞춘다 — 그림은 lib 쪽이 그리고 나레이션은 이 파일이 읽는다.
+  //    ※ say 를 같이 담는다: 목소리가 화면과 다른 숫자를 말하면 그게 제일 나쁜 실패다.
   cards.push({
     kind: "cta",
     label: "@oddsbag_official",
-    title: "이상하게 필요한 것들,\n오즈백이 매일 하나씩",
-    body: "저장해두면 필요할 때 꺼내 보고, 팔로우하면 내일 것도 옵니다",
+    title: ctaTitle(opts.profileCount),
+    body: CTA_BODY,
+    say: ctaSay(opts.profileCount),
   });
 
   return cards.slice(0, MAX_CARDS);

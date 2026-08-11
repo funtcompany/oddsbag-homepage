@@ -35,6 +35,9 @@ if (envPath) {
   }
 }
 for (const k of ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]) ENV[k] ||= process.env[k];
+// 읽어온 열쇠를 process.env 로 올린다 — ig-profile.mjs 가 여기서 인스타·Redis 를 찾는다.
+//  이걸 안 하면 검사기가 '숫자 없는 옛 문구'만 검사하게 되어, 실제로 나가는 화면을 검사하지 못한다. (2026-08-11)
+for (const [k, v] of Object.entries(ENV)) if (v && !process.env[k]) process.env[k] = v;
 if (!ENV.UPSTASH_REDIS_REST_URL) throw new Error("Redis 열쇠를 못 찾았다 — .env.local 위치를 확인할 것");
 const redis = async (cmd) => (await (await fetch(ENV.UPSTASH_REDIS_REST_URL, {
   method: "POST", headers: { Authorization: `Bearer ${ENV.UPSTASH_REDIS_REST_TOKEN}`, "Content-Type": "application/json" },
@@ -47,7 +50,10 @@ const CPS = 6.5; // 초당 낭독 글자수(실측)
 
 const args = process.argv.slice(2);
 const slugs = args.length ? args : await redis(["SMEMBERS", "posts:published"]);
-console.log(`검사 대상 ${slugs.length}편\n`);
+// 마지막 카드가 약속할 숫자 — 실제로 나가는 화면 그대로 검사하려면 이 값이 있어야 한다.
+const { profileCount } = await import("../content-factory/ig-profile.mjs");
+const PC = await profileCount().catch(() => null);
+console.log(`검사 대상 ${slugs.length}편 · 마지막 카드 숫자 ${PC ?? "(못 셈 — 옛 문구로 검사)"}\n`);
 
 const issues = [];
 let cardCount = 0;
@@ -55,7 +61,7 @@ for (const slug of slugs) {
   const raw = await redis(["GET", `post:${slug}`]);
   if (!raw) continue;
   const post = JSON.parse(raw);
-  const cards = buildCards(post);
+  const cards = buildCards(post, { profileCount: PC });
   let sec = 0;
   for (const [i, card] of cards.entries()) {
     cardCount++;

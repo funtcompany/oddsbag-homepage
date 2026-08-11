@@ -25,6 +25,7 @@ import { findBrollForCategory, downloadBroll, brollCredit } from "./pexels.mjs";
 import { buildCards, reelSay, paletteFor, loadFontsForPost, renderFrame, ENTER_FRAMES, FPS } from "./render.mjs";
 import { usesBroll } from "./cardstyle.mjs";
 import { buildCards as buildNewsCards } from "../content-factory/cards.mjs";
+import { profileCount } from "../content-factory/ig-profile.mjs";
 import { fetchCard, renderCardFrame, pickKeywords, checkLayout } from "./cardreel.mjs";
 import { logWork } from "../content-factory/worklog.mjs";
 
@@ -143,7 +144,11 @@ async function buildReel(post) {
   //   CARD_REEL=0 으로 두면 예전 방식(공장이 직접 그리는 타이포 화면)으로 돌아간다.
   const CARD_MODE = process.env.CARD_REEL !== "0";
   const SITE = process.env.SITE_URL || "https://oddsbag.co.kr";
-  const cards = CARD_MODE ? buildNewsCards(post) : buildCards(post);
+  // 마지막 카드가 약속할 숫자 — 프로필에 실제로 쌓인 게시물 수. 못 세면 null (숫자 없는 옛 문구). (2026-08-11)
+  //  ★ 카드뉴스 방식에서는 그림을 홈페이지(/api/card)가 그린다. 같은 숫자를 fetchCard 에 실어 보내야
+  //    화면 숫자와 나레이션 숫자가 같아진다. 안 보내면 홈페이지는 제가 적어둔 옛 값을 쓴다.
+  const pc = await profileCount().catch(() => null);
+  const cards = CARD_MODE ? buildNewsCards(post, { profileCount: pc }) : buildCards(post, { profileCount: pc });
   const pal = paletteFor(post.slug, post.mood, post.category); // 색 = 카드뉴스 개편안의 카테고리 색
   const kws = CARD_MODE ? pickKeywords(post) : [];
   if (CARD_MODE) {
@@ -208,7 +213,7 @@ async function buildReel(post) {
     const cdir = path.join(work, `c${c}`); fs.mkdirSync(cdir, { recursive: true });
     if (CARD_MODE) {
       // 카드뉴스 그림을 받아 9:16 화면에 얹는다 (장면 전환 애니메이션 없음 — 카드가 곧 화면)
-      const cardPng = await fetchCard(SITE, slug, c);
+      const cardPng = await fetchCard(SITE, slug, c, 3, pc);
       const png = await renderCardFrame({ post, cardPngBuffer: cardPng, kws, fonts });
       for (let f = 0; f < ENTER_FRAMES; f++) fs.writeFileSync(path.join(cdir, `${String(f).padStart(3, "0")}.png`), png);
     } else {

@@ -9,6 +9,7 @@ import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { getPostFresh } from "@/lib/posts";
 import { buildCards, type Card, type Figure } from "@/lib/cards";
+import { cachedProfileCount } from "@/lib/igProfile";
 import { styleFor, badgeEmoji } from "@/lib/cardstyle";
 
 export const runtime = "nodejs";
@@ -759,7 +760,14 @@ export async function GET(
   const post = await getPostFresh(slug);
   if (!post) return new Response("not found", { status: 404 });
 
-  const cards = buildCards(post);
+  // 마지막 카드가 약속하는 '프로필에 쌓인 게시물 수'. (2026-08-11 「변경 4」)
+  //  ★ 공장이 세어서 주소에 실어 보낸다(pc). 그래야 그림·캡션·나레이션이 같은 숫자를 말한다.
+  //    직접 열어본 경우엔 공장이 Redis 에 적어둔 값을 쓰고, 그것도 없거나 낡았으면 숫자 없이 나간다.
+  const pcParam = Number(req.nextUrl.searchParams.get("pc"));
+  const profileCount =
+    Number.isFinite(pcParam) && pcParam > 0 ? pcParam : await cachedProfileCount();
+
+  const cards = buildCards(post, { profileCount });
   const card = cards[Math.min(i, cards.length - 1)];
   const cstyle = styleFor(post.category, Boolean(post.cover));
   const pal = palFor(post.category, post.slug, post.mood, Boolean(post.cover));

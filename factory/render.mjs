@@ -3,6 +3,7 @@
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import { videoStyleFor, badgeEmoji, SAFE_TOP, SAFE_BOTTOM, FOOTER_BOTTOM } from "./cardstyle.mjs";
+import { ctaTitle, ctaSay, CTA_BODY } from "../content-factory/ig-profile.mjs";
 
 export const W = 1080, H = 1920, FPS = 30;
 export const ENTER_SEC = 0.62;
@@ -108,7 +109,11 @@ function parseSections(body) {
 // 장수 상한 — 2:59(179초) 안에서 소제목이 잘리지 않도록 넉넉히. 실제 길이는 make-reels 가 지킨다.
 const MAX_POINTS = 8;   // 본문 소제목 카드
 const MAX_CARDS = 12;   // 훅 + 무슨일이냐면 + 소제목 8 + 한줄정리 + CTA
-export function buildCards(post) {
+/**
+ * @param opts.profileCount 인스타 프로필에 쌓인 게시물 수 (content-factory/ig-profile.mjs 가 센다).
+ *   모르면 넘기지 않는다 — 숫자 없는 옛 문구로 나간다. **추정치를 넣지 않는다.**
+ */
+export function buildCards(post, opts = {}) {
   const cards = [];
   cards.push({ kind: "hook", label: post.category, title: (post.hook || post.title).trim() });
   if (post.summary) cards.push({ kind: "intro", label: "무슨 일이냐면", title: clipWhole(post.summary, 130) });
@@ -137,7 +142,8 @@ export function buildCards(post) {
   if (closing?.text) cards.push({ kind: "quote", label: "오즈백 한 줄 정리", title: clipWhole(closing.text, 140) });
   // 마무리 — 릴스에는 링크가 없다. "매거진에서 보세요"는 할 수 없는 부탁이라 아무도 안 움직인다.
   //  캐러셀(lib/cards.ts)과 같은 말로 맞춘다 — 같은 계정에서 끝맺음이 두 가지면 시리즈로 안 읽힌다. (2026-08-11)
-  cards.push({ kind: "cta", label: "@oddsbag_official", title: "이상하게 필요한 것들,\n오즈백이 매일 하나씩", body: "저장해두면 필요할 때 꺼내 보고, 팔로우하면 내일 것도 옵니다" });
+  //  「변경 4」: '매일 하나씩'(미래 약속) → "지금 프로필에 N개가 쌓여 있다"(지금 갈 이유). 숫자는 실제 게시물 수만.
+  cards.push({ kind: "cta", label: "@oddsbag_official", title: ctaTitle(opts.profileCount), body: CTA_BODY, say: ctaSay(opts.profileCount) });
   return cards.slice(0, MAX_CARDS);
 }
 // 카드에 담긴 텍스트를 '있는 그대로 온전히' 읽는다.
@@ -159,7 +165,8 @@ export function reelSay(card) {
     }
     case "quote": case "conclusion": return `오즈백 한 줄 정리. ${sayClean(card.title)}`;
     // 화면과 같은 방향을 가리켜야 한다. 릴스에는 링크가 없어 '매거진에서 확인하세요'는 실행 불가능한 부탁이었다.
-    case "cta": return "이런 거 매일 하나씩 올립니다. 오즈백 계정 눌러서 팔로우하고 가세요.";
+    // 카드가 들고 온 말을 그대로 읽는다. 여기에 문장을 따로 적어두면 화면 숫자와 어긋난다. (2026-08-11)
+    case "cta": return card.say || ctaSay(null);
     default: return sayClean(card.title);
   }
 }

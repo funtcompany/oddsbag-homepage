@@ -108,8 +108,10 @@ export async function renderCardFrame({ post, cardPngBuffer, kws, fonts }) {
 }
 
 // 홈페이지가 만들어 주는 카드 이미지를 그대로 받아온다 (인스타에 나가는 그림과 100% 동일)
-export async function fetchCard(siteUrl, slug, i, tries = 3) {
-  const url = `${siteUrl.replace(/\/$/, "")}/api/card/${slug}?i=${i}`;
+// profileCount: 마지막 카드가 약속하는 '프로필에 쌓인 게시물 수'. 부르는 쪽이 센 값을 그대로 실어 보낸다.
+//  안 보내면 홈페이지가 제가 적어둔 값을 쓰는데, 그러면 화면 숫자와 나레이션 숫자가 어긋날 수 있다. (2026-08-11)
+export async function fetchCard(siteUrl, slug, i, tries = 3, profileCount = null) {
+  const url = `${siteUrl.replace(/\/$/, "")}/api/card/${slug}?i=${i}${profileCount ? `&pc=${profileCount}` : ""}`;
   let last;
   for (let t = 0; t < tries; t++) {
     try {
