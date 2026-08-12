@@ -112,7 +112,14 @@ jobs:
         run: node make-reels.mjs
 
       # 새 영상이 올라간 글의 옛 영상을 지워 교체한다(같은 글에 2개 이상일 때만, 최신 1개는 무조건 남김)
-      - name: 옛 영상 교체
+      #
+      # ★2026-08-12 --confirm 제거 → 미리보기 모드. 실제 삭제는 하지 않는다.
+      #   사장님 지시: "기존 영상은 일단 기획해서 올라갈 컨텐츠들 보고 추후 삭제하거나 하면 될듯"
+      #   이 단계는 유튜브 영상을 영구 삭제한다(replace-old.mjs 의 DELETE). 대표가 손으로 올린 영상도
+      #   같은 글의 '옛 영상'으로 잡혀 지워질 수 있다 — 앞으로 업로드는 대표가 직접 하기로 했으므로 더 위험하다.
+      #   무엇을 지울 뻔했는지는 로그에 그대로 남는다.
+      #   되돌리려면 아래 run 줄 끝에 --confirm 을 다시 붙인다. 붙이기 전에 반드시 사장님 승인.
+      - name: 옛 영상 교체 (미리보기 — 실제 삭제 안 함)
         if: always()
         working-directory: factory
         env:
@@ -123,7 +130,7 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-        run: node replace-old.mjs --confirm
+        run: node replace-old.mjs
 
       # 놓친 영상이 없는지 매번 점검한다(읽기 전용). 글이 내려간 '고아 영상'은 교체로 안 지워지므로
       # 여기서 발견되면 로그에 남는다 → 사장님께 보고 후 손으로 삭제.
