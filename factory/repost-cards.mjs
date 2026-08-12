@@ -48,7 +48,8 @@ async function quotaLeft() {
 }
 async function postCarousel(post) {
   const cards = buildCards(post);
-  const n = Math.min(Math.max(cards.length, 5), 10);
+  // ★ 2026-08-13: 없는 장까지 요청해 마지막 카드가 복제돼 나가던 문제 (social.mjs 와 같은 수정)
+  const n = Math.min(Math.max(cards.length, 2), 10);
   const children = [];
   for (let i = 0; i < n; i++) {
     const r = await graph(`/${IG}/media`, { image_url: `${SITE}/api/card/${post.slug}?i=${i}`, is_carousel_item: "true" });

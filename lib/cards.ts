@@ -12,7 +12,7 @@
 // ※ content-factory/cards.mjs 와 항상 같은 구성이어야 한다 (게시 장수 ↔ 렌더 장수 일치).
 
 import type { Post } from "@/lib/posts";
-import { markOf, isMarkLine } from "@/lib/guide";
+import { markOf, isMarkLine, type MarkName } from "@/lib/guide";
 import { hashtagText } from "@/lib/tags";
 import { ctaTitle, CTA_BODY } from "@/lib/igProfile";
 
@@ -46,6 +46,7 @@ export type Figure =
   | { kind: "path"; steps: string[] } // 메뉴 경로
   | { kind: "stats"; items: { value: string; label: string }[] } // 숫자 강조 2개
   | { kind: "list"; items: string[] } // 체크리스트
+  | { kind: "qa"; items: { q: string; a: string }[] } // 자주 묻는 질문 (Q/A 쌍)
   | { kind: "table"; head: string[]; rows: string[][] }; // 표
 
 const MOD =
@@ -65,6 +66,26 @@ function findFigure(text: string): Figure | undefined {
       const steps = m.rest.split(/[>→]/).map((k) => k.trim()).filter(Boolean);
       if (steps.length >= 2 && steps.length <= 4) return { kind: "path", steps };
     }
+  }
+
+  // 자주 묻는 질문 — [Q]/[A] 를 짝지어 세운다.
+  //  ★ 2026-08-13 사장님 지적: FAQ 카드가 제목만 있고 통째로 비어서 나갔다.
+  //    원인은 [Q]/[A] 줄이 '그림용'으로 분류돼 본문에서 빠지는데, 정작 여기 그림 목록에
+  //    Q·A 가 없어서 그림도 안 세워진 것. 빠지기만 하고 세워지지 않으니 빈 카드가 된다.
+  {
+    const qa: { q: string; a: string }[] = [];
+    let pendingQ: string | null = null;
+    for (const line of lines) {
+      const m = markOf(line);
+      if (!m) continue;
+      const rest = m.rest.replace(/\*\*/g, "").trim();
+      if (m.name === "Q") pendingQ = rest;
+      else if (m.name === "A" && pendingQ) {
+        qa.push({ q: pendingQ, a: rest });
+        pendingQ = null;
+      }
+    }
+    if (qa.length) return { kind: "qa", items: qa.slice(0, 3) };
   }
 
   // 가이드 글의 [단계]·[확인] 줄은 카드에서 체크리스트 그림으로 세운다
@@ -98,6 +119,20 @@ function findFigure(text: string): Figure | undefined {
     if (head.length >= 2 && head.length <= 3 && rows.length) {
       return { kind: "table", head, rows: rows.slice(0, 4) };
     }
+  }
+
+  // 마지막 안전망 — 위에서 아무것도 못 세웠는데 표시 줄은 있는 경우.
+  //  [핵심]·[주의]·[즉답]·[대안] 처럼 종류가 섞여 있거나 한 줄뿐이면 여기까지 온다.
+  //  이 줄들은 본문에서 이미 빠졌기 때문에, 여기서도 안 세우면 카드가 통째로 빈다.
+  //  ★ 빈 카드보다는 한 줄짜리 목록이 낫다 (사장님 지적 2026-08-13).
+  {
+    const items = lines
+      .map((l) => markOf(l))
+      .filter((m): m is { name: MarkName; rest: string } => Boolean(m) && m!.name !== "버전")
+      .map((m) => m.rest.replace(/\*\*/g, "").trim())
+      .filter((t) => t.length >= 2 && t.length <= 60)
+      .slice(0, 4);
+    if (items.length) return { kind: "list", items };
   }
 
   return undefined;
@@ -233,6 +268,7 @@ interface Section {
   heading: string;
   text: string;
   raw: string; // 줄바꿈을 살린 원본 (도식을 찾으려면 필요하다)
+  markCount: number; // 그림으로 세울 수 있는 표시 줄 수
 }
 
 function parseSections(body: string): Section[] {
@@ -243,18 +279,34 @@ function parseSections(body: string): Section[] {
     if (!line) continue;
     if (line.startsWith("## ")) {
       if (cur) out.push(cur);
-      cur = { heading: line.slice(3).trim(), text: "", raw: "" };
+      cur = { heading: line.slice(3).trim(), text: "", raw: "", markCount: 0 };
     } else if (cur) {
       cur.raw += (cur.raw ? "\n" : "") + line;
       // 도식 표시 줄은 본문 문장에서 빼둔다 (그림으로 따로 세우므로 중복 방지)
       // ※ 여기서 안 빼면 카드에 "[Q] …" 처럼 대괄호가 그대로 찍혀 나간다. 목록은 lib/guide.ts.
-      if (!isMarkLine(line) && !line.startsWith("|")) {
+      if (isMarkLine(line)) cur.markCount++;
+      else if (!line.startsWith("|")) {
         cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
       }
     }
   }
   if (cur) out.push(cur);
   return out.filter((s) => s.heading);
+}
+
+/**
+ * 카드로 세울 수 있는 섹션인가.
+ *
+ * ★★ 이 규칙은 content-factory/cards.mjs 의 hasContent 와 **글자 하나까지 같아야 한다.** ★★
+ *   저쪽은 "몇 장을 올릴지"를 정하고 이쪽은 "각 장에 뭘 그릴지"를 정한다.
+ *   둘이 다르면 9장을 올리면서 그림은 8장만 만드는 어긋남이 난다.
+ *
+ * 【왜 필요한가】 2026-08-13 사장님 지적 — '자주 묻는 질문' 카드가 제목만 있고 빈 채로 나갔다.
+ *   본문이 전부 표시 줄이라 걷어내고 나니 남는 글자가 없었는데도 카드를 만들었기 때문이다.
+ *   빈 카드는 안 만드는 게 맞다.
+ */
+function hasContent(s: Section): boolean {
+  return Boolean(s.text.trim()) || s.markCount > 0;
 }
 
 /**
@@ -275,7 +327,8 @@ export function buildCards(post: Post, opts: { profileCount?: number | null } = 
   // 3) 본문 섹션 (인트로에서 목차로 쓰므로 먼저 읽는다)
   const sections = parseSections(post.body);
   const closing = sections.find((s) => s.heading.includes("한 줄 정리"));
-  const points = sections.filter((s) => !s.heading.includes("한 줄 정리"));
+  // ★ 내용이 없는 섹션은 카드로 만들지 않는다 (cards.mjs 와 같은 규칙)
+  const points = sections.filter((s) => !s.heading.includes("한 줄 정리")).filter(hasContent);
 
   // 2) 인트로 — 요약만 넣으면 카드 아래가 텅 빈다.
   //    '이 글에서 다루는 것'을 목차로 함께 실어 정보량과 넘길 이유를 같이 준다.
@@ -455,19 +508,61 @@ export function buildRoundupCaption(posts: Post[]): string {
 //  【변경 1 · 2026-08-11】 훅 바로 다음 줄에 계정 태그를 올린다 (빈 줄 없이 붙인다).
 //   캡션은 첫 줄만 보이고 나머지는 접힌다. 맨 아래 @멘션은 접힌 안쪽이라 사실상 없는 것과 같았다.
 //   @멘션은 캡션에서 누를 수 있는 유일한 요소다. 아래쪽 CTA 줄에서는 @를 뺐다 — 한 캡션에 두 번 적을 이유가 없다.
+//  【변경 · 2026-08-13 사장님 지시】 캡션에 **카드 내용을 그대로 정리해 넣는다.**
+//   그동안 캡션은 "5가지 핵심 팁을 정리했습니다"라고만 하고 정작 5가지가 뭔지 안 적혀 있었다.
+//   카드를 안 넘겨보는 사람은 아무것도 못 얻고 지나간다. 홈페이지로 보내는 것도 답이 아니다.
+//   → 이 게시물 하나에서 전부 읽히게 한다. 카드는 눈으로, 캡션은 글로. 같은 내용이다.
+//  ※ content-factory/cards.mjs 의 buildCaption 과 결과가 같아야 한다 (실제 발행은 저쪽이 쓴다).
 export function buildCaption(post: Post): string {
-  return [
+  return composeCaption(post, parseSections(post.body).filter(hasContent));
+}
+
+/** 캡션 조립 — 훅 · 요약 · 본문 정리 · 한 줄 정리 · 저장/팔로우 */
+function composeCaption(post: Post, sections: Section[]): string {
+  const closing = sections.find((s) => s.heading.includes("한 줄 정리"));
+  const points = sections.filter((s) => !s.heading.includes("한 줄 정리"));
+
+  const NUM = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+  const lines: string[] = [
     post.hook || post.title,
     "@oddsbag_official 이 매일 하나씩",
     "",
-    post.summary,
+    post.summary ?? "",
+  ];
+
+  if (points.length) {
+    lines.push("", "━━━━━━━━━━");
+    points.forEach((s, i) => {
+      const head = s.heading.replace(/\*\*/g, "").trim();
+      // 걷어낸 본문이 없으면 표시 줄(단계·확인·Q/A 등)을 글로 되살린다 — 빈 항목을 만들지 않는다.
+      const detail = s.text.trim() || markLinesToText(s.raw);
+      lines.push("", `${NUM[i] ?? "▪️"} ${head}`);
+      if (detail) lines.push(`   ${clip(detail, 150)}`);
+    });
+  }
+
+  if (closing?.text?.trim()) lines.push("", `💬 ${clip(closing.text, 140)}`);
+
+  lines.push(
     "",
     "📌 저장해두면 필요할 때 바로 꺼내 볼 수 있어요",
     "🔔 이상하게 필요한 것들, 오즈백이 매일 하나씩 찾아드립니다",
-  ]
-    .filter((l) => l !== undefined)
-    .join("\n")
-    .slice(0, 2100);
+  );
+
+  return lines.join("\n").slice(0, 2100);
+}
+
+/** 표시 줄([Q]/[A]/[단계]…)을 사람이 읽는 글로 되살린다 (대괄호는 남기지 않는다) */
+function markLinesToText(raw: string): string {
+  return raw
+    .split("\n")
+    .map((l) => markOf(l.trim()))
+    .filter(Boolean)
+    .map((m) => {
+      const rest = m!.rest.replace(/\*\*/g, "").trim();
+      return m!.name === "Q" ? `Q. ${rest}` : m!.name === "A" ? `A. ${rest}` : rest;
+    })
+    .join(" · ");
 }
 
 // 첫 댓글에 붙일 이모지 하나 (글마다 고정) — 게시물 성격을 한눈에

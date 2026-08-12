@@ -105,7 +105,12 @@ export async function postToInstagram(post) {
   //    안 실어 보내면 홈페이지는 제가 적어둔 옛 값을 쓰고, 캡션·나레이션과 숫자가 어긋난다.
   const pc = await profileCount().catch(() => null);
   const cards = buildCards(post, { profileCount: pc });
-  const n = Math.min(Math.max(cards.length, 5), 10); // 인스타 캐러셀 규격: 2~10
+  // ★ 2026-08-13: 예전엔 Math.max(cards.length, 5) 로 **없는 장까지 억지로 요청**했다.
+  //   카드가 4장이면 5장을 달라고 하고, 없는 5번째 자리에는 마지막 카드가 복제돼 나갔다.
+  //   (사장님 지적 "내용이 빈약해" 의 원인 중 하나 — 같은 카드가 두 번 보인다)
+  //   실제로 만든 만큼만 올린다. 인스타 캐러셀 규격은 2~10장이므로 아래로만 2를 지킨다.
+  //   ※ lib/social.ts · factory/repost-cards.mjs 의 같은 줄과 반드시 똑같이 맞춘다.
+  const n = Math.min(Math.max(cards.length, 2), 10);
 
   // 1) 각 장을 캐러셀 아이템으로 등록
   const children = [];

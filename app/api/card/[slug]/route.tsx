@@ -282,6 +282,39 @@ function renderFigure(f: Figure, p: Pal, cover: boolean, scale = 1) {
     );
   }
 
+  // 자주 묻는 질문 — Q 는 진한 글씨, A 는 한 칸 들여 옅게.
+  //  ★ 2026-08-13: 예전엔 이 그림이 없어서 FAQ 카드가 제목만 남고 통째로 비어 나갔다.
+  if (f.kind === "qa") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", marginTop: S(28) }}>
+        {f.items.map((it, i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column", marginTop: i ? S(30) : 0 }}>
+            <div style={{ display: "flex", alignItems: "flex-start" }}>
+              <div
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: S(42), height: S(42), borderRadius: S(999),
+                  background: p.accent, color: p.onAccent, fontSize: S(24), fontWeight: 900,
+                  marginRight: S(16), flexShrink: 0,
+                }}
+              >
+                Q
+              </div>
+              <div style={{ display: "flex", flex: 1, fontSize: S(31), fontWeight: 800, color: ink, wordBreak: "keep-all", lineHeight: 1.35 }}>
+                {it.q}
+              </div>
+            </div>
+            <div style={{ display: "flex", marginTop: S(12), paddingLeft: S(58) }}>
+              <div style={{ display: "flex", flex: 1, fontSize: S(29), fontWeight: 500, color: sub, wordBreak: "keep-all", lineHeight: 1.45 }}>
+                {it.a}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   // 표
   return (
     <div style={{ display: "flex", flexDirection: "column", marginTop: S(28), border: `2px solid ${bd}`, borderRadius: S(20), overflow: "hidden" }}>
@@ -778,7 +811,8 @@ export async function GET(
     (card.body ?? "") +
     (card.label ?? "") +
     (post.category ?? "") +
-    "ODDSBAG@oddsbag_official장 전부 보기팔로우하고미리받기0123456789/→·›+✓%" +
+    // ※ 'Q'·'A' 는 자주 묻는 질문 그림의 동그라미 글자다. 빠지면 네모로 깨져 나간다.
+    "ODDSBAG@oddsbag_official장 전부 보기팔로우하고미리받기0123456789/→·›+✓%QA" +
     (card.figure
       ? card.figure.kind === "keys"
         ? card.figure.keys.join("")
@@ -788,7 +822,9 @@ export async function GET(
             ? card.figure.items.map((x) => x.value + x.label).join("")
             : card.figure.kind === "list"
               ? card.figure.items.join("")
-              : card.figure.head.join("") + card.figure.rows.flat().join("")
+              : card.figure.kind === "qa"
+                ? card.figure.items.map((x) => x.q + x.a).join("")
+                : card.figure.head.join("") + card.figure.rows.flat().join("")
       : "");
   const [bold, normal] = await Promise.all([loadFont(text, 900), loadFont(text, 500)]);
 

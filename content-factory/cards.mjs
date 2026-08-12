@@ -63,17 +63,47 @@ function parseSections(body) {
     if (!line) continue;
     if (line.startsWith("## ")) {
       if (cur) out.push(cur);
-      cur = { heading: line.slice(3).trim(), text: "" };
+      cur = { heading: line.slice(3).trim(), text: "", raw: "", markCount: 0 };
     } else if (cur) {
+      cur.raw += (cur.raw ? "\n" : "") + line;
       // 도식 표시([키]/[경로]/[핵심]/[주의] + 가이드 6종)와 표 줄은 카드 본문에서 뺀다.
       // 홈페이지는 이걸 그림으로 세우고, 여기서는 글자로 새어나오면 안 된다.
-      if (!isMarkLine(line) && !line.startsWith("|")) {
+      if (isMarkLine(line)) cur.markCount++;
+      else if (!line.startsWith("|")) {
         cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
       }
     }
   }
   if (cur) out.push(cur);
   return out.filter((s) => s.heading);
+}
+
+/**
+ * 카드로 세울 수 있는 섹션인가.
+ *
+ * ★★ 이 규칙은 lib/cards.ts 의 hasContent 와 **글자 하나까지 같아야 한다.** ★★
+ *   이쪽은 "몇 장을 올릴지"를 정하고 저쪽은 "각 장에 뭘 그릴지"를 정한다.
+ *   둘이 다르면 9장을 올리면서 그림은 8장만 만드는 어긋남이 난다.
+ *
+ * 【왜 필요한가】 2026-08-13 사장님 지적 — '자주 묻는 질문' 카드가 제목만 있고 빈 채로 나갔다.
+ *   본문이 전부 표시 줄이라 걷어내고 나니 남는 글자가 없었는데도 카드를 만들었기 때문이다.
+ */
+function hasContent(s) {
+  return Boolean(s.text.trim()) || s.markCount > 0;
+}
+
+/** 표시 줄([Q]/[A]/[단계]…)을 사람이 읽는 글로 되살린다 (대괄호는 남기지 않는다) */
+function markLinesToText(raw) {
+  return String(raw ?? "")
+    .split("\n")
+    .map((l) => MARK_LINE.exec(l.trim()))
+    .filter(Boolean)
+    .map((m) => {
+      const name = /^[qa]$/i.test(m[1]) ? m[1].toUpperCase() : m[1];
+      const rest = m[2].replace(/\*\*/g, "").trim();
+      return name === "Q" ? `Q. ${rest}` : name === "A" ? `A. ${rest}` : rest;
+    })
+    .join(" · ");
 }
 
 /**
@@ -98,7 +128,8 @@ export function buildCards(post, opts = {}) {
   // 3) 본문 섹션
   const sections = parseSections(post.body);
   const closing = sections.find((s) => s.heading.includes("한 줄 정리"));
-  const points = sections.filter((s) => !s.heading.includes("한 줄 정리"));
+  // ★ 내용이 없는 섹션은 카드로 만들지 않는다 (lib/cards.ts 와 같은 규칙)
+  const points = sections.filter((s) => !s.heading.includes("한 줄 정리")).filter(hasContent);
 
   // 정보가 잘리면 안 되므로 요점 카드를 최우선으로 채운다.
   // (마지막 CTA 1장은 항상 확보 — 그 나머지를 전부 요점에 쓴다)
@@ -108,7 +139,8 @@ export function buildCards(post, opts = {}) {
       kind: "point",
       label: String(i + 1).padStart(2, "0"),
       title: s.heading,
-      body: clip(s.text),
+      // 걷어낸 본문이 없으면 표시 줄을 글로 되살린다 — 나레이션이 침묵하면 안 된다.
+      body: clip(s.text.trim() || markLinesToText(s.raw)),
     });
   });
 
@@ -142,19 +174,43 @@ export function buildCards(post, opts = {}) {
 //  【변경 1 · 2026-08-11】 훅 바로 다음 줄에 계정 태그를 올린다 (빈 줄 없이 붙인다).
 //   캡션은 첫 줄만 보이고 나머지는 접힌다. 맨 아래 @멘션은 접힌 안쪽이라 사실상 없는 것과 같았다.
 //   @멘션은 캡션에서 누를 수 있는 유일한 요소다. 아래쪽 CTA 줄에서는 @를 뺐다 — 한 캡션에 두 번 적을 이유가 없다.
+//  【변경 · 2026-08-13 사장님 지시】 캡션에 **카드 내용을 그대로 정리해 넣는다.**
+//   그동안 캡션은 "5가지 핵심 팁을 정리했습니다"라고만 하고 정작 5가지가 뭔지 안 적혀 있었다.
+//   카드를 안 넘겨보는 사람은 아무것도 못 얻고 지나간다. 홈페이지로 보내는 것도 답이 아니다.
+//   → 이 게시물 하나에서 전부 읽히게 한다. 카드는 눈으로, 캡션은 글로. 같은 내용이다.
+//  ※ lib/cards.ts 의 buildCaption 과 결과가 같아야 한다.
 export function buildCaption(post) {
-  return [
+  const sections = parseSections(post.body).filter(hasContent);
+  const closing = sections.find((s) => s.heading.includes("한 줄 정리"));
+  const points = sections.filter((s) => !s.heading.includes("한 줄 정리"));
+
+  const NUM = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+  const lines = [
     post.hook || post.title,
     "@oddsbag_official 이 매일 하나씩",
     "",
-    post.summary,
+    post.summary ?? "",
+  ];
+
+  if (points.length) {
+    lines.push("", "━━━━━━━━━━");
+    points.forEach((s, i) => {
+      const head = s.heading.replace(/\*\*/g, "").trim();
+      const detail = s.text.trim() || markLinesToText(s.raw);
+      lines.push("", `${NUM[i] ?? "▪️"} ${head}`);
+      if (detail) lines.push(`   ${clip(detail, 150)}`);
+    });
+  }
+
+  if (closing?.text?.trim()) lines.push("", `💬 ${clip(closing.text, 140)}`);
+
+  lines.push(
     "",
     "📌 저장해두면 필요할 때 바로 꺼내 볼 수 있어요",
     "🔔 이상하게 필요한 것들, 오즈백이 매일 하나씩 찾아드립니다",
-  ]
-    .filter((l) => l !== undefined)
-    .join("\n")
-    .slice(0, 2100);
+  );
+
+  return lines.join("\n").slice(0, 2100);
 }
 
 // 첫 댓글에 붙일 이모지 하나 (글마다 고정) — 게시물 성격을 한눈에

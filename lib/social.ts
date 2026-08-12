@@ -81,7 +81,11 @@ export async function postToInstagram(post: Post): Promise<string> {
   if (!socialEnabled) throw new Error("인스타 미설정");
 
   const cards = buildCards(post);
-  const n = Math.min(Math.max(cards.length, 5), 10); // 인스타 캐러셀 규격: 2~10
+  // ★ 2026-08-13: 예전엔 Math.max(cards.length, 5) 로 **없는 장까지 억지로 요청**했다.
+  //   카드가 4장이면 5장을 달라고 하고, 없는 5번째 자리에는 마지막 카드가 복제돼 나갔다.
+  //   실제로 만든 만큼만 올린다. 인스타 캐러셀 규격은 2~10장이므로 아래로만 2를 지킨다.
+  //   ※ content-factory/social.mjs · factory/repost-cards.mjs 의 같은 줄과 똑같이 맞춘다.
+  const n = Math.min(Math.max(cards.length, 2), 10);
 
   // 1) 각 장을 캐러셀 아이템으로 등록
   const children: string[] = [];
