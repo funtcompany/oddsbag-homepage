@@ -248,6 +248,24 @@ export default function HomeEditor() {
         </div>
       </section>
 
+      {/* 오즈백 소식 게시판 안내 문구 */}
+      <section className={box}>
+        <h2 className="font-black text-oddsbag-dark">1-2 · 오즈백 소식 페이지 안내 문구</h2>
+        <p className="mt-1 text-[13px] text-slate-500">
+          &apos;오즈백이 만드는 것들&apos; 제목 아래에 나오는 설명입니다. (/oddsbag)
+        </p>
+        <div className="mt-4">
+          <Field label="안내 문구 (1~2줄)" wide>
+            <textarea
+              className={`${input} min-h-[70px]`}
+              placeholder="예) 오즈백 브랜드의 새 소식을 전하는 곳입니다."
+              value={cfg.oddsbag.lead}
+              onChange={(e) => set({ oddsbag: { ...cfg.oddsbag, lead: e.target.value } })}
+            />
+          </Field>
+        </div>
+      </section>
+
       {/* 공지 띠 */}
       <section className={box}>
         <div className="flex items-center justify-between">

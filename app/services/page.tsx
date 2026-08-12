@@ -8,10 +8,15 @@ import type { Metadata } from "next";
 
 export const revalidate = 60;
 
+// 아직 만들지 않은 앱 도구 13종을 화면에 깔아두면
+//  사람이 눌러보고 빈손으로 나간다 → 내려둔다 (지시 2026-08-12).
+//  실제로 앱이 나오면 이 값만 true 로 바꾸면 그대로 다시 나온다.
+const 앱라인업_공개 = false;
+
 export const metadata: Metadata = {
   title: "서비스",
   description:
-    "오즈백이 운영하는 서비스 모음 — 오즈백 앱(이색 도구 10종), 매거진, 뮤직, 뉴스레터.",
+    "오즈백이 운영하는 서비스 모음 — 별의 결, 오즈백 매거진, 오즈백 뮤직, 오즈백 테일즈.",
   alternates: { canonical: "/services" },
 };
 
@@ -78,7 +83,8 @@ export default async function ServicesPage() {
           </div>
         </section>
 
-        {/* 앱 라인업 */}
+        {/* 앱 라인업 — 앱이 실제로 나오기 전까지는 내려둔다 */}
+        {앱라인업_공개 && (
         <section className="border-t border-oddsbag-light-gray bg-oddsbag-light-gray/30">
           <div className="mx-auto max-w-6xl px-4 py-12">
             <h2 className="text-xl font-black text-oddsbag-dark">
@@ -118,6 +124,7 @@ export default async function ServicesPage() {
             </div>
           </div>
         </section>
+        )}
 
         <div className="mx-auto max-w-6xl px-4 py-12">
           <SubscribeBox />

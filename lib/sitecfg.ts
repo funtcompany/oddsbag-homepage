@@ -59,6 +59,8 @@ export interface SiteConfig {
     bgFrom: string;
     bgTo: string;
   };
+  /** /oddsbag 페이지 — 오즈백 브랜드 소식 게시판의 안내 문구 */
+  oddsbag: { lead: string };
   notice: { enabled: boolean; text: string; href: string };
   layout: {
     /** wide = 최대 1152px, narrow = 최대 896px */
@@ -108,6 +110,11 @@ export const defaultConfig: SiteConfig = {
     style: "slim", // ← 저장된 설정(Redis)이 있으면 그쪽이 이긴다. 관리자 화면에서도 바꿔야 한다.
     bgFrom: "#4c1d95",
     bgTo: "#7b4fb5",
+  },
+  // /oddsbag 은 '매거진 소개'가 아니라 오즈백 브랜드 소식 게시판이다.
+  //  (지시 2026-08-12 — 매거진 설명을 빼고 브랜드 소식 게시판으로 리뉴얼)
+  oddsbag: {
+    lead: "오즈백 브랜드의 새 소식을 전하는 곳입니다. 새로 나온 서비스, 달라진 점, 알려드릴 일을 여기에 올립니다.",
   },
   notice: { enabled: false, text: "", href: "" },
   layout: { width: "wide", columns: 4 },
@@ -171,16 +178,10 @@ export const defaultConfig: SiteConfig = {
       limit: 0,
     },
   ],
+  // 실제로 돌아가는 것만 띄운다 (지시 2026-08-12).
+  //  아직 준비도 안 된 것을 올려두면 사람이 눌러보고 빈손으로 나간다.
+  //  내릴 것은 지우지 않고 enabled: false 로만 꺼둔다 — 준비되면 다시 켜면 된다.
   services: [
-    {
-      id: "apps",
-      emoji: "📱",
-      title: "오즈백 앱",
-      desc: "이색 계산기·생성기 10종을 한 앱에. 안드로이드 출시 준비 중.",
-      href: "/services",
-      badge: "출시 준비 중",
-      enabled: true,
-    },
     {
       id: "starflow",
       emoji: "🌙",
@@ -201,9 +202,29 @@ export const defaultConfig: SiteConfig = {
       id: "music",
       emoji: "🎵",
       title: "오즈백 뮤직",
-      desc: "직접 만든 음악을 스트리밍과 SNS로 내보냅니다.",
-      href: "/music",
+      desc: "직접 만든 음악을 영상으로 올립니다. 유튜브에서 바로 들으실 수 있습니다.",
+      // 유튜브 영상을 홈페이지로 끌어오는 작업 전까지는 채널로 바로 보낸다.
+      //  (/music 은 아직 글이 0편이라 누르면 빈 화면이다)
+      href: "https://www.youtube.com/@ODDSBAGMUSIC",
       enabled: true,
+    },
+    {
+      id: "tales",
+      emoji: "📖",
+      title: "오즈백 테일즈",
+      desc: "끝까지 보게 되는 짧은 이야기 영상. 유튜브에서 바로 보실 수 있습니다.",
+      href: "https://www.youtube.com/@oddsbag_tales",
+      enabled: true,
+    },
+    // ↓ 준비되면 다시 켤 것
+    {
+      id: "apps",
+      emoji: "📱",
+      title: "오즈백 앱",
+      desc: "이색 계산기·생성기 10종을 한 앱에. 안드로이드 출시 준비 중.",
+      href: "/services",
+      badge: "출시 준비 중",
+      enabled: false,
     },
     {
       id: "newsletter",
@@ -211,7 +232,7 @@ export const defaultConfig: SiteConfig = {
       title: "뉴스레터",
       desc: "그날의 이슈를 한 통으로 정리해 메일로 보내드립니다.",
       href: "/#subscribe",
-      enabled: true,
+      enabled: false,
     },
   ],
   footer: {
@@ -243,6 +264,7 @@ function merge(saved: Partial<SiteConfig> | null): SiteConfig {
   if (!saved) return defaultConfig;
   return {
     hero: { ...defaultConfig.hero, ...(saved.hero ?? {}) },
+    oddsbag: { ...defaultConfig.oddsbag, ...(saved.oddsbag ?? {}) },
     notice: { ...defaultConfig.notice, ...(saved.notice ?? {}) },
     layout: { ...defaultConfig.layout, ...(saved.layout ?? {}) },
     sections:

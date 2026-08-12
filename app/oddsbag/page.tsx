@@ -8,9 +8,9 @@ import type { Metadata } from "next";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "오즈백",
+  title: "오즈백 소식",
   description:
-    "오즈백이 만드는 서비스와 만드는 과정. 새 기능, 개발 이야기, 공지를 여기에 올립니다.",
+    "오즈백 브랜드의 새 소식. 새로 나온 서비스, 달라진 점, 공지를 전하는 게시판입니다.",
   alternates: { canonical: "/oddsbag" },
 };
 
@@ -26,7 +26,9 @@ export default async function OddsbagPage() {
       <ChannelPage
         emoji="🎒"
         title="오즈백이 만드는 것들"
-        lead={cfg.footer.intro}
+        // 푸터의 회사 소개(footer.intro)를 돌려쓰지 않는다.
+        //  여기는 매거진 소개가 아니라 브랜드 소식 게시판이다 (지시 2026-08-12).
+        lead={cfg.oddsbag.lead}
         bgFrom="#4c1d95"
         bgTo="#7b4fb5"
         posts={posts}
