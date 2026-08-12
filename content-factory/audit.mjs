@@ -9,7 +9,7 @@
 //
 // 매 회차 처리량을 제한해 크론 시간 안에 안전하게 끝낸다 (놓친 건 다음 회차가 이어받음).
 
-import { auditPost, polishPost, reviewDraft } from "./quality.mjs";
+import { auditPost, polishPost, isGuideDraft } from "./quality.mjs";
 import { refreshLessons, recordReview } from "./learn.mjs";
 import {
   getPublishedRaw,
@@ -50,6 +50,7 @@ export async function runAudit(opts = {}) {
     stale: [],
     formatFlagged: [], // 형식만 모자람 (발행 유지, 표시만)
     skipped: [], // 심사관 답을 못 읽어 판정을 못 한 것 (건드리지 않고 넘김) — 이 숫자가 크면 AI 쪽을 봐야 한다
+    recheckedHigh: 0, // 위험 high 로 갇혀 있던 가이드를 고친 심사로 다시 본 건수 (발행은 안 함)
     reconciled: [], // 노션 표시를 홈페이지 실제와 맞춘 것
     notionFailed: 0, // 노션에 반영하지 못한 횟수 (쌓이면 검수함이 유령으로 부푼다)
     social: { ig: 0, fb: 0 },
@@ -170,6 +171,12 @@ export async function runAudit(opts = {}) {
         }
         review.note = recheck.note || review.note;
         review.score = recheck.score;
+        // 【2026-08-12 — 위험도도 함께 갱신한다】
+        //   여기서 fakeRisk 를 안 넘겨서, 1차 감사가 medium 이면 재심사가 low·100점을 줘도
+        //   아래 사유 만들기에서 여전히 「가짜뉴스 위험 medium」으로 내려갔다.
+        //   1차 medium 의 상당수는 진짜 위험이 아니라 <fakeRisk> 태그를 못 읽어 medium 으로
+        //   '가정'한 경우였다. 고쳐 쓴 뒤의 판정이 최신 판정이다.
+        review.fakeRisk = recheck.fakeRisk;
       }
 
       // 개선해도 기준 미달, 또는 가짜뉴스 위험 → 내린다
@@ -238,15 +245,47 @@ export async function runAudit(opts = {}) {
     }
   }
 
-  // 가짜뉴스 위험 high 는 자동 구조하지 않는다 (사람이 봐야 함)
-  const rescuable = drafts
+  const 후보 = drafts
     .filter((p) => !archivedSlugs.has(p.slug))
-    .filter((p) => p.quality?.fakeRisk !== "high")
-    // 위험 주제(초기화·삭제·비밀번호·결제·세금)도 자동 구조 금지.
+    // 위험 주제(초기화·삭제·비밀번호·결제·세금)는 자동 구조 금지.
     // 이걸 빼먹으면 파이프라인이 검수함으로 보낸 글을 감사가 다시 발행해버려
     // '자동 발행 금지'가 통째로 무력화된다.
     .filter((p) => !p.risky)
-    .filter((p) => (p.quality?.rounds ?? 0) < 3) // 3번 실패하면 그만 시도
+    .filter((p) => (p.quality?.rounds ?? 0) < 3); // 3번 실패하면 그만 시도
+
+  // 【위험 high 를 어떻게 다루나 — 2026-08-12】
+  //   원칙은 그대로다: high 는 자동으로 발행하지 않는다. 사람이 봐야 한다.
+  //   다만 검수함에 갇힌 가이드 30편의 high 는 '뉴스용 원문대조로 가이드를 심사한' 옛 심사가
+  //   찍은 값이다. 그 심사를 오늘 고쳤으므로, 낡은 판정을 그대로 둔 채 영원히 가둬둘 이유가 없다.
+  //   → 가이드는 다시 심사만 해서 판정을 새로 적는다. 발행은 하지 않는다.
+  //     새 심사에서 위험이 실제로 내려가면 다음 회차에 평소 규칙대로 구조된다.
+  //   뉴스의 high 는 진짜 환각일 수 있으므로 손대지 않는다.
+  const 재심사만 = 후보
+    .filter((p) => p.quality?.fakeRisk === "high" && isGuideDraft(p))
+    .slice(0, RESCUE_PER_RUN);
+
+  for (const post of 재심사만) {
+    try {
+      const 다시 = await auditPost(post);
+      if (다시.verdict === "skip") continue; // 판정을 못 받았으면 아무것도 바꾸지 않는다
+      post.quality = {
+        ...(post.quality ?? {}),
+        score: 다시.score,
+        fakeRisk: 다시.fakeRisk,
+        verdict: 다시.verdict,
+        reviewedAt: nowIso(),
+        note: 다시.note,
+      };
+      const { saveDraft } = await import("./posts.mjs");
+      await saveDraft(post);
+      out.recheckedHigh = (out.recheckedHigh ?? 0) + 1;
+    } catch (e) {
+      out.errors.push(`재심사 ${post.slug}: ${e.message}`);
+    }
+  }
+
+  const rescuable = 후보
+    .filter((p) => p.quality?.fakeRisk !== "high")
     .slice(0, RESCUE_PER_RUN);
 
   const rescuedPosts = [];
@@ -254,15 +293,21 @@ export async function runAudit(opts = {}) {
     try {
       const before = await auditPost(post);
       const fixed = await polishPost(post, before);
-      const after = await reviewDraft(
-        { title: fixed.title, summary: fixed.summary, body: fixed.body },
-        {
-          title: post.title,
-          context: post.summary,
-          from: post.sources?.[0]?.title ?? "원문",
-          url: post.sources?.[0]?.url,
-        },
-      );
+
+      // 【2026-08-12 — 구조가 수학적으로 불가능했던 자리】
+      //   여기서 reviewDraft 를 부르며 '원문' 자리에 post.summary(한 줄 요약)를 넣고 있었다.
+      //   reviewDraft 는 그걸 원문 기사로 알고 본문의 두 자리 이상 숫자를 전부
+      //   「원문에 없는 수치」로 판정한다 → 점수 55 상한 + 위험 medium → 60점 문턱 아래 → hold.
+      //   어떤 글도 통과할 수 없었고, 실패할 때마다 rounds 가 1씩 올라 3회 뒤 영구 제외됐다.
+      //   원문(facts)은 글에 저장돼 있지 않다. 없는 근거를 지어내 넘기는 대신,
+      //   원문 없이 심사하는 경로를 쓴다 — 발행글 재감사가 매일 쓰는 바로 그 심사다.
+      const after = await auditPost({ ...post, ...fixed });
+
+      // 판정을 못 받은 회차는 실패로 세지 않는다 (rounds 를 올리면 3회 만에 영구 제외된다)
+      if (after.verdict === "skip") {
+        out.skipped.push({ slug: post.slug, title: post.title });
+        continue;
+      }
 
       const rounds = (post.quality?.rounds ?? 0) + 1;
       Object.assign(post, fixed);

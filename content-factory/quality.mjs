@@ -60,6 +60,71 @@ AI 에디터가 쓴 초안을 '원문 기사'와 한 문장씩 대조해 검증�
 </issues>
 <note>한 줄 심사평</note>`;
 
+// ================= 2단계-가이드: 가이드 전용 팩트체커 =================
+//
+// 【2026-08-12 신설 — 꿀팁 통과율이 10%(71편 써서 7편 생존)였던 진짜 이유】
+//   가이드의 근거(facts)는 밖에서 긁어온 남의 기사가 아니다. 우리가 공식 안내문에서
+//   직접 확인해 적어둔 사실 메모다. 그런데 위의 FACT_SYSTEM(뉴스용)은 그걸
+//   「원문 기사」라고 부르며 "원문에 없는 사실·수치를 만들어냈는가"를 묻는다.
+//   근거 263자로 본문 1,500자를 쓰라고 시켜놓고, 늘어난 1,200자를 전부 환각으로 세는 구조였다.
+//   그래서 100점·91점을 받고도 검수함에 갇힌 글이 생겼다.
+//
+//   가이드는 근거를 「풀어 쓰는」 것이 일이다. 설명·예시·주의사항을 붙이는 것은 환각이 아니다.
+//   대신 가이드에서 지어내면 안 되는 것은 따로 있다 — 단축키·메뉴 이름·수수료·기한 같은
+//   「독자가 그대로 따라 하는 값」이다. 그것만 뉴스의 날조 인용문과 같은 무게로 본다.
+const GUIDE_FACT_SYSTEM = `너는 '오즈백(ODDSBAG)' 매거진의 가이드 심사관이다.
+심사 대상은 뉴스 기사가 아니라 독자가 따라 하는 안내글(가이드·꿀팁)이다. 뉴스와 다른 잣대로 본다.
+
+[먼저 알아둘 것 — 이걸 착각하면 멀쩡한 글을 떨어뜨린다]
+- 아래 [검증된 근거]는 남의 기사가 아니라, 우리가 공식 안내에서 직접 확인해 적어둔 사실 메모다.
+  짧을 수 있다. 근거가 짧다는 것은 글의 결함이 아니다.
+- 가이드는 그 근거를 독자가 따라 할 수 있게 풀어 쓴 글이다.
+  설명을 덧붙이고, 예를 들고, 주의할 점을 적고, 순서를 나누는 것은 이 글이 해야 할 일이다.
+  그것을 '원문에 없는 내용'이라고 감점하지 마라.
+
+[진짜로 잡아야 할 것 — accuracy는 오직 이것으로만 깎는다]
+1. 근거와 어긋남: 근거가 A라고 적었는데 글은 B라고 썼다
+2. 없는 절차 지어내기: 근거에 없는 단축키·버튼 이름·메뉴 경로·화면 이름을 만들어냈다
+3. 따라 하면 손해 보는 값의 날조: 수수료·기한·법정 기간·연락처·기관명·요금처럼
+   틀리면 독자가 실제로 손해를 보는 값을 근거 없이 적었다
+4. 되는 것과 안 되는 것을 뒤집음 (인터넷으로 되는데 안 된다고 썼거나 그 반대)
+5. 지난 것을 지금 것처럼: 없어진 메뉴·폐지된 제도를 현재형으로 썼다
+
+[환각이 아닌 것 — 절대 감점하지 마라]
+- 근거를 풀어 쓴 설명, 배경 한 줄, 비유
+- "10분이면 됩니다" "3~5개" 같은 대략의 분량 표현
+- 덧붙인 주의사항, 하지 말아야 할 것
+- 상식 수준의 부연 (예: 설정 앱은 톱니바퀴 모양이다 / 다시 켜면 대부분 해결된다)
+
+[fakeRisk 판정]
+- high: 위 1~5 중 하나가 실제로 있다. 그대로 따라 하면 안 되는 절차가 적혀 있다
+- medium: 확인이 필요한 구체적 값이 하나 있다 / 근거보다 눈에 띄게 단정적으로 썼다
+- low: 구체적 절차와 값이 전부 근거 안에 있고, 근거 밖의 것은 설명·부연뿐이다
+※ 근거가 짧다는 이유만으로 medium 이상을 주지 마라. 지적할 것이 없으면 low 다.
+
+[점수]
+- accuracy(40): 위 기준으로만 매긴다. 위 1~5에 걸리는 게 없으면 40점을 줘라.
+- readability(20): 검색해서 온 사람이 스크롤 없이 답을 얻는가. 순서가 끊겨 있는가.
+- tone(15): 오즈백 톤 (군말 없이 할 일부터. 겁주지 않고 정확하게)
+- useful(15): 읽고 나면 실제로 해결되는가. 안 될 때 어떻게 하는지까지 있는가.
+- title(10): 사람이 검색창에 실제로 치는 말로 시작하는가. 낚시가 아닌가.
+
+[issues]
+- 무엇을 어떻게 고쳐야 하는지 구체적으로. (예: "근거에 없는 단축키 ⌘⇧5 를 삭제할 것")
+- 문제가 없으면 비워둬라. 억지로 흠집 내지 마라.
+
+출력은 반드시 아래 형식 그대로. 다른 말 금지.
+<accuracy>숫자</accuracy>
+<readability>숫자</readability>
+<tone>숫자</tone>
+<useful>숫자</useful>
+<titleScore>숫자</titleScore>
+<fakeRisk>low 또는 medium 또는 high</fakeRisk>
+<issues>
+- 지적사항
+</issues>
+<note>한 줄 심사평</note>`;
+
 // ================= 3단계: 리스크 심사관 (독립) =================
 const RISK_SYSTEM = `너는 언론사의 법무·윤리 심사관이다.
 사실관계 정확도는 다른 사람이 본다. 너는 오직 '내보내면 문제가 될 위험'만 본다.
@@ -261,19 +326,84 @@ export function guideFormatIssues(draft) {
   return issues;
 }
 
+// ================= 제목 게이트 (기계, 2026-08-12 신설) =================
+//
+// 【왜 만드나 — 우리 채널 실측】
+//   조회 100회 이하 7편 중 4편이 「~일 수도 있다」 「~하는 법을 배우다」 류 추측·에세이형이었다.
+//   조회 상위 7편에는 0편이다. 최저 기록(3회)이 「내 전기요금이 오른 이유, AI일 수도 있다」였다.
+//   반대로 500회를 넘긴 7편은 7/7 이 「대상 이름 + 무엇을」로 시작했다.
+//   유형별 중앙값도 갈린다 — 순위·수치형 710회 vs 에세이형 75회.
+//
+//   그래서 사람이 검색창에 안 치는 문형을 기계가 먼저 막는다.
+//   ※ 막는다 = 폐기가 아니라 「고쳐 쓰기(revise)」다. 제목은 본문을 버리지 않고 고칠 수 있다.
+const TITLE_BANNED = [
+  { re: /일\s?수(도|있|를)/, why: "「~일 수도 있다」는 추측형 — 검증 가능한 사실로 바꿀 것" },
+  { re: /(라는|이라는)\s?(이야기|얘기)/, why: "「~라는 이야기」는 전언형 — 무엇이 어떻게 됐는지로 바꿀 것" },
+  { re: /배우(다|는|자)\b|에게\s?배(우다|운다)/, why: "「~에게 배우다」는 교훈형 — 독자가 할 일로 바꿀 것" },
+  { re: /된\s?시대|의\s?시대/, why: "「~된 시대」는 총평형 — 구체적인 대상으로 바꿀 것" },
+  { re: /이유(는)?\s*[?？]?$/, why: "「~의 이유」로 끝내지 말 것 — 그 이유가 무엇인지를 제목에 적을 것" },
+  { re: /알고\s?계셨나요|아시나요|아세요\?/, why: "질문으로 낚지 말 것 — 답을 제목에 적을 것" },
+  { re: /충격|경악|발칵|소름|난리/, why: "자극어는 낚시로 읽힌다 — 사실만 적을 것" },
+];
+
+// 제목 첫머리에 오면 검색어가 뒤로 밀리는 말들. 앞 3단어 안에 검색어를 두라는 규칙의 기계판.
+const TITLE_LEAD_BAN = [
+  "그", "이", "저", "요즘", "사실", "의외로", "놀랍게도", "알고", "결국",
+  "드디어", "과연", "왜", "만약", "혹시", "이제", "바로",
+];
+
+/** 제목 게이트 — 고쳐야 할 것을 사람 말로 돌려준다 (빈 배열이면 통과) */
+export function titleIssues(draft) {
+  const title = String(draft?.title ?? "").trim();
+  const issues = [];
+  if (!title) return issues;
+
+  for (const b of TITLE_BANNED) {
+    if (b.re.test(title)) {
+      issues.push(`제목: ${b.why}`);
+      break; // 한 번만 지적한다 — 지적이 겹쳐 쌓이면 개선 프롬프트가 흐려진다
+    }
+  }
+
+  const 첫어절 = title.split(/\s+/)[0]?.replace(/[,·.…!?]/g, "") ?? "";
+  if (TITLE_LEAD_BAN.includes(첫어절))
+    issues.push(
+      `제목이 「${첫어절}」로 시작한다 — 사람이 검색창에 치는 말(대상 이름·기관·제품명)을 앞 3단어 안에 둘 것`,
+    );
+
+  return issues;
+}
+
 export async function reviewDraft(
   draft,
   source,
 ) {
-  // --- 1단계: 기계 대조 (AI 없이, 문자 그대로) ---
-  const machine = machineVerify(draft, source.context, source.title);
-
   // 가이드(꿀팁)는 검사 항목이 다르다 — 단축키·메뉴 경로 대조 + 형식 게이트
   const guide = isGuideDraft(draft);
+
+  // --- 1단계: 기계 대조 (AI 없이, 문자 그대로) ---
+  //
+  // 【2026-08-12 — 가이드에서 숫자 대조를 뺀다】
+  //   machineVerify 는 본문의 두 자리 이상 숫자가 근거에 없으면 전부 '날조'로 센다.
+  //   뉴스에서는 맞는 검사다. 가이드에서는 「[버전] macOS 15」 「3~5쌍」 「10분」 같은 말이
+  //   그대로 걸려서 score 가 55로 깎이고 medium 이 붙는다. 60점 문턱 아래라 verdict 는 hold.
+  //   즉 가이드는 아무리 잘 써도 발행이 수학적으로 불가능했다.
+  //   대신 가이드에는 verifyGuideTerms(단축키·메뉴 경로 대조)가 이미 있고, 그게 진짜 검사다.
+  //   ※ 인용문 날조는 가이드에도 그대로 적용한다 — 남의 말을 지어내는 건 종류를 안 가린다.
+  const machineRaw = machineVerify(draft, source.context, source.title);
+  const machine = guide
+    ? {
+        ...machineRaw,
+        fabricatedNumbers: [],
+        ok: machineRaw.fabricatedQuotes.length === 0,
+        note: machineRaw.fabricatedQuotes.length ? "근거에 없는 인용문" : "인용문 일치",
+      }
+    : machineRaw;
+
   const terms = guide ? verifyGuideTerms(draft.body, source.context) : null;
   const formatIssues = guide ? guideFormatIssues(draft) : [];
 
-  const factUser = `[원문 기사 — 오직 이것만이 사실의 근거다]
+  const newsFactUser = `[원문 기사 — 오직 이것만이 사실의 근거다]
 수집처: ${source.from}
 제목: ${source.title}
 본문:
@@ -292,6 +422,30 @@ ${
 
 위 초안을 원문과 한 문장씩 대조해 심사하라. 지정된 태그 형식으로만 출력.`;
 
+  const guideFactUser = `[검증된 근거 — 공식 안내에서 우리가 직접 확인해 적어둔 사실 메모]
+출처: ${source.from}
+주제: ${source.title}
+근거:
+${source.context}
+
+[심사할 가이드 초안]
+제목: ${draft.title}
+요약: ${draft.summary}
+본문:
+${draft.body}
+${
+  machine.ok
+    ? ""
+    : `\n[기계 대조 결과 — 이미 확인된 문제]\n${machine.note}`
+}${
+  terms && !terms.ok
+    ? `\n[용어 대조 결과 — 이미 확인된 문제]\n${terms.note}`
+    : ""
+}
+
+위 초안을 근거와 대조해 심사하라.
+근거를 풀어 쓴 설명·예시·주의사항은 환각이 아니다. 지정된 태그 형식으로만 출력.`;
+
   const riskUser = `[검토할 글]
 제목: ${draft.title}
 요약: ${draft.summary}
@@ -299,17 +453,34 @@ ${
 ${draft.body}
 
 [원문 출처] ${source.from} ${source.url ?? ""}
-
+${
+  guide
+    ? `
+[이 글의 성격] 공식 안내에 있는 절차를 순서대로 알려주는 '따라 하는 안내글'이다.
+절차를 알려주는 것 자체는 '위험한 조언'이 아니다.
+의료·투자·법률에서 판단을 대신 내려주는 서술(예: "이 약을 드세요", "지금 사세요")만 잡아라.`
+    : ""
+}
 이 글을 내보냈을 때 생길 위험만 심사하라. 지정된 태그 형식으로만 출력.`;
 
   // --- 2·3단계: 팩트체커와 리스크 심사관이 서로 모른 채 독립적으로 심사 ---
   const [factRaw, riskRaw] = await Promise.all([
-    ask(FACT_SYSTEM, factUser, { maxTokens: 1200, careful: true }),
+    ask(guide ? GUIDE_FACT_SYSTEM : FACT_SYSTEM, guide ? guideFactUser : newsFactUser, {
+      maxTokens: 1200,
+      careful: true,
+    }),
     ask(RISK_SYSTEM, riskUser, { maxTokens: 700, careful: true }),
   ]);
 
   const rv = parseReview(factRaw, "high");
   const risk = parseRisk(riskRaw);
+
+  // 【위험도 태그를 못 읽었을 때】 점수는 읽혔는데 <fakeRisk> 태그만 빠진 답이 자주 나온다
+  //   (무료 AI 한도가 밀려 약한 예비 엔진으로 넘어가면 형식이 깨진다).
+  //   그때 '가장 위험함'으로 가정하면 멀쩡한 글이 검수함으로 직행한다 —
+  //   2026-08-11 에 점수 축에서 고친 것과 똑같은 사고가 위험도 축에 그대로 남아 있었다.
+  //   점수를 읽었다면 그 답은 쓸 수 있는 답이다. 판정 불능은 medium(고쳐쓰기)으로 본다.
+  if (!rv.riskRead && rv.parsed) rv.fakeRisk = "medium";
 
   // --- 종합 판정: 셋 중 가장 나쁜 결과를 따른다 ---
   let fakeRisk = worst(rv.fakeRisk, risk.level);
@@ -347,6 +518,10 @@ ${draft.body}
   // 가이드 형식 게이트 — 지적으로 얹는다 (발행 여부는 아래에서 판단)
   if (formatIssues.length) issues.push(...formatIssues);
 
+  // 제목 게이트 — 추측·에세이형 제목과 검색어가 뒤로 밀린 제목을 막는다
+  const tIssues = titleIssues(draft);
+  if (tIssues.length) issues.unshift(...tIssues);
+
   let verdict;
   if (fakeRisk === "high") verdict = "hold";
   else if (fakeRisk === "medium") verdict = score >= HOLD_SCORE ? "revise" : "hold";
@@ -360,6 +535,9 @@ ${draft.body}
   // 가이드 형식이 어긋나면 그대로 발행하지 않는다 — 한 번 고쳐 쓰고 다시 본다.
   // (여기서 막지 않으면 즉답도 FAQ도 없는 글자 벽이 그대로 나가고, 그러면 붙일 구조화 데이터가 없다)
   if (formatIssues.length && verdict === "publish") verdict = "revise";
+
+  // 제목이 걸리면 그대로 내보내지 않는다 — 본문은 멀쩡하므로 폐기가 아니라 고쳐 쓰기다
+  if (tIssues.length && verdict === "publish") verdict = "revise";
 
   return {
     score,
@@ -455,12 +633,22 @@ const AUDIT_SYSTEM = `너는 '오즈백' 매거진 편집장이다. 이미 발�
 
 문제가 없으면 issues는 비우고 fakeRisk는 low, 점수는 높게 준다. 억지로 흠집 내지 마라.
 
+[점수 — 항목별 만점이 다르다. 반드시 이 만점 기준으로 매겨라]
+- accuracy: 40점 만점 (사실 정확성)
+- readability: 20점 만점 (읽기 쉬움)
+- tone: 15점 만점 (오즈백 톤)
+- useful: 15점 만점 (독자가 얻어가는 것)
+- titleScore: 10점 만점 (제목이 본문을 정직하게 대표하는가)
+- 다섯 개를 더하면 100점이 된다. 10점 만점으로 매기지 마라.
+- 지적할 것이 없으면 각 항목에 그 만점을 그대로 줘라.
+  (문제가 없는 글은 100점이 정상이다. 애매하게 절반을 주지 마라)
+
 출력은 반드시 아래 형식 그대로. 다른 말 금지.
-<accuracy>숫자</accuracy>
-<readability>숫자</readability>
-<tone>숫자</tone>
-<useful>숫자</useful>
-<titleScore>숫자</titleScore>
+<accuracy>0~40 사이 숫자</accuracy>
+<readability>0~20 사이 숫자</readability>
+<tone>0~15 사이 숫자</tone>
+<useful>0~15 사이 숫자</useful>
+<titleScore>0~10 사이 숫자</titleScore>
 <fakeRisk>low 또는 medium 또는 high</fakeRisk>
 <issues>
 - 지적사항
@@ -468,9 +656,16 @@ const AUDIT_SYSTEM = `너는 '오즈백' 매거진 편집장이다. 이미 발�
 <note>한 줄 심사평</note>`;
 
 export async function auditPost(post) {
+  const guide = isGuideDraft(post);
   const user = `[발행일] ${post.date} (오늘: ${new Date().toISOString().slice(0, 10)})
 [출처] ${post.sources?.[0]?.url ?? "없음"}
-
+${
+  guide
+    ? `[이 글의 성격] 따라 하는 안내글(가이드)이다. 공식 안내에 있는 절차를 순서대로
+알려주는 것은 '위험한 조언'이 아니다. 의료·투자·법률에서 판단을 대신 내려주는
+서술만 위험으로 잡아라.\n`
+    : ""
+}
 [제목] ${post.title}
 [요약] ${post.summary}
 [본문]
@@ -482,6 +677,15 @@ ${post.body}
     await ask(AUDIT_SYSTEM, user, { maxTokens: 1200, careful: true }),
     "medium",
   );
+
+  // 【안전장치 — 칭찬만 하고 낮은 점수를 주는 답은 채점 실수다】
+  //   실측(2026-08-12): 내려간 21~22편 중 20~21편의 사유가 칭찬 문구였다.
+  //   예) "품질 미달 (41점): 전반적으로 사실 기반이며 위험 요소가 없으므로 높은 점수를 부여합니다"
+  //   지적사항이 하나도 없는데 70점 미만이 나오는 건 글이 나쁜 게 아니라
+  //   심사관이 만점 기준을 다르게 잡은 것이다. 그런 답으로 발행글을 내리지 않는다.
+  //   (아래 verdict 에서 skip → 이번 회차는 건드리지 않고 36시간 뒤 다시 본다)
+  const 칭찬만 = rv.parsed && rv.issues.length === 0 && rv.score < 70 && rv.fakeRisk !== "high";
+
   const { score, fakeRisk } = rv;
 
   // 이미 발행된 가이드도 형식 게이트를 통과해야 한다.
@@ -493,6 +697,7 @@ ${post.body}
   // 심사관 답을 못 읽었으면 판정 자체가 없는 것이다. 발행글을 건드리지 않고 다음 회차로 넘긴다.
   //  (36시간마다 다시 심사하므로 진짜 문제가 있으면 다음번에 잡힌다)
   if (!rv.parsed) verdict = "skip";
+  else if (칭찬만) verdict = "skip";
   else if (fakeRisk === "high") verdict = "hold";
   else if (fakeRisk === "medium" || score < 70 || gIssues.length) verdict = "revise";
   else verdict = "publish";
