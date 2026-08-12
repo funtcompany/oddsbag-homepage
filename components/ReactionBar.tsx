@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from "react";
 
+// 개설 이래 반응 0건이었다. 이유가 두 개였다.
+//  ① 이름(좋아요/놀라워요/슬퍼요/화나요)이 속보 뉴스용이라 「서류 발급 절차」 같은 글에 누를 게 없었다.
+//  ② 화면에 label 을 아예 안 그리고 이모지+숫자만 띄웠다 — 뭘 누르는 버튼인지 알 수 없었다.
+// 그래서 이름을 「갑자기 필요해지는 것」 매거진에 맞게 바꾸고, 글자를 실제로 보여준다.
+// ※ 옛 키(like/wow/sad/angry)는 서버 쪽에서 계속 받아준다 — 이미 저장된 값이 있으면 살아 있게.
 const REACTIONS = [
-  { key: "like", emoji: "👍", label: "좋아요" },
-  { key: "wow", emoji: "😮", label: "놀라워요" },
-  { key: "sad", emoji: "😢", label: "슬퍼요" },
-  { key: "angry", emoji: "😡", label: "화나요" },
+  { key: "helped", emoji: "👍", label: "도움됐다" },
+  { key: "didnt_know", emoji: "😮", label: "나만 몰랐다" },
+  { key: "save_later", emoji: "🔖", label: "나중에 필요할 듯" },
+  { key: "need_more", emoji: "🤔", label: "이걸론 부족해요" },
 ];
 
 export default function ReactionBar({ slug }: { slug: string }) {
@@ -49,8 +54,11 @@ export default function ReactionBar({ slug }: { slug: string }) {
 
   return (
     <div className="rounded-2xl border border-oddsbag-light-gray bg-white p-4">
-      <p className="mb-3 text-sm font-bold text-oddsbag-dark">
+      <p className="mb-1 text-sm font-bold text-oddsbag-dark">
         이 글, 어떠셨어요?
+      </p>
+      <p className="mb-3 text-xs text-oddsbag-gray">
+        한 번만 누르시면 됩니다. 어떤 걸 더 만들지 이걸 보고 정합니다.
       </p>
       <div className="flex flex-wrap gap-2">
         {REACTIONS.map((r) => {
@@ -68,7 +76,10 @@ export default function ReactionBar({ slug }: { slug: string }) {
               } ${picked && !active ? "opacity-50" : ""}`}
             >
               <span className="text-base">{r.emoji}</span>
-              <span>{counts[r.key] ?? 0}</span>
+              <span>{r.label}</span>
+              <span className="tabular-nums opacity-70">
+                {counts[r.key] ?? 0}
+              </span>
             </button>
           );
         })}

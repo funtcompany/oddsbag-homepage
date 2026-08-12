@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hincr, hgetall } from "@/lib/store";
 
-const VALID = new Set(["like", "wow", "sad", "angry"]);
+// 지금 화면에 뜨는 4개 + 옛 이름 4개.
+//  옛 이름을 빼면 이미 저장된 값이 400 으로 튕기고, 남아 있는 옛 화면(캐시)에서 눌린 것도 버려진다.
+//  받아주기만 하고 새로 보여주지는 않는다 — components/ReactionBar.tsx 참고.
+const VALID = new Set([
+  "helped",
+  "didnt_know",
+  "save_later",
+  "need_more",
+  "like",
+  "wow",
+  "sad",
+  "angry",
+]);
 const key = (slug: string) => `reactions:${slug}`;
 
 export async function GET(req: NextRequest) {
