@@ -81,22 +81,48 @@ function 계정찾기(키) {
   return { ...a, id, token, G: 주소[a.방식] };
 }
 
-// 발행된 릴스에 첫 댓글로 해시태그를 단다 (캡션을 깔끔하게 유지하면서 검색 유입 확보)
-async function commentOn(acc, mediaId, text) {
+// 발행 직후 댓글을 단다 (캡션을 깔끔하게 유지하면서 검색 유입 확보)
+//  · 씨앗이 없으면 — 지금까지처럼 첫 댓글에 해시태그를 그대로 단다
+//  · 씨앗이 있으면 — 첫 댓글엔 씨앗(이모지 하나)만 두고, 해시태그는 그 댓글의 대댓글로 내린다.
+//    보이는 자리는 이모지 하나뿐이고 태그 뭉치는 한 번 접힌 안쪽에 들어간다.
+async function commentOn(acc, mediaId, text, 씨앗) {
+  if (!text && !씨앗) return;
+  const 달기 = async (경로, message) =>
+    (await (await fetch(`${acc.G}/${경로}`, {
+      method: "POST",
+      body: new URLSearchParams({ message, access_token: acc.token }),
+    })).json());
+
+  if (!씨앗) {
+    const r = await 달기(`${mediaId}/comments`, text);
+    if (r.id) console.log(`  · 인스타 첫 댓글(태그) 등록: ${r.id}`);
+    else console.log("  · 인스타 댓글 건너뜀:", JSON.stringify(r).slice(0, 120));
+    return;
+  }
+
+  const 첫댓글 = await 달기(`${mediaId}/comments`, 씨앗);
+  if (!첫댓글.id) {
+    console.log("  · 인스타 댓글 건너뜀:", JSON.stringify(첫댓글).slice(0, 120));
+    return;
+  }
+  console.log(`  · 인스타 첫 댓글(${씨앗}) 등록: ${첫댓글.id}`);
   if (!text) return;
-  const r = await (await fetch(`${acc.G}/${mediaId}/comments`, {
-    method: "POST",
-    body: new URLSearchParams({ message: text, access_token: acc.token }),
-  })).json();
-  if (r.id) console.log(`  · 인스타 첫 댓글(태그) 등록: ${r.id}`);
-  else console.log("  · 인스타 댓글 건너뜀:", JSON.stringify(r).slice(0, 120));
+
+  const 대댓글 = await 달기(`${첫댓글.id}/replies`, text);
+  if (대댓글.id) { console.log(`  · 인스타 대댓글(태그) 등록: ${대댓글.id}`); return; }
+
+  // 대댓글이 막히면 태그를 통째로 잃는다 — 검색 유입이 목적이니 예전 방식으로 되돌려 건진다
+  console.log("  · 대댓글 실패 → 태그를 일반 댓글로 답니다:", JSON.stringify(대댓글).slice(0, 120));
+  const 보완 = await 달기(`${mediaId}/comments`, text);
+  if (보완.id) console.log(`  · 인스타 태그 댓글 등록: ${보완.id}`);
+  else console.log("  · 인스타 태그 댓글도 실패:", JSON.stringify(보완).slice(0, 120));
 }
 
 /**
  * 릴스를 특정 계정에 올린다.
  * @param {string} 계정키 official | music | tales | kids | starflow
  */
-export async function postReelTo(계정키, videoUrl, caption, coverUrl, commentTags) {
+export async function postReelTo(계정키, videoUrl, caption, coverUrl, commentTags, opts = {}) {
   const acc = 계정찾기(계정키);
   if (!videoUrl) throw new Error("인스타 미설정 (영상 URL 없음)");
   console.log(`  · 인스타 대상 계정: ${acc.이름}`);
@@ -130,7 +156,7 @@ export async function postReelTo(계정키, videoUrl, caption, coverUrl, comment
   console.log(`  · 인스타 릴스 게시: ${pub.id} (${acc.이름})`);
 
   // 첫 댓글에 해시태그 (실패해도 게시 자체는 성공으로 둔다)
-  try { await commentOn(acc, pub.id, commentTags); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
+  try { await commentOn(acc, pub.id, commentTags, opts.댓글씨앗); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
   return pub.id;
 }
 
@@ -148,14 +174,14 @@ async function 컨테이너대기(acc, id, 라벨) {
   throw new Error(`${라벨} 준비 지연 40초 초과(${acc.이름})`);
 }
 
-async function 게시(acc, containerId, 라벨, commentTags) {
+async function 게시(acc, containerId, 라벨, commentTags, 댓글씨앗) {
   const pub = await (await fetch(`${acc.G}/${acc.id}/media_publish`, {
     method: "POST",
     body: new URLSearchParams({ creation_id: containerId, access_token: acc.token }),
   })).json();
   if (!pub.id) throw new Error(`발행 실패(${acc.이름}): ` + JSON.stringify(pub).slice(0, 160));
   console.log(`  · 인스타 ${라벨} 게시: ${pub.id} (${acc.이름})`);
-  try { await commentOn(acc, pub.id, commentTags); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
+  try { await commentOn(acc, pub.id, commentTags, 댓글씨앗); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
   return pub.id;
 }
 
@@ -177,7 +203,7 @@ export async function postImageTo(계정키, imageUrl, caption, commentTags, opt
   await 컨테이너대기(acc, create.id, "사진");
 
   if (opts.컨테이너까지) { console.log(`  · (점검) 사진 컨테이너까지만 확인: ${create.id} — 게시 안 함`); return create.id; }
-  return 게시(acc, create.id, "사진", commentTags);
+  return 게시(acc, create.id, "사진", commentTags, opts.댓글씨앗);
 }
 
 /**
@@ -214,7 +240,7 @@ export async function postCarouselTo(계정키, imageUrls, caption, commentTags,
   await 컨테이너대기(acc, parent.id, "캐러셀");
 
   if (opts.컨테이너까지) { console.log(`  · (점검) 캐러셀 컨테이너까지만 확인: ${parent.id} — 게시 안 함`); return parent.id; }
-  return 게시(acc, parent.id, "캐러셀", commentTags);
+  return 게시(acc, parent.id, "캐러셀", commentTags, opts.댓글씨앗);
 }
 
 /** 예전부터 쓰던 입구 — 계정을 안 적으면 지금까지처럼 @oddsbag_official 로 올린다 */
