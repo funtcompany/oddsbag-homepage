@@ -1,5 +1,5 @@
 // 여러 소스를 모아 통일된 RawIssue 목록으로 반환
-import { searchNews } from "./naver.mjs";
+import { searchNews, 오늘의고정검색어 } from "./naver.mjs";
 import {
   collectGoogleTrends,
   collectGoogleNewsKR,
@@ -34,10 +34,32 @@ async function collectNaver() {
   return out;
 }
 
+// 요일 고정 코너(월=브랜드평판 순위 · 화=정기 발표 숫자)의 재료를 따로 받아온다.
+//  분야 순환에 섞어 넣으면 그날 안 뽑힐 수 있어서, 별도로 받아 맨 앞에 세운다.
+async function collect요일코너() {
+  const 오늘 = 오늘의고정검색어();
+  if (!오늘) return [];
+  try {
+    const news = await searchNews(오늘.검색어, 4);
+    return news.map((n) => ({
+      source: "naver",
+      title: n.title,
+      summary: n.description,
+      link: n.link,
+      category: 오늘.분야,
+      코너: 오늘.코너, // 어느 코너로 나가는 글인지 표시만 남긴다
+    }));
+  } catch {
+    return []; // 이 요일 재료를 못 받아도 나머지 수집은 그대로 돈다
+  }
+}
+
 export async function collectAllIssues(
   sources,
 ) {
   const tasks = [];
+  // 요일 코너 재료를 첫 번째로 — Promise.allSettled 결과 순서가 곧 이슈 순서다
+  if (sources.includes("naver")) tasks.push(collect요일코너());
   if (sources.includes("naver")) tasks.push(collectNaver());
   if (sources.includes("google-trends")) tasks.push(collectGoogleTrends("KR"));
   if (sources.includes("google-news")) tasks.push(collectGoogleNewsKR(2));

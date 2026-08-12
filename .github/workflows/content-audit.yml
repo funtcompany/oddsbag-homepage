@@ -22,8 +22,8 @@ jobs:
       - name: 점검 실행
         working-directory: content-factory
         env:
-          TIPS_PER_DAY: "1" # 꿀팁 하루 생산 상한 (피드 도배 방지)
-          PUBLISH_DAILY_CAP: "3" # 홈페이지 하루 발행 상한
+          TIPS_PER_DAY: "2" # 꿀팁 하루 생산 상한 — 다른 워크플로와 같은 값이어야 한다
+          PUBLISH_DAILY_CAP: "1" # 홈페이지 하루 1편 — 요일마다 코너가 하나다
           SOCIAL_DAILY_CAP: "1" # 인스타 카드뉴스 1개 (+릴스 2개 = 인스타 하루 3개) · 2026-08-08 결정
           SOCIAL_GAP_MIN: "360" # SNS 게시 최소 간격 6시간
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}

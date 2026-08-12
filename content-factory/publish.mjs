@@ -58,6 +58,36 @@ export async function runPublish() {
   }
 
   const now = Date.now();
+
+  // 【묵은 뉴스 걸러내기 — 2026-08-12 신설】
+  //   전에는 대기열 상한(4편)이 곧 신선도 장치였다. "4편을 넘게 쌓지 않는다 = 이틀 반치".
+  //   요일 편성 때문에 대기열을 14편으로 늘리면서 그 장치가 사라졌다.
+  //   하루 1편씩 빼내면 맨 뒤의 글은 2주를 기다린다 — 뉴스는 그때 이미 틀린 글이다.
+  //   그래서 뉴스만 나이를 본다. 가이드(꿀팁)는 안 늙으므로 그대로 둔다.
+  //   ※ 지우지 않는다. 대기열에서 빼서 검수함(draft)으로 옮긴다 — 되돌릴 수 있게.
+  const 뉴스수명일 = Number(process.env.NEWS_MAX_AGE_DAYS || 4);
+  const 늙음 = (p) =>
+    p.category !== "꿀팁" &&
+    now - new Date(p.date ?? p.publishAt ?? now).getTime() > 뉴스수명일 * 86400000;
+
+  const 묵은것 = queue.filter(늙음);
+  if (묵은것.length) {
+    const { saveDraft } = await import("./posts.mjs");
+    for (const p of 묵은것) {
+      try {
+        await releaseFromQueue(p);
+        p.status = "draft";
+        p.holdReason = `대기 중 ${뉴스수명일}일이 지난 뉴스 — 지금 내보내면 틀린 글이 된다`;
+        await saveDraft(p);
+        if (notionEnabled && p.notionId) await setNotionStatus(p.notionId, "검수필요", p.holdReason);
+      } catch (e) {
+        out.errors.push(`묵은 뉴스 정리 ${p.slug}: ${e.message}`);
+      }
+    }
+    out.staleHeld = 묵은것.map((p) => p.slug);
+    queue = queue.filter((p) => !묵은것.includes(p));
+  }
+
   const due = queue
     .filter((p) => new Date(p.publishAt ?? 0).getTime() <= now)
     .slice(0, Math.min(MAX_PER_RUN, room));

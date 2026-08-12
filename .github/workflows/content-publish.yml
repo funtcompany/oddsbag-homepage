@@ -24,7 +24,8 @@ jobs:
         working-directory: content-factory
         env:
           TIPS_PER_DAY: "2" # 꿀팁 하루 생산 상한 (새벽 슬롯 1 + 아침 슬롯 1)
-          PUBLISH_DAILY_CAP: "3" # 홈페이지 하루 발행 상한 (뉴스 1 + 가이드 2)
+          PUBLISH_DAILY_CAP: "1" # 홈페이지 하루 1편 — 요일마다 코너가 하나다
+          NEWS_MAX_AGE_DAYS: "4" # 대기 중 이만큼 지난 뉴스는 내보내지 않고 검수함으로 (가이드는 제외)
           PUBLISH_MAX_PER_RUN: "1" # 한 회차에 1편씩만
           # 2026-08-08 실측: 카드뉴스 29개의 도달 합계가 0이었다(해시태그를 붙인 10개도 0).
           # 인스타 도달 1,337은 전부 릴스에서 나왔다. 그래서 카드뉴스는 2 → 1로 줄이고

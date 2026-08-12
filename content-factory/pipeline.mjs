@@ -290,6 +290,20 @@ export async function runCollection(opts) {
     console.log("꿀팁 비중이 목표(55%)를 넘어 이번 회차는 뉴스 위주로 진행");
   }
 
+  // 【요일 고정 코너를 맨 앞으로 — 2026-08-12】
+  //   월 「이 달의 순위」와 화 「숫자로 보는 이번 주」는 뉴스 수집에서 온다(aggregate.mjs).
+  //   그런데 이 회차는 한 편만 쓰고(limit 1), 바로 위에서 에버그린을 맨 앞에 꽂는다.
+  //   그대로 두면 그 한 자리를 에버그린이 가져가고 월·화 코너는 영영 안 나간다 —
+  //   요일 편성에서 「그날 코너가 빈다」는 건 코너가 없는 것과 같다.
+  //   그래서 코너 표시가 붙은 것을 가장 앞에 세운다.
+  const 코너것 = ordered.filter((i) => i.코너);
+  if (코너것.length) {
+    const 나머지 = ordered.filter((i) => !i.코너);
+    ordered.length = 0;
+    ordered.push(...코너것, ...나머지);
+    console.log(`요일 코너 「${코너것[0].코너}」 재료 ${코너것.length}건 — 맨 앞에 세움`);
+  }
+
   // 가이드 전용 회차인데 만들 주제가 없으면 여기서 끝낸다 (뉴스로 대체하지 않는다)
   if (guideOnly && !ordered.length) {
     const why = tipsCapped
@@ -320,7 +334,9 @@ export async function runCollection(opts) {
   for (const issue of ordered) {
     if (made >= Math.min(limit, room) || Date.now() > deadline) break;
     // 이미 목표 비중을 넘긴 분야는 건너뛴다 (seen 처리하지 않아 다음 회차에 다시 기회를 준다)
-    if (balanceOn && isOverShare(issue.category, liveCounts(), recentTotal + made)) {
+    // ※ 요일 코너 재료는 분야 비중과 무관하게 통과시킨다 — 그날 나가야 하는 글이라
+    //   「경제 비중 초과」로 밀리면 그 요일이 통째로 빈다.
+    if (!issue.코너 && balanceOn && isOverShare(issue.category, liveCounts(), recentTotal + made)) {
       console.log(`  · ${issue.category} 비중 초과 — 건너뜀: ${issue.title.slice(0, 24)}`);
       continue;
     }

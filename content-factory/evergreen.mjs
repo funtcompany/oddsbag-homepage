@@ -9,9 +9,62 @@
 //  주제마다 '검증된 사실(facts)'이 붙어 있고, AI는 오직 그것만 근거로 쓴다.
 //  facts 에 없는 내용은 쓰면 안 된다. 주제 추가는 evergreen-data.mjs 에서.
 
-import { ALL_EVERGREEN } from "./evergreen-data.mjs";
+import {
+  ALL_EVERGREEN,
+  MAC, WINDOWS, IPHONE, ANDROID, WEB, OFFICE, APPS, FIXIT,
+  HOME, SAVE, FOOD, HABIT, SEASONLIFE,
+  TRIP, WORK, SHOP, PHOTO, MONEY, LEARN, MISC,
+} from "./evergreen-data.mjs";
 
 export const EVERGREEN = ALL_EVERGREEN;
+
+// ─────────────────────────────────────────────────────────────
+// 요일별 고정 편성 (사장님 승인 2026-08-12 · 편성표 문서가 원본)
+//
+// 【왜】 지금까지 39편이 전부 「그날의 다른 이슈」였다. 다음 편이 없으니 구독할 이유가 없다.
+//   요일과 이름을 고정하면 「목요일엔 이런 게 온다」가 생긴다. 그게 구독의 최소 조건이다.
+//
+// 【여기서 다루는 요일은 목·금 둘뿐이다】 나머지 요일은 재료가 오는 곳이 다르다.
+//   · 월(이 달의 순위) · 화(숫자로 보는 이번 주) → 뉴스 수집(naver.mjs 고정 검색어)에서 온다
+//   · 수(이번 달 달력) → 아래 SEASONAL 이 담당 (지금 5건뿐, 확충 필요)
+//   · 토(서류) · 일(그날 3분) → 근거를 새로 써야 한다 (3·4주차 작업)
+//   그래서 이 표에는 「지금 재고로 바로 돌릴 수 있는 요일」만 적는다.
+//   열리지 않은 요일은 지금까지 하던 대로(전체 순서대로) 굴러간다 — 조용히 비지 않는다.
+//
+// 【대타 규칙이 같이 없으면 넣으면 안 된다】 요일을 잠그면서 하루 1편으로 조이면
+//   그 요일 재고가 떨어진 날이 곧바로 「빈 날」이 된다. 그래서 아래 3단계로 물러선다.
+//     ① 오늘 요일 묶음 → ② 예비 묶음(성격이 가까운 것) → ③ 전체 재고 순서대로
+// ─────────────────────────────────────────────────────────────
+
+// 목요일 「안 될 때」 — 폰·PC·앱이 갑자기 안 될 때 순서대로
+const 기술계 = [FIXIT, WINDOWS, MAC, IPHONE, ANDROID, WEB, APPS, OFFICE];
+// 금요일 「집에서 생기는 일」 — 냄새·곰팡이·쓰레기·요금
+const 생활계 = [HOME, SEASONLIFE, FOOD, SAVE, HABIT];
+// 어느 쪽도 아니지만 성격이 가까운 예비함
+const 예비_기술 = [LEARN, PHOTO];
+const 예비_생활 = [SHOP, MONEY, TRIP, WORK, MISC];
+
+/** 여러 묶음을 한 편씩 번갈아 엮는다 (evergreen-data.mjs 의 같은 규칙) */
+const 번갈아 = (묶음들) => {
+  const out = [];
+  const 최대 = Math.max(0, ...묶음들.map((b) => b.length));
+  for (let i = 0; i < 최대; i++) for (const b of 묶음들) if (b[i]) out.push(b[i]);
+  return out;
+};
+
+// 0=일 … 6=토
+export const 요일편성 = {
+  4: { 코너: "안 될 때", 본진: 번갈아(기술계), 예비: 번갈아(예비_기술) },
+  5: { 코너: "집에서 생기는 일", 본진: 번갈아(생활계), 예비: 번갈아(예비_생활) },
+};
+
+// 한 줄로 끌 수 있게 둔다 — 이상하면 워크플로 env 에 WEEKDAY_PLAN=0 만 넣으면 옛 동작으로 돌아간다.
+const 요일편성켬 = process.env.WEEKDAY_PLAN !== "0";
+
+/** 한국 시간 기준 요일 (0=일) — 서버는 UTC 로 도는데 편성은 한국 요일이 기준이다 */
+export function kstDay(now = new Date()) {
+  return new Date(now.getTime() + 9 * 3600000).getUTCDay();
+}
 
 // ─────────────────────────────────────────────────────────────
 // 시즌 주제 — 정해진 시기 '전에' 미리 알려주는 것
@@ -150,12 +203,17 @@ export const SEASONAL = [
 const key = (t) => t.replace(/\s+/g, "").slice(0, 30);
 
 // 오늘 낼 만한 시즌 주제 (기준일 leadDays 전 ~ 기준일 직후)
+//
+// 【2026-08-12 고침 — 연말에 다음 해 1월 주제가 안 열렸다】
+//   전에는 올해(now.getFullYear()) 날짜만 봤다. 그래서 12월 28일에 연말정산(다음해 1/15,
+//   20일 전부터)을 보면 기준일이 '올해 1/15' 가 되어 남은 일수가 -347 이 되고 창에서 탈락했다.
+//   연말정산은 사실상 1월에만 열렸다 — 미리 알려주는 코너인데 미리 못 알려줬다.
+//   그래서 작년·올해·내년 세 해를 다 보고 가장 가까운 기준일을 쓴다.
 function seasonalDue(now) {
   const y = now.getFullYear();
   return SEASONAL.filter((t) => {
-    const target = new Date(y, t.month - 1, t.day);
-    const diff = (target - now) / 86400000; // 남은 일수
-    return diff <= t.leadDays && diff >= -1;
+    const 후보 = [y - 1, y, y + 1].map((yy) => (new Date(yy, t.month - 1, t.day) - now) / 86400000);
+    return 후보.some((diff) => diff <= t.leadDays && diff >= -1);
   });
 }
 
@@ -168,11 +226,21 @@ function seasonalDue(now) {
  * @param {Date}   now
  */
 export function pickEvergreenIssues(seen, want = 2, now = new Date()) {
-  const pool = [...seasonalDue(now), ...EVERGREEN];
+  // 요일 편성 — 오늘 코너의 주제를 앞에 세운다.
+  //  대타 규칙: ①오늘 코너 본진 → ②성격이 가까운 예비함 → ③전체 재고(지금까지의 순서).
+  //  세 단계를 이어 붙이기만 하므로, 본진이 비어도 그 아래에서 자동으로 채워진다.
+  //  = 요일을 잠갔는데 결번이 나서 그날이 통째로 비는 일은 생기지 않는다.
+  const 오늘 = 요일편성켬 ? 요일편성[kstDay(now)] : null;
+  const 앞줄 = 오늘 ? [...오늘.본진, ...오늘.예비] : [];
+
+  const pool = [...seasonalDue(now), ...앞줄, ...EVERGREEN];
   const out = [];
+  const 뽑음 = new Set();
   for (const t of pool) {
     if (out.length >= want) break;
     if (seen.has(key(t.title))) continue;
+    if (뽑음.has(key(t.title))) continue; // 앞줄과 전체 재고에 같은 주제가 두 번 들어 있다
+    뽑음.add(key(t.title));
     out.push({
       source: "오즈백 정리",
       title: t.title,
