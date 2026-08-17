@@ -130,13 +130,16 @@ html {
   background: color-mix(in srgb, var(--oddsbag-purple) 16%, transparent);
   border-color: var(--oddsbag-purple);
 }
+/* 큰 배너 위 — 고리를 키우되 «속을 거의 비운다».
+   예전엔 76px 노란 원을 꽉 채워서 배너 제목과 버튼을 가렸다.
+   테두리만 굵게 남기면 커진 느낌은 그대로면서 글자를 안 덮는다. */
 .ob-cursor-ring[data-hot="2"] {
-  width: 76px;
-  height: 76px;
-  margin: -38px 0 0 -38px;
-  background: color-mix(in srgb, var(--oddsbag-yellow) 90%, transparent);
-  border-color: transparent;
-  mix-blend-mode: normal;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  background: color-mix(in srgb, var(--oddsbag-yellow) 12%, transparent);
+  border-color: var(--oddsbag-yellow);
+  border-width: 2px;
 }
 .ob-cursor-dot[data-down="1"] {
   width: 16px;
@@ -144,35 +147,22 @@ html {
   margin: -8px 0 0 -8px;
 }
 
-/* ── 나타나기 ── 스크롤이 닿으면 아래에서 떠오른다 */
-.ob-reveal {
+/* ── 나타나기 ── 스크롤이 닿으면 아래에서 떠오른다
+   ★반드시 `.js` 아래에서만 숨긴다.
+     그냥 .ob-reveal{opacity:0} 으로 두면 **자바스크립트가 안 돌 때 글이 통째로 사라진다.**
+     (실제로 그렇게 만들었다가 JS 를 끄고 열어 보니 홈의 카드 20개가 전부 안 보였다.
+      JS 를 막아 둔 사람·스크립트가 깨진 순간·JS 를 안 돌리는 크롤러가 전부 빈 화면을 본다)
+     `.js` 는 <head> 의 짧은 스크립트가 첫 그림 그리기 전에 붙인다 → 깜빡임 없이 안전하다. */
+.js .ob-reveal {
   opacity: 0;
   transform: translateY(18px);
   transition:
     opacity 0.62s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.ob-reveal.is-in {
+.js .ob-reveal.is-in {
   opacity: 1;
   transform: none;
-}
-
-/* ── 흐르는 띠 (주요 이슈 마퀴) ── */
-@keyframes ob-marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-.ob-marquee-track {
-  display: flex;
-  width: max-content;
-  animation: ob-marquee var(--ob-marquee-speed, 38s) linear infinite;
-}
-.ob-marquee:hover .ob-marquee-track {
-  animation-play-state: paused;
 }
 
 /* ── 히어로 배경 천천히 밀기 (켄 번스) ── */
@@ -261,12 +251,18 @@ html {
   .ob-cursor-ring {
     display: none !important;
   }
-  .ob-marquee-track,
-  .ob-kenburns,
-  .ob-rise {
-    animation: none !important;
+  /* ★여기서 이름을 하나씩 적으면 반드시 빠뜨린다.
+     실제로 라이브 표시의 반짝임(animate-ping)이 살아남아 계속 깜빡이고 있었다.
+     움직임을 줄여달라고 한 사람에게는 «무한 반복»을 통째로 세운다. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
-  .ob-reveal {
+  .js .ob-reveal {
     opacity: 1;
     transform: none;
     transition: none;

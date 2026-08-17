@@ -145,7 +145,7 @@ export default async function ServiceDetailPage({
         {/* ── 관련 글 갤러리 ── */}
         <section
           id="관련글"
-          className="scroll-mt-24 border-t border-oddsbag-light-gray bg-oddsbag-light-gray/30"
+          className="scroll-mt-40 border-t border-oddsbag-light-gray bg-oddsbag-light-gray/30"
         >
           <div className="mx-auto max-w-6xl px-4 py-12">
             <div className="mb-5 flex items-end justify-between gap-3">

@@ -54,12 +54,17 @@ export default async function Footer() {
             <ul className="mt-2 space-y-1.5 text-sm text-white/80">
               <li>
                 <Link href="/oddsbag" className="transition hover:text-oddsbag-yellow">
-                  오즈백
+                  만드는 것들
                 </Link>
               </li>
               <li>
                 <Link href="/music" className="transition hover:text-oddsbag-yellow">
                   뮤직
+                </Link>
+              </li>
+              <li>
+                <Link href="/story" className="transition hover:text-oddsbag-yellow">
+                  이야기
                 </Link>
               </li>
               <li>

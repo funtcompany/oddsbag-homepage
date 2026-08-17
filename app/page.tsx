@@ -163,7 +163,9 @@ function PostSection({
   );
 }
 
-/** 오즈백 코너 글이 아직 없을 때 — 우리가 만드는 것들을 대신 보여준다 */
+/** 오즈백 코너 글이 아직 없을 때 — 우리가 만드는 것들을 대신 보여준다
+ *  ★지시가 «세 묶음 모두 두 줄»이라 여기도 8칸을 채운다 (4칸 × 2줄).
+ *    앞의 넷은 우리가 만드는 것, 뒤의 넷은 실제로 들어갈 수 있는 자리로 채운다. */
 function MakesSection() {
   const cards = [
     ...services.map((s) => ({
@@ -189,6 +191,38 @@ function MakesSection() {
       desc: "매일 지나치던 것에 물음표를 붙이는 짧은 이야기. 곧 이곳에 올라옵니다.",
       href: "/story",
       badge: "준비 중",
+    },
+    {
+      key: "magazine",
+      emoji: "📰",
+      title: "오즈백 매거진",
+      desc: "매일의 사회·경제·테크 이슈를 오즈백 시선으로 정리합니다.",
+      href: "/magazine",
+      badge: "매일",
+    },
+    {
+      key: "guide",
+      emoji: "💡",
+      title: "가이드·꿀팁",
+      desc: "안 될 때 꺼내 보는 해결법. 주제별로 묶어 두었습니다.",
+      href: "/guide",
+      badge: "주제별",
+    },
+    {
+      key: "newsletter",
+      emoji: "✉️",
+      title: "뉴스레터",
+      desc: "그날의 이슈를 한 통으로 정리해 메일로 보내드립니다.",
+      href: "/#subscribe",
+      badge: "무료",
+    },
+    {
+      key: "contact",
+      emoji: "✉",
+      title: "제보·제휴 문의",
+      desc: "제보, 정정 요청, 제휴 무엇이든 편하게 보내주세요.",
+      href: "/contact",
+      badge: "언제든",
     },
   ];
 

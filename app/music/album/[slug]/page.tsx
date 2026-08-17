@@ -244,7 +244,7 @@ export default async function AlbumPage({
                 유튜브 채널 →
               </a>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {others.map((a) => (
                 <Link
                   key={a.slug}

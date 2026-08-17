@@ -17,63 +17,77 @@ import type { Showcase } from "@/lib/showcase";
  */
 export default function HeroShowcase({ items }: { items: Showcase[] }) {
   const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  /** 사람이 «멈춤»을 직접 누른 상태 — 마우스를 치워도 계속 멈춰 있다 */
+  const [stopped, setStopped] = useState(false);
   const n = items.length;
-  const trackRef = useRef<HTMLDivElement>(null);
-  const touchX = useRef<number | null>(null);
+  const rootRef = useRef<HTMLElement>(null);
+  const touch = useRef<{ x: number; y: number } | null>(null);
 
-  const go = useCallback(
-    (next: number) => setIdx(((next % n) + n) % n),
-    [n],
-  );
+  const go = useCallback((next: number) => setIdx(((next % n) + n) % n), [n]);
 
   // 저절로 넘어가기
   useEffect(() => {
-    if (paused || n <= 1) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (hovering || stopped || n <= 1) return;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     if (reduced) return; // 움직임을 줄여달라고 한 사람에겐 안 넘긴다
     const t = setTimeout(() => go(idx + 1), 6000);
     return () => clearTimeout(t);
-  }, [idx, paused, n, go]);
+  }, [idx, hovering, stopped, n, go]);
 
-  // 키보드
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") go(idx + 1);
-      if (e.key === "ArrowLeft") go(idx - 1);
-    };
-    const el = trackRef.current?.parentElement;
-    el?.addEventListener("keydown", onKey as EventListener);
-    return () => el?.removeEventListener("keydown", onKey as EventListener);
-  }, [idx, go]);
+  // 키보드 — 띠 안 어디에 초점이 있든 ←/→ 로 넘긴다.
+  //  (예전엔 겉 상자에만 걸어서, 실제로 초점이 잡히는 안쪽 버튼에서는 안 먹었다)
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      go(idx + 1);
+    }
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      go(idx - 1);
+    }
+  };
+
+  // 초점이 띠 안으로 들어오면(탭으로 들어온 사람) 자동 넘김을 멈춘다.
+  //  읽는 중에 화면이 바뀌어 버리는 것을 막는다.
+  const onFocusIn = () => setHovering(true);
+  const onBlurOut = (e: React.FocusEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setHovering(false);
+  };
 
   if (n === 0) return null;
 
   return (
     <section
+      ref={rootRef}
       className="relative overflow-hidden bg-oddsbag-dark"
       aria-roledescription="carousel"
       aria-label="오즈백 주요 소식"
-      tabIndex={-1}
-      data-cursor="big"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      onKeyDown={onKeyDown}
+      onFocus={onFocusIn}
+      onBlur={onBlurOut}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
       onTouchStart={(e) => {
-        setPaused(true);
-        touchX.current = e.touches[0].clientX;
+        touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }}
       onTouchEnd={(e) => {
-        const start = touchX.current;
-        touchX.current = null;
-        setPaused(false);
-        if (start == null) return;
-        const dx = e.changedTouches[0].clientX - start;
-        if (Math.abs(dx) > 44) go(idx + (dx < 0 ? 1 : -1));
+        const start = touch.current;
+        touch.current = null;
+        if (!start) return;
+        const dx = e.changedTouches[0].clientX - start.x;
+        const dy = e.changedTouches[0].clientY - start.y;
+        // ★가로로 «분명히 더 많이» 움직였을 때만 넘긴다.
+        //   안 그러면 세로로 스크롤하다가 손가락이 조금 비뚤어져도 배너가 넘어가 버린다.
+        if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          go(idx + (dx < 0 ? 1 : -1));
+        }
       }}
     >
       {/* 넘어가는 칸들 */}
       <div
-        ref={trackRef}
         className="flex transition-transform duration-[720ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ transform: `translateX(-${idx * 100}%)` }}
       >
@@ -85,6 +99,9 @@ export default function HeroShowcase({ items }: { items: Showcase[] }) {
       {/* 아래쪽 조작 줄 — 진행 막대 + 화살표 */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
         <div className="mx-auto flex max-w-6xl items-end justify-between gap-4 px-4 pb-4 sm:pb-5">
+          {/* 진행 막대 — 누르면 그 칸으로 간다.
+              막대 자체는 얇지만 버튼은 위아래로 넉넉히 잡아(py-2) 손가락으로 눌린다.
+              (얇은 막대 그대로 두면 폰에서 유일한 조작 수단이 6px 이라 눌리지 않는다) */}
           <div className="pointer-events-auto flex flex-1 items-center gap-1.5">
             {items.map((it, i) => (
               <button
@@ -92,19 +109,42 @@ export default function HeroShowcase({ items }: { items: Showcase[] }) {
                 onClick={() => go(i)}
                 aria-label={`${i + 1}번째 소식 — ${it.name}`}
                 aria-current={i === idx}
-                className="group/bar relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/25 transition hover:bg-white/40"
+                className="group/bar flex-1 py-2.5"
               >
-                <span
-                  className="absolute inset-y-0 left-0 rounded-full bg-oddsbag-yellow transition-all duration-500"
-                  style={{ width: i === idx ? "100%" : "0%" }}
-                />
+                <span className="relative block h-1.5 overflow-hidden rounded-full bg-white/25 transition group-hover/bar:bg-white/45">
+                  <span
+                    className="absolute inset-y-0 left-0 rounded-full bg-oddsbag-yellow transition-all duration-500"
+                    style={{ width: i === idx ? "100%" : "0%" }}
+                  />
+                </span>
               </button>
             ))}
           </div>
 
-          <div className="pointer-events-auto hidden items-center gap-2 sm:flex">
-            <Arrow onClick={() => go(idx - 1)} label="이전 소식" dir="left" />
-            <Arrow onClick={() => go(idx + 1)} label="다음 소식" dir="right" />
+          <div className="pointer-events-auto flex items-center gap-2">
+            {/* 저절로 넘어가는 것을 멈추는 단추.
+                마우스를 올려야만 멈출 수 있으면 폰·키보드 사용자는 멈출 방법이 없다. */}
+            <button
+              onClick={() => setStopped((v) => !v)}
+              aria-label={stopped ? "자동 넘김 다시 켜기" : "자동 넘김 멈추기"}
+              aria-pressed={stopped}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-black/25 text-white backdrop-blur transition hover:border-white hover:bg-white hover:text-oddsbag-dark"
+            >
+              {stopped ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden>
+                  <path d="M7 4l13 8-13 8V4z" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden>
+                  <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                  <rect x="14" y="4" width="4" height="16" fill="currentColor" />
+                </svg>
+              )}
+            </button>
+            <div className="hidden items-center gap-2 sm:flex">
+              <Arrow onClick={() => go(idx - 1)} label="이전 소식" dir="left" />
+              <Arrow onClick={() => go(idx + 1)} label="다음 소식" dir="right" />
+            </div>
           </div>
         </div>
       </div>
@@ -158,6 +198,13 @@ function Panel({
       aria-roledescription="slide"
       aria-label={`${index + 1} / ${total}`}
       aria-hidden={!active}
+      /*
+        ★inert — 지금 안 보이는 칸을 «없는 것»으로 만든다.
+          이게 없으면 탭을 누를 때 화면 밖 칸의 버튼에 초점이 잡힌다.
+          그러면 브라우저가 그 버튼을 보여주려고 띠를 옆으로 밀어버려서
+          배너가 어긋난 채로 멈춘다 (aria-hidden 만으로는 초점이 막히지 않는다).
+      */
+      inert={!active}
     >
       {/* ── 배경 ── */}
       <div

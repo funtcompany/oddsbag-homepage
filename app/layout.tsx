@@ -136,6 +136,17 @@ export default function RootLayout({
         그래서 여기서는 일반 script 태그로 head에 직접 넣는다.
       */}
       <head>
+        {/*
+          «자바스크립트가 살아 있다»는 표시를 첫 그림 그리기 전에 붙인다.
+          스크롤 나타나기(.ob-reveal)는 이 표시가 있을 때만 요소를 숨긴다 —
+          안 그러면 JS 가 안 도는 환경에서 본문이 통째로 안 보인다 (globals.css 참고).
+          next/script 로 넣으면 body 끝이라 이미 늦다. 그래서 head 에 직접 둔다.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.documentElement.classList.add('js')`,
+          }}
+        />
         {GA_ID && (
           <>
             <script
