@@ -45,15 +45,17 @@ export default function MainNav() {
 
   return (
     <>
+      {/* 폰에서는 글자·여백을 한 단계 줄여 6칸이 한 화면에 들어오게 한다.
+          (안 줄이면 437px 라 390px 폰에서 손으로 밀어야 «문의»가 보인다) */}
       <nav className="border-t border-oddsbag-light-gray/70">
-        <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-3 text-[15px]">
+        <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-0.5 overflow-x-auto px-1.5 text-[13.5px] sm:gap-1 sm:px-3 sm:text-[15px]">
           {mainNav.map((item) => {
             const on = isActive(item.href, item.match);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`-mb-px whitespace-nowrap border-b-[3px] px-3.5 py-2.5 font-bold transition ${
+                className={`-mb-px whitespace-nowrap border-b-[3px] px-2 py-2.5 font-bold transition sm:px-3.5 ${
                   on
                     ? "border-oddsbag-purple text-oddsbag-purple"
                     : "border-transparent text-oddsbag-dark/70 hover:text-oddsbag-dark"
@@ -65,7 +67,7 @@ export default function MainNav() {
           })}
           <Link
             href="/contact"
-            className={`-mb-px ml-auto whitespace-nowrap border-b-[3px] px-3.5 py-2.5 font-bold transition ${
+            className={`-mb-px ml-auto whitespace-nowrap border-b-[3px] px-2 py-2.5 font-bold transition sm:px-3.5 ${
               path.startsWith("/contact")
                 ? "border-oddsbag-purple text-oddsbag-purple"
                 : "border-transparent text-oddsbag-gray hover:text-oddsbag-dark"
