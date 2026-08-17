@@ -8,9 +8,9 @@ import {
   albumOf,
   isUpcoming,
   MUSIC_CHANNEL_URL,
+  playableEditions,
   playlistEmbedUrl,
   playlistWatchUrl,
-  totalTracks,
 } from "@/lib/music";
 
 export const revalidate = 3600;
@@ -57,7 +57,13 @@ export default async function AlbumPage({
   const album = albumOf(slug);
   if (!album) notFound();
 
-  const upcoming = isUpcoming(album);
+  // ★«발매일이 지났나»만 보면 안 된다.
+  //   업로드가 매일 조금씩 풀리는 중이라, 발매일이 지났어도 방문자에게는
+  //   아직 아무것도 안 보이는 앨범이 있다 (볕 드는 날 — 21개 중 공개 1개).
+  //   그래서 실제로 «대표 영상이 공개인가»를 물어보고 재생기를 건다.
+  const playable = await playableEditions(album);
+  const editions = album.editions.filter((e) => playable.has(e.playlistId));
+  const upcoming = isUpcoming(album) || editions.length === 0;
   const others = albums.filter((a) => a.slug !== album.slug);
 
   return (
@@ -118,7 +124,7 @@ export default async function AlbumPage({
                   {album.blurb}
                 </p>
                 <p className="mt-4 text-[13.5px] font-bold text-white/70">
-                  🎧 {album.scene} · 전체 {totalTracks(album)}곡
+                  🎧 {album.scene}
                 </p>
               </div>
             </div>
@@ -151,7 +157,7 @@ export default async function AlbumPage({
           <p className="mt-0.5 text-sm text-oddsbag-gray">
             {upcoming
               ? `${album.releaseDate.replace(/-/g, ".")}에 공개됩니다.`
-              : album.editions.length > 1
+              : editions.length > 1
                 ? "같은 앨범을 노래 판과 연주 판으로 각각 냈습니다."
                 : "가사 없는 연주 판입니다."}
           </p>
@@ -168,9 +174,9 @@ export default async function AlbumPage({
                 className="mx-auto mt-2 max-w-[44ch] text-sm leading-relaxed text-oddsbag-gray"
                 style={{ wordBreak: "keep-all" }}
               >
-                {album.editions.map((e) => e.label).join(" 판과 ")} 판으로 전체{" "}
-                {totalTracks(album)}곡을 준비하고 있습니다. 공개되면 이 자리에서
-                바로 들으실 수 있습니다.
+                {album.editions.map((e) => e.label).join(" 판과 ")} 판으로
+                준비하고 있습니다. 한 곡씩 올라가는 중이라, 전부 공개되면 이
+                자리에서 바로 들으실 수 있습니다.
               </p>
               <Link
                 href="/#subscribe"
@@ -182,10 +188,10 @@ export default async function AlbumPage({
           ) : (
             <div
               className={`mt-5 grid grid-cols-1 gap-6 ${
-                album.editions.length > 1 ? "lg:grid-cols-2" : ""
+                editions.length > 1 ? "lg:grid-cols-2" : ""
               }`}
             >
-              {album.editions.map((ed) => (
+              {editions.map((ed) => (
                 <div
                   key={ed.playlistId}
                   className="overflow-hidden rounded-2xl border border-oddsbag-light-gray bg-white"
@@ -196,7 +202,7 @@ export default async function AlbumPage({
                         {ed.kind === "vocal" ? "🎤" : "🎧"} {ed.label}
                       </h3>
                       <p className="text-[12.5px] text-oddsbag-gray">
-                        {ed.trackCount}곡
+                        재생목록
                       </p>
                     </div>
                     <a
@@ -266,7 +272,7 @@ export default async function AlbumPage({
                       {a.title}
                     </h3>
                     <p className="text-[11.5px] text-oddsbag-gray">
-                      {totalTracks(a)}곡
+                      {a.titleEn}
                     </p>
                   </div>
                 </Link>

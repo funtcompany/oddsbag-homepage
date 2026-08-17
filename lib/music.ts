@@ -221,12 +221,51 @@ export const collections: Collection[] = [
 export const albumOf = (slug: string): Album | undefined =>
   albums.find((a) => a.slug === slug);
 
-/** 아직 안 나온 앨범인가 */
+/** 날짜상 아직 안 나온 앨범인가 */
 export const isUpcoming = (a: Album): boolean =>
   a.releaseDate > new Date().toISOString().slice(0, 10);
 
 export const totalTracks = (a: Album): number =>
   a.editions.reduce((n, e) => n + e.trackCount, 0);
+
+// ─────────────────────────────────────────────────────────────
+// 지금 «방문자가» 들을 수 있는가
+//
+// ★2026-08-18 하마터면 크게 틀릴 뻔한 것 — 반드시 읽을 것.
+//   재생목록의 곡 수를 우리 채널 계정으로 로그인한 채 셌다. 그랬더니 21곡이 보였다.
+//   그런데 **로그인 안 한 방문자에게는 20개가 «사용할 수 없는 동영상»으로 숨는다.**
+//   업로드 크론이 매일 조금씩 푸는 중이라 아직 공개 안 된 것이다.
+//   그대로 뒀으면 「8곡」이라 써 붙이고 재생기에서는 1곡만 나왔다.
+//   → **우리 계정으로 본 것을 방문자가 보는 것이라고 믿으면 안 된다.**
+//
+// 그래서 화면에 재생기를 걸기 전에 «대표 영상이 정말 공개인가»를 물어본다.
+// oEmbed 는 열쇠가 필요 없고, 비공개·미등록 영상에는 실패를 준다.
+// ─────────────────────────────────────────────────────────────
+
+async function probePublic(videoId: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
+      { next: { revalidate: 1800 } },
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 이 앨범을 지금 홈페이지에서 재생할 수 있나.
+ * 판(연주/노래)마다 대표 영상이 공개인지 물어본다.
+ * 통신이 실패하면 «재생 가능»으로 본다 — 잠깐의 네트워크 문제로
+ * 멀쩡한 앨범이 「곧 공개」로 뒤집히는 게 더 나쁘기 때문이다.
+ */
+export async function playableEditions(a: Album): Promise<Set<string>> {
+  const results = await Promise.all(
+    a.editions.map(async (e) => [e.playlistId, await probePublic(e.leadVideoId)] as const),
+  );
+  return new Set(results.filter(([, ok]) => ok).map(([id]) => id));
+}
 
 // ─────────────────────────────────────────────────────────────
 // 최신 영상 — 공개 RSS (열쇠 불필요)

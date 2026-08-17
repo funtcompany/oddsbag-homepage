@@ -12,7 +12,6 @@ import {
   liveEmbedUrl,
   MUSIC_CHANNEL_URL,
   playlistWatchUrl,
-  totalTracks,
   type Album,
 } from "@/lib/music";
 
@@ -169,7 +168,7 @@ export default async function MusicPage() {
                       {c.desc}
                     </p>
                     <p className="mt-1 text-[12.5px] font-bold text-oddsbag-purple">
-                      {c.trackCount}곡 · 유튜브에서 재생 ↗
+                      유튜브에서 재생 ↗
                     </p>
                   </div>
                 </a>
@@ -308,7 +307,6 @@ function AlbumCard({ album, index }: { album: Album; index: number }) {
           {album.scene}
         </p>
         <p className="mt-2 text-[12.5px] font-bold text-oddsbag-purple">
-          {totalTracks(album)}곡 ·{" "}
           {album.editions.map((e) => e.label).join(" · ")}
         </p>
       </div>
