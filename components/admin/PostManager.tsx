@@ -7,6 +7,7 @@ const CHANNELS = [
   { key: "magazine", label: "📰 매거진", base: "/magazine" },
   { key: "oddsbag", label: "🎒 오즈백", base: "/oddsbag" },
   { key: "music", label: "🎵 뮤직", base: "/music" },
+  { key: "tales", label: "📖 이야기", base: "/story" },
 ] as const;
 
 type ChannelKey = (typeof CHANNELS)[number]["key"];
@@ -52,7 +53,14 @@ const emptyDraft = (channel: ChannelKey): Draft => ({
   title: "",
   summary: "",
   body: "",
-  category: channel === "magazine" ? "기타" : channel === "music" ? "뮤직" : "오즈백",
+  category:
+    channel === "magazine"
+      ? "기타"
+      : channel === "music"
+        ? "뮤직"
+        : channel === "tales"
+          ? "이야기"
+          : "오즈백",
   channel,
   status: "draft",
   date: new Date().toISOString().slice(0, 10),

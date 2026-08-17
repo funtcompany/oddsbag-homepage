@@ -1,207 +1,116 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
-import FeaturedHero from "@/components/FeaturedHero";
-import PopularRanking from "@/components/PopularRanking";
 import SubscribeBox from "@/components/SubscribeBox";
 import AdSlot from "@/components/AdSlot";
+import HeroShowcase from "@/components/HeroShowcase";
 import Link from "next/link";
-import { categories } from "@/lib/categories";
+import { showcase } from "@/lib/showcase";
+import { services } from "@/lib/services-catalog";
 import {
-  getFeaturedPost,
   getMagazinePosts,
+  getPopularPosts,
   getPostsByChannel,
   type Post,
 } from "@/lib/posts";
-import {
-  getSiteConfig,
-  gridClass,
-  maxWidthClass,
-  type HomeSection,
-  type SiteConfig,
-} from "@/lib/sitecfg";
+import { getSiteConfig, maxWidthClass } from "@/lib/sitecfg";
 
 export const revalidate = 60; // 1분마다 새 발행글 반영 (ISR)
 
+/**
+ * 홈 — 2026-08-18 리뉴얼 (사장님 지시)
+ *
+ *   ① 맨 위    브랜드·프로젝트를 좌우로 넘기는 큰 띠 (HeroShowcase)
+ *   ② 그 아래  인기 게시물 · 오즈백 소식 · 최근 이슈  — 세 묶음, 각각 «두 줄»
+ *
+ * 두 줄 = 큰 화면에서 4칸 × 2줄 = 8개. 폰에서는 2칸씩 4줄로 접힌다.
+ *
+ * ★예전 홈은 관리자 설정(sitecfg.sections)대로 섹션을 그렸다. 그 화면은
+ *   섹션이 8개까지 늘어나 한참 내려야 했고, 무엇이 중요한지 알 수 없었다.
+ *   지시대로 세 묶음으로 고정하고, 관리자 설정은 «켜고 끄기»와 제목에만 쓴다.
+ */
 export default async function Home() {
   const cfg = await getSiteConfig();
 
-  const [featured, magazine, oddsbagPosts, musicPosts] = await Promise.all([
-    getFeaturedPost(),
+  const [popular, magazine, oddsbagPosts] = await Promise.all([
+    getPopularPosts(8),
     getMagazinePosts(),
-    getPostsByChannel("oddsbag", 12),
-    getPostsByChannel("music", 12),
+    getPostsByChannel("oddsbag", 8),
   ]);
 
   const wrap = maxWidthClass(cfg.layout.width);
-  const grid = gridClass(cfg.layout.columns);
 
-  const byCategory = new Map<string, Post[]>();
-  for (const cat of categories) {
-    byCategory.set(cat.label, magazine.filter((p) => p.category === cat.label));
-  }
+  // 같은 글이 인기·최신 양쪽에 겹쳐 나오지 않게 한다.
+  //  (예전 홈은 카드 38장 중 고유한 글이 29개뿐이라 내려도 볼 게 없어 보였다)
+  const used = new Set(popular.map((p) => p.slug));
+  const latest = magazine.filter((p) => !used.has(p.slug)).slice(0, 8);
 
-  // 홈에서 같은 글이 두세 번 나오지 않게, 이미 보여준 글을 적어둔다.
-  //  예전엔 카드 38장 중 고유한 글이 29개뿐이라 한참 내려도 볼 게 없어 보였다.
-  //  (인기글 랭킹은 '순위'라는 성격이 달라서 여기서 빼지 않는다)
-  const used = new Set<string>();
-  if (featured) used.add(featured.slug);
-  const takeFresh = (list: Post[], n: number) => {
-    const picked = list.filter((p) => !used.has(p.slug)).slice(0, n);
-    for (const p of picked) used.add(p.slug);
-    return picked;
-  };
-
-  function renderSection(sec: HomeSection) {
-    if (!sec.enabled) return null;
-
-    switch (sec.type) {
-      case "featured": {
-        const popular = magazine.slice(0, Math.max(1, sec.limit || 5));
-        if (!featured && popular.length === 0) return null;
-        return (
-          <div key={sec.id} className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              {featured && <FeaturedHero post={featured} />}
-            </div>
-            <div className="lg:col-span-1">
-              <PopularRanking posts={popular} />
-            </div>
-          </div>
-        );
-      }
-
-      case "latest": {
-        const list = takeFresh(magazine, sec.limit || 8);
-        return (
-          <PostRow
-            key={sec.id}
-            sec={sec}
-            posts={list}
-            grid={grid}
-            fallbackMore="/magazine"
-          />
-        );
-      }
-
-      case "channel-oddsbag":
-        return (
-          <PostRow
-            key={sec.id}
-            sec={sec}
-            posts={oddsbagPosts.slice(0, sec.limit || 4)}
-            grid={grid}
-            fallbackMore="/oddsbag"
-          />
-        );
-
-      case "channel-music":
-        return (
-          <PostRow
-            key={sec.id}
-            sec={sec}
-            posts={musicPosts.slice(0, sec.limit || 4)}
-            grid={grid}
-            fallbackMore="/music"
-          />
-        );
-
-      case "services": {
-        const cards = cfg.services
-          .filter((c) => c.enabled)
-          .slice(0, sec.limit || 8);
-        if (cards.length === 0) return null;
-        return (
-          <section key={sec.id}>
-            <SectionHead sec={sec} fallbackMore="/services" />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {cards.map((c) => (
-                <Link
-                  key={c.id}
-                  href={c.href || "/services"}
-                  className="flex flex-col rounded-2xl border border-oddsbag-light-gray bg-white p-5 transition hover:-translate-y-0.5 hover:border-oddsbag-purple hover:shadow-lg hover:shadow-oddsbag-purple/10"
-                >
-                  <div className="flex items-start justify-between">
-                    <span className="text-3xl" aria-hidden>
-                      {c.emoji}
-                    </span>
-                    {c.badge && (
-                      <span className="rounded-full bg-oddsbag-yellow/25 px-2 py-0.5 text-[11px] font-bold text-oddsbag-dark">
-                        {c.badge}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="mt-3 text-base font-black text-oddsbag-dark">
-                    {c.title}
-                  </h3>
-                  <p
-                    className="mt-1 text-sm leading-relaxed text-oddsbag-gray"
-                    style={{ wordBreak: "keep-all" }}
-                  >
-                    {c.desc}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        );
-      }
-
-      case "categories": {
-        const per = sec.limit || 4;
-        const blocks = categories
-          .map((cat) => ({ cat, posts: takeFresh(byCategory.get(cat.label) ?? [], per) }))
-          .filter((b) => b.posts.length > 0);
-        if (blocks.length === 0) return null;
-        return (
-          <div key={sec.id} className="space-y-10">
-            {sec.title && (
-              <h2 className="text-xl font-black text-oddsbag-dark">{sec.title}</h2>
-            )}
-            {blocks.map(({ cat, posts }) => (
-              <section key={cat.slug}>
-                <div className="mb-4 flex items-end justify-between">
-                  <h3 className="flex items-center gap-2 text-lg font-black text-oddsbag-dark">
-                    <span>{cat.emoji}</span> {cat.label}
-                  </h3>
-                  <Link
-                    href={`/category/${cat.slug}`}
-                    className="text-sm font-bold text-oddsbag-purple hover:underline"
-                  >
-                    더보기 →
-                  </Link>
-                </div>
-                <div className={grid}>
-                  {posts.map((post) => (
-                    <PostCard key={post.slug} post={post} />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        );
-      }
-
-      case "ad":
-        return <AdSlot key={sec.id} />;
-
-      case "subscribe":
-        return <SubscribeBox key={sec.id} />;
-
-      default:
-        return null;
-    }
-  }
+  // 관리자 화면에서 섹션을 꺼 두었으면 그대로 존중한다
+  const on = (id: string) =>
+    cfg.sections.find((s) => s.id === id)?.enabled ?? true;
 
   return (
     <>
       <Header />
 
       <main className="flex-1">
-        <Hero cfg={cfg} />
+        {/*
+          ★홈에는 h1 이 반드시 하나 있어야 한다.
+            큰 띠의 각 칸 제목은 «이 페이지의 주제»가 아니라 소식 하나하나라서 h2 다.
+            그래서 h1 이 하나도 없어졌고, 그러면 검색엔진이 이 페이지가 무엇에 대한
+            페이지인지 못 잡는다 (예전 얇은 인사말에도 같은 이유로 h1 을 박아 뒀었다).
+            눈에는 안 보이지만 검색엔진과 화면낭독기에는 읽히는 자리로 둔다.
+        */}
+        <h1 className="sr-only">
+          오즈백 ODDSBAG — 이상하게 필요한 것들, 여기 다 있어
+        </h1>
 
-        <div className={`mx-auto ${wrap} space-y-10 px-4 py-8`}>
-          {cfg.sections.map(renderSection)}
+        {/* ① 주요 소식 — 좌우로 넘어가는 큰 띠 */}
+        <HeroShowcase items={showcase} />
+
+        <div className={`mx-auto ${wrap} space-y-14 px-4 py-10 sm:py-12`}>
+          {/* ②-1 인기 게시물 */}
+          {on("featured") && popular.length > 0 && (
+            <PostSection
+              title="인기 게시물"
+              subtitle="지금 가장 많이 본 글"
+              emoji="🔥"
+              posts={popular}
+              more="/magazine"
+              ranked
+            />
+          )}
+
+          {/* ②-2 오즈백 소식
+              오즈백 코너에 올라온 글이 아직 없으면 «우리가 만드는 것들» 카드로 채운다.
+              빈 띠를 남겨 두면 사장님이 보실 때 화면이 고장 난 것처럼 보인다. */}
+          {on("oddsbag") &&
+            (oddsbagPosts.length > 0 ? (
+              <PostSection
+                title="오즈백 소식"
+                subtitle="새로 나온 것과 달라진 것"
+                emoji="🎒"
+                posts={oddsbagPosts}
+                more="/oddsbag"
+              />
+            ) : (
+              <MakesSection />
+            ))}
+
+          {on("ad") && <AdSlot />}
+
+          {/* ②-3 최근 이슈 */}
+          {on("latest") && latest.length > 0 && (
+            <PostSection
+              title="최근 이슈"
+              subtitle="오늘의 이슈를 오즈백 시선으로"
+              emoji="📰"
+              posts={latest}
+              more="/magazine"
+            />
+          )}
+
+          {on("subscribe") && <SubscribeBox />}
         </div>
       </main>
 
@@ -210,83 +119,139 @@ export default async function Home() {
   );
 }
 
-// ---- 첫 화면 인사말 ----
-function Hero({ cfg }: { cfg: SiteConfig }) {
-  const h = cfg.hero;
-  if (!h.enabled) return null;
-
-  if (h.style === "slim") {
-    return (
-      <div className="border-b border-oddsbag-light-gray bg-oddsbag-light-gray/50">
-        <div className={`mx-auto ${maxWidthClass(cfg.layout.width)} px-4 py-5`}>
-          {/* 얇은 스타일에서도 제목은 h1이어야 한다.
-              p로 두면 홈에 h1이 하나도 없어져서 검색엔진이 '이 페이지 주제'를 못 잡는다. */}
-          <h1 className="text-[15px] font-black text-oddsbag-dark" style={{ wordBreak: "keep-all" }}>
-            {h.title}
-          </h1>
-          {h.subtitle && (
-            <p className="mt-1 text-sm text-oddsbag-gray" style={{ wordBreak: "keep-all" }}>
-              {h.subtitle}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
+// ─────────────────────────────────────────────────────────────
+/** 글 묶음 한 덩이 — 큰 화면 4칸 × 2줄 */
+function PostSection({
+  title,
+  subtitle,
+  emoji,
+  posts,
+  more,
+  ranked,
+}: {
+  title: string;
+  subtitle?: string;
+  emoji: string;
+  posts: Post[];
+  more?: string;
+  /** 1·2·3 순위 번호를 붙인다 (인기 게시물) */
+  ranked?: boolean;
+}) {
   return (
-    <section
-      style={{ background: `linear-gradient(135deg, ${h.bgFrom}, ${h.bgTo})` }}
-    >
-      <div className={`mx-auto ${maxWidthClass(cfg.layout.width)} px-4 py-12 sm:py-16`}>
-        {h.kicker && (
-          <p className="text-xs font-black tracking-[0.2em] text-oddsbag-yellow">
-            {h.kicker}
-          </p>
-        )}
-        <h1
-          className="mt-3 max-w-[24ch] text-[30px] font-black leading-[1.18] text-white sm:text-[42px]"
-          style={{ letterSpacing: "-0.03em", wordBreak: "keep-all" }}
-        >
-          {h.title}
-        </h1>
-        {h.subtitle && (
-          <p
-            className="mt-4 max-w-[46ch] text-[16px] leading-relaxed text-white/80 sm:text-[18px]"
-            style={{ wordBreak: "keep-all" }}
+    <section>
+      <SectionHead title={title} subtitle={subtitle} emoji={emoji} more={more} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {posts.map((post, i) => (
+          <div
+            key={post.slug}
+            className="ob-reveal relative"
+            data-reveal-index={i}
           >
-            {h.subtitle}
-          </p>
-        )}
-        {h.ctaLabel && (
-          <Link
-            href={h.ctaHref || "/magazine"}
-            className="mt-7 inline-block rounded-full bg-oddsbag-yellow px-6 py-3 text-[15px] font-black text-oddsbag-dark transition hover:brightness-95"
-          >
-            {h.ctaLabel}
-          </Link>
-        )}
+            {ranked && i < 3 && (
+              <span
+                aria-hidden
+                className="absolute -left-1.5 -top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full bg-oddsbag-yellow text-[13px] font-black text-oddsbag-dark shadow-md"
+              >
+                {i + 1}
+              </span>
+            )}
+            <PostCard post={post} />
+          </div>
+        ))}
       </div>
     </section>
   );
 }
 
-// ---- 글 묶음 한 줄 ----
+/** 오즈백 코너 글이 아직 없을 때 — 우리가 만드는 것들을 대신 보여준다 */
+function MakesSection() {
+  const cards = [
+    ...services.map((s) => ({
+      key: s.slug,
+      emoji: s.emoji,
+      title: s.name,
+      desc: s.lead,
+      href: `/oddsbag/service/${s.slug}`,
+      badge: s.status,
+    })),
+    {
+      key: "music",
+      emoji: "🎵",
+      title: "오즈백 뮤직",
+      desc: "직접 만드는 음악. 앨범과 24시간 라이브를 홈페이지에서 바로 들으실 수 있습니다.",
+      href: "/music",
+      badge: "앨범 4장",
+    },
+    {
+      key: "tales",
+      emoji: "📖",
+      title: "오즈백 테일즈",
+      desc: "매일 지나치던 것에 물음표를 붙이는 짧은 이야기. 곧 이곳에 올라옵니다.",
+      href: "/story",
+      badge: "준비 중",
+    },
+  ];
+
+  return (
+    <section>
+      <SectionHead
+        title="오즈백 소식"
+        subtitle="우리가 만드는 것들"
+        emoji="🎒"
+        more="/oddsbag"
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {cards.map((c, i) => (
+          <Link
+            key={c.key}
+            href={c.href}
+            data-reveal-index={i}
+            className="ob-reveal ob-lift group flex flex-col rounded-2xl border border-oddsbag-light-gray bg-white p-5 hover:border-oddsbag-purple hover:shadow-lg hover:shadow-oddsbag-purple/10"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-3xl" aria-hidden>
+                {c.emoji}
+              </span>
+              <span className="rounded-full bg-oddsbag-light-gray px-2 py-0.5 text-[11px] font-bold text-oddsbag-gray">
+                {c.badge}
+              </span>
+            </div>
+            <h3 className="mt-3 text-base font-black text-oddsbag-dark group-hover:text-oddsbag-purple">
+              {c.title}
+            </h3>
+            <p
+              className="mt-1 text-sm leading-relaxed text-oddsbag-gray"
+              style={{ wordBreak: "keep-all" }}
+            >
+              {c.desc}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SectionHead({
-  sec,
-  fallbackMore,
+  title,
+  subtitle,
+  emoji,
+  more,
 }: {
-  sec: HomeSection;
-  fallbackMore?: string;
+  title: string;
+  subtitle?: string;
+  emoji: string;
+  more?: string;
 }) {
-  const more = sec.moreHref || fallbackMore;
-  if (!sec.title && !sec.subtitle) return null;
   return (
     <div className="mb-4 flex items-end justify-between gap-3">
       <div>
-        <h2 className="text-xl font-black text-oddsbag-dark">{sec.title}</h2>
-        {sec.subtitle && (
-          <p className="mt-0.5 text-sm text-oddsbag-gray">{sec.subtitle}</p>
+        <h2 className="flex items-center gap-2 text-xl font-black text-oddsbag-dark sm:text-[22px]">
+          <span aria-hidden>{emoji}</span>
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-0.5 text-sm text-oddsbag-gray">{subtitle}</p>
         )}
       </div>
       {more && (
@@ -298,29 +263,5 @@ function SectionHead({
         </Link>
       )}
     </div>
-  );
-}
-
-function PostRow({
-  sec,
-  posts,
-  grid,
-  fallbackMore,
-}: {
-  sec: HomeSection;
-  posts: Post[];
-  grid: string;
-  fallbackMore?: string;
-}) {
-  if (posts.length === 0) return null;
-  return (
-    <section>
-      <SectionHead sec={sec} fallbackMore={fallbackMore} />
-      <div className={grid}>
-        {posts.map((post) => (
-          <PostCard key={post.slug} post={post} />
-        ))}
-      </div>
-    </section>
   );
 }

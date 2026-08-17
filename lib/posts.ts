@@ -194,6 +194,32 @@ export async function getLatestPosts(count?: number): Promise<Post[]> {
   return count ? all.slice(0, count) : all;
 }
 
+/**
+ * 진짜 인기글 — 우리가 직접 센 조회수(views:total) 순서.
+ *
+ * 예전엔 «인기글»이라고 써 붙이고 실제로는 최신글을 그대로 보여줬다.
+ * 이제 실제로 많이 본 순서로 세운다. 다만:
+ *   · 조회수가 아직 한 자리인 글이 많다 → 같은 수면 최신 글을 앞에 둔다
+ *   · 조회수를 못 읽으면(레디스 장애) 최신 순으로 물러선다 → 화면이 비지 않는다
+ */
+export async function getPopularPosts(count = 8): Promise<Post[]> {
+  const posts = await getMagazinePosts();
+  let totals: Record<string, number> = {};
+  try {
+    const { getCachedTotals } = await import("@/lib/views");
+    totals = await getCachedTotals();
+  } catch (e) {
+    console.warn("조회수 읽기 실패, 최신순으로 대체:", (e as Error).message);
+    return posts.slice(0, count);
+  }
+
+  const viewsOf = (p: Post) => Number(totals[p.slug] ?? 0);
+  // 이미 날짜 내림차순으로 정렬돼 있으니, 조회수가 같으면 그 순서가 유지된다
+  return [...posts]
+    .sort((a, b) => viewsOf(b) - viewsOf(a))
+    .slice(0, count);
+}
+
 export async function getFeaturedPost(): Promise<Post | undefined> {
   const all = await getMagazinePosts();
   return all.find((p) => p.featured) ?? all[0];

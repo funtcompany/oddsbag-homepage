@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR } from "next/font/google";
 import Script from "next/script";
+import Interactions from "@/components/Interactions";
 import "./globals.css";
 
 // 한글 폰트 주의점:
@@ -158,6 +159,10 @@ gtag('config', '${GA_ID}');`,
           dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSONLD) }}
         />
         {children}
+        {/* 마우스 포인터 + 스크롤 나타나기.
+            손가락으로 쓰는 기기와 「움직임 줄이기」를 켠 사람에게는 스스로 꺼진다.
+            자바스크립트가 안 돌아도 글은 전부 그대로 읽힌다. */}
+        <Interactions />
         {ADSENSE_CLIENT && (
           <Script
             async

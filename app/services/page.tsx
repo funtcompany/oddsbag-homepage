@@ -4,6 +4,7 @@ import SubscribeBox from "@/components/SubscribeBox";
 import Link from "next/link";
 import { tools, categoryStyles } from "@/lib/tools";
 import { getSiteConfig } from "@/lib/sitecfg";
+import { services as catalog } from "@/lib/services-catalog";
 import type { Metadata } from "next";
 
 export const revalidate = 60;
@@ -46,6 +47,51 @@ export default async function ServicesPage() {
               데일리로 쓰진 않지만 어느 순간 갑자기 필요해지는 것들. 한 가방에
               담아 두고 필요할 때 꺼내 씁니다.
             </p>
+          </div>
+        </section>
+
+        {/* 안내 화면이 따로 있는 서비스 — 눌러 들어가면 이용·구매 버튼과 관련 글이 있다
+            (2026-08-18 리뉴얼. 목록은 lib/services-catalog.ts 한 곳에서 온다) */}
+        <section className="mx-auto max-w-6xl px-4 pt-12">
+          <h2 className="text-xl font-black text-oddsbag-dark">
+            자세히 보실 수 있는 서비스
+          </h2>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {catalog.map((s, i) => (
+              <Link
+                key={s.slug}
+                href={`/oddsbag/service/${s.slug}`}
+                data-reveal-index={i}
+                className="ob-reveal ob-lift group relative flex flex-col overflow-hidden rounded-2xl p-6 text-white"
+                style={{
+                  background: `linear-gradient(125deg, ${s.bgFrom}, ${s.bgTo})`,
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -right-3 -top-3 select-none text-[110px] leading-none opacity-15"
+                >
+                  {s.emoji}
+                </span>
+                <span
+                  className={`relative w-fit rounded-full px-2.5 py-1 text-[11px] font-black ${s.statusTone}`}
+                >
+                  {s.status}
+                </span>
+                <h3 className="relative mt-4 text-[20px] font-black">
+                  {s.name}
+                </h3>
+                <p
+                  className="relative mt-2 max-w-[42ch] text-[14px] leading-relaxed text-white/85"
+                  style={{ wordBreak: "keep-all" }}
+                >
+                  {s.lead}
+                </p>
+                <span className="relative mt-5 text-[13.5px] font-black text-oddsbag-yellow">
+                  자세히 보기 →
+                </span>
+              </Link>
+            ))}
           </div>
         </section>
 

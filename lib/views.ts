@@ -9,6 +9,7 @@
 //   views:total          → { 글주소: 누적조회수 }
 //   views:d:2026-08-02   → { 글주소: 그날 조회수 }   (90일 뒤 자동 삭제)
 
+import { unstable_cache } from "next/cache";
 import { hincr, hgetall, expire } from "@/lib/store";
 
 export const TOTAL_KEY = "views:total";
@@ -36,6 +37,28 @@ export async function recordView(slug: string): Promise<void> {
 export async function getTotals(): Promise<Record<string, number>> {
   return hgetall(TOTAL_KEY);
 }
+
+/**
+ * 화면(홈 인기글)에서 쓰는 조회수 — 5분 캐시.
+ *
+ * ★왜 그냥 getTotals 를 안 쓰나
+ *   Redis 호출은 cache:"no-store" 라서, 미리 구워두는(정적) 화면 안에서 부르면
+ *   Next 가 «이 페이지는 정적으로 못 만든다»며 던진다. 실제로 빌드 때 그 오류가 났고
+ *   홈 인기글이 조용히 최신순으로 물러서 있었다 (2026-08-18).
+ *   getAllPosts 가 쓰는 방식 그대로 unstable_cache 로 감싸면 정적 화면 안에서도 읽힌다.
+ *   덤으로 방문자가 몰려도 Redis 는 5분에 한 번만 읽는다.
+ */
+export const getCachedTotals = unstable_cache(
+  async () => {
+    try {
+      return await hgetall(TOTAL_KEY);
+    } catch {
+      return {} as Record<string, number>;
+    }
+  },
+  ["oddsbag-view-totals"],
+  { revalidate: 300, tags: ["views"] },
+);
 
 export async function getViewsForDay(d: string): Promise<Record<string, number>> {
   return hgetall(dayKey(d));

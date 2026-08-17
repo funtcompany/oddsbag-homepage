@@ -4,10 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { mainNav } from "@/lib/channels";
 import { categories } from "@/lib/categories";
+import { services } from "@/lib/services-catalog";
 
 /**
- * 상단 메인 메뉴 — 홈 / 오즈백 / 뮤직 / 서비스 / 매거진
- * 매거진 쪽 화면에 있을 때만 그 아래에 카테고리(하위 탭) 줄이 나온다.
+ * 상단 메인 메뉴 — 홈 / 만드는 것들 / 뮤직 / 이야기 / 매거진   ···   문의
+ *
+ * 아래 한 줄(하위 탭)은 지금 있는 자리에 따라 달라진다.
+ *   · 매거진 쪽    → 이슈 카테고리
+ *   · 만드는 것들 쪽 → 서비스별 탭 (소식 · WPMS · 별의 결)
+ *
+ * ★가로 스크롤바
+ *   폰에서는 탭 줄을 손가락으로 밀어야 해서 overflow-x 를 살려야 한다.
+ *   그런데 그것 때문에 데스크톱에서 «문의» 옆에 회색 막대가 그려졌다.
+ *   no-scrollbar(globals.css)로 막대만 지운다 — 미는 동작은 그대로 산다.
+ *   탭 개수도 6개에서 5개+문의로 줄여서, 1152px 안에서 애초에 넘치지 않게 했다.
  */
 export default function MainNav() {
   const path = usePathname() ?? "/";
@@ -18,12 +28,25 @@ export default function MainNav() {
   const inMagazine = ["/magazine", "/category", "/guide"].some((m) =>
     path.startsWith(m),
   );
+  const inMade = ["/oddsbag", "/services", "/apps", "/tools"].some((m) =>
+    path.startsWith(m),
+  );
   const activeCat = path.startsWith("/category/") ? path.split("/")[2] : null;
+  const activeService = path.startsWith("/oddsbag/service/")
+    ? path.split("/")[3]
+    : null;
+
+  const subTab = (on: boolean) =>
+    `whitespace-nowrap rounded-full px-3 py-1 font-medium transition ${
+      on
+        ? "bg-oddsbag-purple text-white"
+        : "text-oddsbag-gray hover:bg-white hover:text-oddsbag-dark"
+    }`;
 
   return (
     <>
       <nav className="border-t border-oddsbag-light-gray/70">
-        <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-3 text-[15px]">
+        <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-3 text-[15px]">
           {mainNav.map((item) => {
             const on = isActive(item.href, item.match);
             return (
@@ -56,7 +79,7 @@ export default function MainNav() {
       {/* 매거진 하위 탭 — 이슈 카테고리 */}
       {inMagazine && (
         <div className="border-t border-oddsbag-light-gray/70 bg-oddsbag-light-gray/40">
-          <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-3 py-2 text-sm">
+          <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-3 py-2 text-sm">
             <Link
               href="/magazine"
               className={`whitespace-nowrap rounded-full px-3 py-1 font-bold transition ${
@@ -71,11 +94,7 @@ export default function MainNav() {
               <Link
                 key={c.slug}
                 href={`/category/${c.slug}`}
-                className={`whitespace-nowrap rounded-full px-3 py-1 font-medium transition ${
-                  activeCat === c.slug
-                    ? "bg-oddsbag-purple text-white"
-                    : "text-oddsbag-gray hover:bg-white hover:text-oddsbag-dark"
-                }`}
+                className={subTab(activeCat === c.slug)}
               >
                 {c.emoji} {c.label}
               </Link>
@@ -89,6 +108,39 @@ export default function MainNav() {
               }`}
             >
               📚 가이드
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* 만드는 것들 하위 탭 — 서비스별 */}
+      {inMade && (
+        <div className="border-t border-oddsbag-light-gray/70 bg-oddsbag-light-gray/40">
+          <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-3 py-2 text-sm">
+            <Link
+              href="/oddsbag"
+              className={`whitespace-nowrap rounded-full px-3 py-1 font-bold transition ${
+                path === "/oddsbag"
+                  ? "bg-oddsbag-purple text-white"
+                  : "text-oddsbag-dark hover:bg-white"
+              }`}
+            >
+              소식
+            </Link>
+            {services.map((s) => (
+              <Link
+                key={s.slug}
+                href={`/oddsbag/service/${s.slug}`}
+                className={subTab(activeService === s.slug)}
+              >
+                {s.emoji} {s.tab}
+              </Link>
+            ))}
+            <Link
+              href="/services"
+              className={subTab(path.startsWith("/services"))}
+            >
+              🧰 전체 보기
             </Link>
           </div>
         </div>

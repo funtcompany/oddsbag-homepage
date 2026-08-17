@@ -2,6 +2,8 @@ import { getAllPosts } from "@/lib/posts";
 import { categories } from "@/lib/categories";
 import { hubs } from "@/lib/hubs";
 import { postUrl } from "@/lib/channels";
+import { services } from "@/lib/services-catalog";
+import { albums } from "@/lib/music";
 
 const BASE = "https://oddsbag.co.kr";
 
@@ -45,14 +47,35 @@ const toXml = (e: Entry) => {
 export async function GET() {
   const now = new Date();
 
-  const staticRoutes: Entry[] = ["", "/magazine", "/oddsbag", "/music", "/services", "/link"].map(
-    (path) => ({
-      url: `${BASE}${path}`,
-      lastModified: now,
-      changeFrequency: "hourly",
-      priority: path === "" ? 1 : 0.8,
-    }),
-  );
+  const staticRoutes: Entry[] = [
+    "",
+    "/magazine",
+    "/oddsbag",
+    "/music",
+    "/story", // 이야기 (2026-08-18 신설)
+    "/services",
+    "/link",
+  ].map((path) => ({
+    url: `${BASE}${path}`,
+    lastModified: now,
+    changeFrequency: "hourly",
+    priority: path === "" ? 1 : 0.8,
+  }));
+
+  // 서비스 안내·앨범 화면 (2026-08-18 신설) — 목록이 늘면 여기도 저절로 따라온다
+  const serviceRoutes: Entry[] = services.map((s) => ({
+    url: `${BASE}/oddsbag/service/${s.slug}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
+  const albumRoutes: Entry[] = albums.map((a) => ({
+    url: `${BASE}/music/album/${a.slug}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
 
   // 소개·정책 문서 — 자주 바뀌진 않지만 색인은 돼야 한다 (광고 심사에서 확인한다)
   const infoRoutes: Entry[] = ["/about", "/contact", "/privacy", "/terms"].map((path) => ({
@@ -92,6 +115,8 @@ export async function GET() {
 
   const urls = [
     ...staticRoutes,
+    ...serviceRoutes,
+    ...albumRoutes,
     ...hubRoutes,
     ...infoRoutes,
     ...categoryRoutes,

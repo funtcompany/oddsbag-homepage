@@ -69,3 +69,215 @@ html {
   padding: 0 1px;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   2026-08-18 리뉴얼 — 감각 레이어
+   원칙: 재미 요소가 가독성을 이기지 않는다. 움직임은 전부
+   prefers-reduced-motion 에서 꺼진다 (멀미·접근성).
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 스크롤바 감추기 ──
+   상단 탭 줄은 폰에서 좌우로 밀어야 하므로 overflow-x 는 살려야 한다.
+   그런데 맥/윈도우 브라우저가 그 밑에 회색 막대를 그려서 «문의» 옆에
+   스크롤바가 튀어나왔다. 밀기는 그대로 두고 막대만 지운다. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* 옛 Edge */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome · Safari */
+  width: 0;
+  height: 0;
+}
+
+/* ── 마우스 포인터 ──
+   점(정확히 따라옴) + 고리(늦게 따라옴) 두 겹.
+   손가락으로 쓰는 기기에는 아예 안 나온다 (아래 미디어쿼리). */
+.ob-cursor-dot,
+.ob-cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  border-radius: 9999px;
+  will-change: transform;
+}
+.ob-cursor-dot {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  background: var(--oddsbag-yellow);
+  mix-blend-mode: difference;
+}
+.ob-cursor-ring {
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1.5px solid color-mix(in srgb, var(--oddsbag-purple) 70%, transparent);
+  transition:
+    width 0.22s ease,
+    height 0.22s ease,
+    margin 0.22s ease,
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    opacity 0.22s ease;
+}
+/* 누를 수 있는 것 위에 올라가면 고리가 커지고 채워진다 */
+.ob-cursor-ring[data-hot="1"] {
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  background: color-mix(in srgb, var(--oddsbag-purple) 16%, transparent);
+  border-color: var(--oddsbag-purple);
+}
+.ob-cursor-ring[data-hot="2"] {
+  width: 76px;
+  height: 76px;
+  margin: -38px 0 0 -38px;
+  background: color-mix(in srgb, var(--oddsbag-yellow) 90%, transparent);
+  border-color: transparent;
+  mix-blend-mode: normal;
+}
+.ob-cursor-dot[data-down="1"] {
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+}
+
+/* ── 나타나기 ── 스크롤이 닿으면 아래에서 떠오른다 */
+.ob-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.62s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── 흐르는 띠 (주요 이슈 마퀴) ── */
+@keyframes ob-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.ob-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: ob-marquee var(--ob-marquee-speed, 38s) linear infinite;
+}
+.ob-marquee:hover .ob-marquee-track {
+  animation-play-state: paused;
+}
+
+/* ── 히어로 배경 천천히 밀기 (켄 번스) ── */
+@keyframes ob-kenburns {
+  from {
+    transform: scale(1.06) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.16) translate3d(-1.6%, -1.4%, 0);
+  }
+}
+.ob-kenburns {
+  animation: ob-kenburns 14s ease-out forwards;
+}
+
+/* ── 글자 한 줄씩 올라오기 ── */
+@keyframes ob-rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.ob-rise {
+  animation: ob-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── 종이 질감(그레인) ── 평평한 색면에 깊이를 준다 */
+.ob-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.55'/></svg>");
+}
+
+/* ── 카드가 살짝 들리고 그림자가 번진다 ── */
+.ob-lift {
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.34s ease;
+}
+.ob-lift:hover {
+  transform: translateY(-6px);
+}
+
+/* ── 표지 사진 천천히 확대 ── */
+.ob-zoom img,
+.ob-zoom .ob-zoom-target {
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-zoom:hover img,
+.ob-zoom:hover .ob-zoom-target {
+  transform: scale(1.06);
+}
+
+/* ── 밑줄이 왼쪽에서 자라난다 ── */
+.ob-underline {
+  background-image: linear-gradient(var(--oddsbag-yellow), var(--oddsbag-yellow));
+  background-repeat: no-repeat;
+  background-position: 0 88%;
+  background-size: 0% 34%;
+  transition: background-size 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-underline:hover,
+.group:hover .ob-underline {
+  background-size: 100% 34%;
+}
+
+/* ── 손가락으로 쓰는 기기 · 움직임을 줄여달라는 설정 ──
+   포인터를 지우고 애니메이션을 전부 세운다. 내용은 그대로 다 보인다. */
+@media (hover: none), (pointer: coarse) {
+  .ob-cursor-dot,
+  .ob-cursor-ring {
+    display: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-cursor-dot,
+  .ob-cursor-ring {
+    display: none !important;
+  }
+  .ob-marquee-track,
+  .ob-kenburns,
+  .ob-rise {
+    animation: none !important;
+  }
+  .ob-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .ob-lift:hover,
+  .ob-zoom:hover img,
+  .ob-zoom:hover .ob-zoom-target {
+    transform: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
