@@ -1,0 +1,49 @@
+name: 오즈백 하루치 발행 (코너별 1편)
+
+# 사장님 지시 2026-08-18 — 「한 번에 업로드가 아니라, 각 카테고리별 1일 1게시물」
+#
+# ★이 워크플로가 하는 일은 하나뿐이다 —
+#   content/posts/ 에 초안으로 준비된 원고 중 예정일이 된 것을
+#   코너(채널+분류)별로 한 편씩 발행 상태로 바꾼다.
+#
+# ★하지 않는 일 — 뉴스 수집 · AI 글쓰기 · 품질 심사 · 인스타/페북 게시 · 노션 동기화 · 릴스
+#   run-daily.mjs 가 불러오는 파일은 store.mjs 와 indexnow.mjs 둘뿐이다(실측 확인).
+#   아래 env 에 AI 키·인스타 토큰·노션 토큰을 «일부러 넣지 않았다» — 코드가 바뀌어도
+#   키가 없으면 SNS 로 나갈 수 없다. 이게 구조적 안전장치다.
+#
+# ★2026-08-12 에 사장님이 끄신 워크플로 8개와는 무관하다. 그것들은 계속 꺼져 있다.
+#   되살리지 말 것. (board.md 참조)
+#
+# 하루 세 번 도는 이유 — 깃허브 예약은 붐빌 때 한 시간 넘게 밀린다.
+# 이 스크립트는 「코너별 하루 1편」을 스스로 지키므로, 앞 회차가 이미 올렸으면
+# 뒤 회차는 아무것도 안 한다. 여러 번 도는 것이 빠뜨리는 것보다 안전하다.
+
+on:
+  schedule:
+    - cron: "10 23 * * *" # 08:10 KST
+    - cron: "10 1 * * *" # 10:10 KST (앞 회차가 밀렸을 때만 실제로 올린다)
+    - cron: "10 4 * * *" # 13:10 KST (마지막 안전망)
+  workflow_dispatch:
+
+concurrency:
+  group: oddsbag-daily
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: 하루치 발행
+        env:
+          DAILY_MAX_PER_RUN: "5" # 한 회차 안전 상한 (코너가 늘어도 이보다 많이 안 나간다)
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          SITE_URL: ${{ secrets.SITE_URL }} # 네이버·빙 색인 알림에만 쓴다
+        # ★반드시 레포 뿌리에서 실행한다 — content/posts 를 cwd 기준으로 찾는다.
+        #   content-factory 안에서 돌리면 원고를 하나도 못 찾고 조용히 0편으로 끝난다.
+        run: node content-factory/run-daily.mjs
