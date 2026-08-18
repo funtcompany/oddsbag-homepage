@@ -95,13 +95,17 @@ function clipWhole(s, n = 200) {
 const MARK_LINE = /^\[(키|경로|핵심|주의|즉답|버전|단계|확인|대안|[QA])\]\s*(.+)$/i;
 const isMarkLine = (line) => MARK_LINE.test(String(line ?? "").trim());
 
+// 본문 사진 줄 — `![캡션](/경로.jpg)`. ★lib/guide.ts 의 IMAGE_LINE 과 같아야 한다 (2026-08-18 신설)
+const IMAGE_LINE = /^!\[[^\]]*\]\([^)\s]+\)$/;
+const isImageLine = (line) => IMAGE_LINE.test(String(line ?? "").trim());
+
 function parseSections(body) {
   const out = []; let cur = null;
   for (const raw of (body || "").split("\n")) {
     const line = raw.trim(); if (!line) continue;
     if (line.startsWith("## ")) { if (cur) out.push(cur); cur = { heading: line.slice(3).trim(), text: "" }; }
-    // 도식 줄과 표 줄은 영상 자막에서 뺀다 (홈페이지는 그림으로 세우는 줄이다)
-    else if (cur && !isMarkLine(line) && !line.startsWith("|")) cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
+    // 도식 줄·사진 줄·표 줄은 영상 자막에서 뺀다 (홈페이지는 그림으로 세우는 줄이다)
+    else if (cur && !isMarkLine(line) && !isImageLine(line) && !line.startsWith("|")) cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
   }
   if (cur) out.push(cur);
   return out.filter((s) => s.heading);

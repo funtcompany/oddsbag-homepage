@@ -2,7 +2,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
 import SearchBox from "@/components/SearchBox";
-import { getVisiblePosts } from "@/lib/posts";
+import { getVisiblePosts, getMagazinePosts } from "@/lib/posts";
 import { searchPosts, looseSearch } from "@/lib/search";
 import { categories } from "@/lib/categories";
 import Link from "next/link";
@@ -39,10 +39,14 @@ export default async function MagazinePage({
   searchParams: Promise<SP>;
 }) {
   const q = ((await searchParams).q ?? "").trim();
-  const posts = await getVisiblePosts();
+  // 이 화면은 둘을 겸한다 — 검색창(사이트 전체)과 「전체 이슈」 목록(매거진 코너).
+  // 검색은 뮤직·이야기·오즈백 글까지 찾아줘야 하고,
+  // 목록과 「총 N개」는 매거진 글만 세야 한다. 안 그러면 코너가 서로 섞인다. (2026-08-18)
+  const all = await getVisiblePosts();
+  const posts = q ? all : await getMagazinePosts();
 
-  const hits = q ? searchPosts(posts, q) : [];
-  const suggestions = q && hits.length === 0 ? looseSearch(posts, q) : [];
+  const hits = q ? searchPosts(all, q) : [];
+  const suggestions = q && hits.length === 0 ? looseSearch(all, q) : [];
 
   return (
     <>

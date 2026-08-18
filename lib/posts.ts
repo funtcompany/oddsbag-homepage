@@ -254,8 +254,16 @@ export async function getDrafts(): Promise<Post[]> {
   // 파일로 미리 써 둔 원고(content/posts/*.json 중 status:"draft")도 검수함에 함께 보여준다.
   // 사장님이 관리자 화면에서 읽어보고 발행 버튼만 누르면 올라간다.
   const have = new Set(drafts.map((p) => p.slug));
+  // ★이미 발행했거나 보관한 파일 원고는 검수함에서 뺀다.
+  //   publishPost 는 Redis 에만 published 로 적고 파일은 draft 로 남겨둔다.
+  //   그래서 이 줄이 없으면 「올린 글」이 검수함에 영원히 그대로 남아
+  //   50편을 하루 1편씩 올릴 때 어디까지 올렸는지 화면에서 구분할 수 없다. (2026-08-18)
+  const done = new Set([
+    ...(await smembers(K_PUBLISHED)),
+    ...(await smembers(K_ARCHIVED)),
+  ]);
   const seedDrafts = readSeedPosts().filter(
-    (p) => p.status === "draft" && !have.has(p.slug),
+    (p) => p.status === "draft" && !have.has(p.slug) && !done.has(p.slug),
   );
   return [...drafts, ...seedDrafts].sort((a, b) =>
     (b.createdAt ?? "") > (a.createdAt ?? "") ? 1 : -1,

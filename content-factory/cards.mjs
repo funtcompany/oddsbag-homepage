@@ -27,6 +27,11 @@ const MAX_CARDS = 10; // 인스타 그래프 API 캐러셀 상한
 const MARK_LINE = /^\[(키|경로|핵심|주의|즉답|버전|단계|확인|대안|[QA])\]\s*(.+)$/i;
 const isMarkLine = (line) => MARK_LINE.test(String(line ?? "").trim());
 
+// 본문 사진 줄 — `![캡션](/경로.jpg)`. 홈페이지(ArticleView.tsx)는 사진으로 그리고,
+// 카드·자막에서는 통째로 뺀다. ★lib/cards.ts 와 반드시 같아야 한다 (2026-08-18 신설)
+const IMAGE_LINE = /^!\[[^\]]*\]\([^)\s]+\)$/;
+const isImageLine = (line) => IMAGE_LINE.test(String(line ?? "").trim());
+
 // 큰 정밀 숫자를 읽기 좋게 반올림: "1463만2347점" → "약 1,463만 점" (눈으로도, TTS로도 편하게)
 export function humanizeNum(s) {
   return String(s)
@@ -69,7 +74,9 @@ function parseSections(body) {
       // 도식 표시([키]/[경로]/[핵심]/[주의] + 가이드 6종)와 표 줄은 카드 본문에서 뺀다.
       // 홈페이지는 이걸 그림으로 세우고, 여기서는 글자로 새어나오면 안 된다.
       if (isMarkLine(line)) cur.markCount++;
-      else if (!line.startsWith("|")) {
+      else if (isImageLine(line)) {
+        // 본문 사진 줄 — 홈페이지만 사진으로 그린다. 카드에서는 통째로 뺀다.
+      } else if (!line.startsWith("|")) {
         cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
       }
     }

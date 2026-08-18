@@ -12,7 +12,7 @@
 // ※ content-factory/cards.mjs 와 항상 같은 구성이어야 한다 (게시 장수 ↔ 렌더 장수 일치).
 
 import type { Post } from "@/lib/posts";
-import { markOf, isMarkLine, type MarkName } from "@/lib/guide";
+import { markOf, isMarkLine, isImageLine, type MarkName } from "@/lib/guide";
 import { hashtagText } from "@/lib/tags";
 import { ctaTitle, CTA_BODY } from "@/lib/igProfile";
 
@@ -285,7 +285,10 @@ function parseSections(body: string): Section[] {
       // 도식 표시 줄은 본문 문장에서 빼둔다 (그림으로 따로 세우므로 중복 방지)
       // ※ 여기서 안 빼면 카드에 "[Q] …" 처럼 대괄호가 그대로 찍혀 나간다. 목록은 lib/guide.ts.
       if (isMarkLine(line)) cur.markCount++;
-      else if (!line.startsWith("|")) {
+      else if (isImageLine(line)) {
+        // 본문 사진 줄 — 홈페이지는 사진으로 그리고, 카드에서는 통째로 뺀다.
+        // (2026-08-18 신설. 안 빼면 인스타 카드에 "![캡션](/wpms/01/02.jpg)" 가 글자로 찍힌다)
+      } else if (!line.startsWith("|")) {
         cur.text += (cur.text ? " " : "") + line.replace(/^-\s*/, "");
       }
     }

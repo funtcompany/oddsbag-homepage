@@ -6,6 +6,7 @@
 // 본문은 노션 페이지 블록에 저장(마크다운 ↔ 블록 변환)해 노션에서 편집 가능.
 
 import type { Post } from "@/lib/posts";
+import { imageOf } from "@/lib/guide";
 
 const TOKEN = process.env.NOTION_TOKEN;
 const DB = process.env.NOTION_DATABASE_ID;
@@ -33,12 +34,31 @@ async function notion(path: string, method = "GET", body?: unknown) {
 
 const rt = (s: string) => [{ type: "text", text: { content: s.slice(0, 1900) } }];
 
+// 본문 사진을 노션으로 보낼 때 쓰는 절대 주소.
+// 노션은 외부 이미지를 자기가 가져가므로 `/wpms/01/02.jpg` 같은 상대 경로로는 못 그린다.
+// 되돌아올 때 이 접두사를 다시 떼어 상대 경로로 복원한다 (blocksToMd).
+const SITE = "https://oddsbag.co.kr";
+
 // 마크다운 → 노션 블록
 function mdToBlocks(body: string) {
   return body
     .split("\n")
     .filter((l) => l.trim() !== "")
     .map((line) => {
+      // 본문 사진 — 노션에서도 사진으로 보여야 검수가 된다 (2026-08-18)
+      const img = imageOf(line);
+      if (img)
+        return {
+          object: "block",
+          type: "image",
+          image: {
+            type: "external",
+            external: {
+              url: img.src.startsWith("/") ? `${SITE}${img.src}` : img.src,
+            },
+            ...(img.caption ? { caption: rt(img.caption) } : {}),
+          },
+        };
       if (line.startsWith("## "))
         return {
           object: "block",
@@ -68,6 +88,19 @@ function blocksToMd(blocks: { type: string; [k: string]: unknown }[]): string {
       const t = b.type;
       const data = b[t] as { rich_text?: { plain_text?: string }[] };
       const content = text(data?.rich_text);
+      // ★사진 블록을 여기서 안 살리면 노션 동기화 한 번에 본문 사진이 통째로 사라진다.
+      //   (image 블록에는 rich_text 가 없어 content 가 빈 문자열이 된다 — 2026-08-18)
+      if (t === "image") {
+        const im = b.image as {
+          external?: { url?: string };
+          file?: { url?: string };
+          caption?: { plain_text?: string }[];
+        };
+        const url = im?.external?.url ?? im?.file?.url ?? "";
+        if (!url) return "";
+        const src = url.startsWith(`${SITE}/`) ? url.slice(SITE.length) : url;
+        return `![${text(im?.caption)}](${src})`;
+      }
       if (t === "heading_1" || t === "heading_2" || t === "heading_3")
         return `## ${content}`;
       if (t === "bulleted_list_item" || t === "numbered_list_item")

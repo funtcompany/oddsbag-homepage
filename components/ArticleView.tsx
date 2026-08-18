@@ -16,7 +16,7 @@ import {
   FaqFigure,
   AltFigure,
 } from "@/components/Figures";
-import { markOf } from "@/lib/guide";
+import { markOf, imageOf } from "@/lib/guide";
 import { getDesign, fxStyle } from "@/lib/design";
 import type { Post } from "@/lib/posts";
 import Link from "next/link";
@@ -112,6 +112,33 @@ function renderBody(body: string): { nodes: ReactNode[]; oneLine: string } {
       i++;
       continue;
     }
+    // ### 작은 소제목 — 본문 소제목(##)보다 한 단 낮다. 글 끝 안내처럼 곁들이는 자리에 쓴다.
+    // 목차는 `## ` 만 세므로(61~70줄) 여기서 번호가 어긋날 일은 없다. (2026-08-18 신설)
+    if (line.startsWith("### ")) {
+      out.push(
+        <h3
+          key={key++}
+          className="mt-9 text-[19px] font-black text-oddsbag-dark"
+          style={{ wordBreak: "keep-all" }}
+        >
+          {line.slice(4).trim().replace(/\*\*/g, "")}
+        </h3>,
+      );
+      i++;
+      continue;
+    }
+    // 구분선 --- (2026-08-18 신설. 그전까지 화면에 `---` 가 글자로 그대로 찍혔다)
+    // ※ 표의 구분줄(|---|---|)은 `|` 로 시작하므로 여기 안 걸린다.
+    if (/^-{3,}$/.test(line.trim())) {
+      out.push(
+        <hr
+          key={key++}
+          className="my-10 border-0 border-t border-oddsbag-light-gray"
+        />,
+      );
+      i++;
+      continue;
+    }
     // 마크다운 표 — | 항목 | 설명 | / |---|---| / | 내용 | 내용 |
     // 긴 정보성 글에서 조건·비교를 한눈에 보여주는 데 쓴다.
     if (
@@ -188,6 +215,37 @@ function renderBody(body: string): { nodes: ReactNode[]; oneLine: string } {
       continue;
     }
     if (line.trim() === "") {
+      i++;
+      continue;
+    }
+
+    // ---- 본문 사진 ----
+    // `![캡션](/경로.jpg)` 한 줄 = 사진 한 장. 캡션은 사진 아래 작은 글씨.
+    // 2026-08-18 신설 — 그전까지 본문 사진은 아예 못 그렸다(커버 한 장이 전부).
+    // WPMS 원고처럼 글 하나에 사진이 4~7장 들어가는 글을 올리려고 넣었다.
+    // ★도식(195줄~)보다 먼저 걸러야 한다. 아래로 흘리면 문단 폴백에서 `![…](…)`가 글자로 찍힌다.
+    const img = imageOf(line);
+    if (img) {
+      const { caption, src } = img;
+      out.push(
+        <figure key={key++} className="my-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={caption}
+            loading="lazy"
+            className="w-full rounded-2xl border border-oddsbag-light-gray"
+          />
+          {caption ? (
+            <figcaption
+              className="mt-2.5 text-center text-[15px] leading-relaxed text-oddsbag-dark/55"
+              style={{ wordBreak: "keep-all" }}
+            >
+              {caption}
+            </figcaption>
+          ) : null}
+        </figure>,
+      );
       i++;
       continue;
     }

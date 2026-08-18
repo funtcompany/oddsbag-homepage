@@ -62,6 +62,29 @@ export function stripMarkLines(text: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  본문 사진 줄 (2026-08-18 신설)
+//
+//  `![캡션](/wpms/01/02.jpg)` 한 줄 = 사진 한 장.
+//  홈페이지(ArticleView.tsx)만 사진으로 그리고, 나머지는 전부 걷어낸다.
+//  ★안 걷어내면 인스타 카드·릴스 자막에 "![캡션](/wpms/01/02.jpg)" 가 글자로 찍혀 나간다.
+//    도식 표시와 같은 이유로 여기에 둔다 — 파일 머리말의 「같이 고칠 곳」 목록이 그대로 적용된다.
+// ─────────────────────────────────────────────────────────────
+
+/** 본문 사진 줄 인식 정규식 — 줄 전체가 마크다운 이미지 하나여야 한다 */
+export const IMAGE_LINE = /^!\[([^\]]*)\]\(([^)\s]+)\)$/;
+
+/** 그 줄이 사진 줄이면 {캡션, 주소}, 아니면 null */
+export function imageOf(line: string): { caption: string; src: string } | null {
+  const m = String(line ?? "").trim().match(IMAGE_LINE);
+  return m ? { caption: m[1].trim(), src: m[2] } : null;
+}
+
+/** 사진 줄인가 (카드뉴스·릴스에서 걷어낼 때 쓴다) */
+export function isImageLine(line: string): boolean {
+  return imageOf(line) !== null;
+}
+
+// ─────────────────────────────────────────────────────────────
 //  구조화 데이터(HowTo·FAQPage)를 만들기 위한 추출기
 // ─────────────────────────────────────────────────────────────
 export interface GuideParts {
