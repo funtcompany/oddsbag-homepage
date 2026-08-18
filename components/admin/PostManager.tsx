@@ -20,6 +20,14 @@ const BUCKETS: [Bucket, string][] = [
   ["archived", "보관함"],
 ];
 
+// 게시판 전용 글 — 그 서비스 게시판에서만 보인다 (lib/services-catalog.ts 의 slug)
+const BOARDS: Record<string, string> = {
+  wpms: "WPMS 게시판",
+  starflow: "별의 결 게시판",
+};
+const boardLabel = (key: string) => BOARDS[key] ?? `${key} 게시판`;
+const boardHref = (key: string) => `/oddsbag/service/${key}`;
+
 interface Row {
   slug: string;
   title: string;
@@ -29,6 +37,8 @@ interface Row {
   date: string;
   status: string;
   hidden: boolean;
+  /** 값이 있으면 그 서비스 게시판에서만 보이는 글 (홈·매거진·RSS·구글뉴스에 안 나감) */
+  boardOnly?: string;
   featured: boolean;
   cover: string;
   quality: number | null;
@@ -387,6 +397,15 @@ export default function PostManager() {
 
       {!data && <p className="text-oddsbag-gray">불러오는 중…</p>}
 
+      {data && rows.some((r) => r.boardOnly) && (
+        <p className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-xs leading-relaxed text-violet-900">
+          이 칸에 <b>게시판 전용 글 {rows.filter((r) => r.boardOnly).length}편</b>이
+          들어 있습니다. 🎤 표가 붙은 글은 그 서비스 게시판에서만 보이고,
+          홈·매거진·검색·RSS·구글 뉴스에는 나가지 않습니다. (뉴스가 아니라 제품 안내
+          글입니다)
+        </p>
+      )}
+
       {data && rows.length === 0 && (
         <p className="rounded-xl border border-dashed border-oddsbag-light-gray py-10 text-center text-sm text-oddsbag-gray">
           이 칸에는 글이 없습니다.
@@ -415,6 +434,23 @@ export default function PostManager() {
                 {r.date} · {r.category}
                 {r.quality != null && ` · 품질 ${r.quality}`}
               </span>
+              {r.boardOnly && (
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="rounded-full bg-violet-100 px-2 py-0.5 font-bold text-violet-800">
+                    🎤 {boardLabel(r.boardOnly)}에서만 보임
+                  </span>
+                  <span className="text-oddsbag-gray">
+                    홈·매거진·검색·RSS·구글뉴스에는 안 나갑니다
+                  </span>
+                  <a
+                    href={boardHref(r.boardOnly)}
+                    target="_blank"
+                    className="font-bold text-oddsbag-purple hover:underline"
+                  >
+                    게시판 보기 ↗
+                  </a>
+                </span>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-1.5 text-xs">
@@ -463,7 +499,8 @@ export default function PostManager() {
       </div>
 
       <p className="text-xs text-oddsbag-gray">
-        ⭐ 대표글 · 🙈 목록에서 숨김(주소로는 열림) · 🚫 커버 사진 없음
+        ⭐ 대표글 · 🙈 목록에서 숨김(주소로는 열림) · 🚫 커버 사진 없음 · 🎤 게시판
+        전용 글(그 게시판에서만 보이고 뉴스로는 안 나갑니다)
       </p>
     </div>
   );

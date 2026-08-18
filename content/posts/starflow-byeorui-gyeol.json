@@ -1,6 +1,7 @@
 {
   "slug": "starflow-byeorui-gyeol",
   "channel": "oddsbag",
+  "boardOnly": "starflow",
   "title": "오즈백이 만든 운세 서비스 '별의 결'을 소개합니다",
   "summary": "사주·오늘의 운세·타로·궁합·MBTI·이름풀이를 한 곳에서 보는 운세 콘텐츠 서비스 '별의 결'. 결과는 이미지 카드로 저장해 친구와 나눌 수 있고, 입력한 정보는 서버에 저장되지 않습니다.",
   "category": "서비스 소개",

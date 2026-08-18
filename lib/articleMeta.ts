@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import type { Post } from "@/lib/posts";
 import { channelOf } from "@/lib/channels";
 import { extractGuide } from "@/lib/guide";
+import { serviceOf } from "@/lib/services-catalog";
 
 const SITE = "https://oddsbag.co.kr";
 
@@ -15,6 +16,13 @@ const SITE = "https://oddsbag.co.kr";
 const GUIDE_CATEGORIES = new Set(["꿀팁", "가이드"]);
 export function isGuidePost(post: Post): boolean {
   return GUIDE_CATEGORIES.has(post.category);
+}
+
+// 게시판 전용 글(boardOnly)도 '뉴스'가 아니다.
+//  WPMS 같은 제품 안내 글을 NewsArticle 로 신고하면 구글 뉴스에 제품 광고를 기사로 내는 셈이 된다.
+//  (지시 2026-08-18 «WPMS 원고는 뉴스가 아니다») → 언제나 일반 Article 로 신고한다.
+export function isBoardPost(post: Post): boolean {
+  return Boolean(post.boardOnly);
 }
 
 export function articleUrl(post: Post): string {
@@ -36,7 +44,13 @@ export function articleMetadata(post: Post): Metadata {
   return {
     title: post.title,
     description: post.summary,
-    keywords: [...(post.tags ?? []), post.category, "오즈백", "이슈", "뉴스"],
+    keywords: [
+      ...(post.tags ?? []),
+      post.category,
+      "오즈백",
+      // 게시판 전용 글(제품 안내)은 '이슈·뉴스'가 아니다
+      ...(post.boardOnly ? [] : ["이슈", "뉴스"]),
+    ],
     alternates: { canonical: url },
     openGraph: {
       type: "article",
@@ -60,21 +74,46 @@ export function articleMetadata(post: Post): Metadata {
   };
 }
 
+// 빵부스러기 — 게시판 전용 글은 그 게시판을 한 칸 끼워 넣는다.
+//  «홈 > 만드는 것들 > WPMS > 글» 이라고 알려야 구글이 뉴스가 아닌 제품 안내로 읽는다.
+function breadcrumb(
+  post: Post,
+  chLabel: string,
+  chHref: string,
+  url: string,
+): Record<string, unknown>[] {
+  const items: { name: string; item: string }[] = [
+    { name: "홈", item: SITE },
+    { name: chLabel, item: `${SITE}${chHref}` },
+  ];
+  const svc = post.boardOnly ? serviceOf(post.boardOnly) : undefined;
+  if (svc) items.push({ name: svc.tab, item: `${SITE}/oddsbag/service/${svc.slug}` });
+  items.push({ name: post.title, item: url });
+  return items.map((it, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name: it.name,
+    item: it.item,
+  }));
+}
+
 export function articleJsonLd(post: Post) {
   const ch = channelOf(post.channel);
   const url = articleUrl(post);
   const guide = isGuidePost(post);
+  const board = isBoardPost(post);
   // 가이드면 본문에서 [단계]·[Q]/[A]를 그대로 뽑아 구조화 데이터로 내보낸다.
   // ※ 값이 비면 그 스키마는 통째로 뺀다 — 빈 스키마는 구글이 오히려 감점한다.
   const parts = guide ? extractGuide(post.body) : null;
 
   const graph: Record<string, unknown>[] = [
       {
-        "@type": guide
-          ? "Article"
-          : ch.key === "magazine"
-            ? "NewsArticle"
-            : "Article",
+        "@type":
+          guide || board
+            ? "Article"
+            : ch.key === "magazine"
+              ? "NewsArticle"
+              : "Article",
         headline: post.title.slice(0, 110),
         description: post.summary,
         image: articleImages(post),
@@ -97,16 +136,7 @@ export function articleJsonLd(post: Post) {
       },
       {
         "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "홈", item: SITE },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: ch.label,
-            item: `${SITE}${ch.href}`,
-          },
-          { "@type": "ListItem", position: 3, name: post.title, item: url },
-        ],
+        itemListElement: breadcrumb(post, ch.label, ch.href, url),
       },
   ];
 

@@ -17,7 +17,7 @@ const 앱라인업_공개 = false;
 export const metadata: Metadata = {
   title: "서비스",
   description:
-    "오즈백이 운영하는 서비스 모음 — 별의 결, 오즈백 매거진, 오즈백 뮤직, 오즈백 테일즈.",
+    "오즈백이 운영하는 서비스 모음 — WPMS 무선 발표 관리 시스템, 별의 결, 오즈백 매거진, 오즈백 뮤직, 오즈백 테일즈.",
   alternates: { canonical: "/services" },
 };
 

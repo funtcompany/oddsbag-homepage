@@ -135,7 +135,7 @@ export async function postReelTo(계정키, videoUrl, caption, coverUrl, comment
     method: "POST",
     body: new URLSearchParams(params),
   })).json();
-  if (!create.id) throw new Error(`컨테이너 실패(${acc.이름}): ` + JSON.stringify(create).slice(0, 160));
+  if (!create.id) throw new Error(`컨테이너 실패(${acc.이름}): ` + JSON.stringify(create).slice(0, 600));
 
   // 2) 인코딩 완료까지 대기 (최대 ~3분) — 넘으면 조용히 넘어가지 말고 사유를 남긴다
   let ready = false;
@@ -148,16 +148,25 @@ export async function postReelTo(계정키, videoUrl, caption, coverUrl, comment
   if (!ready) throw new Error(`인스타 인코딩 지연 3분 초과(${acc.이름}) — 다음 회차에 재게시 시도`);
 
   // 3) 발행
+  //    ★기준시각은 여기서 잡는다 — 위 인코딩 대기가 최대 3분이라 함수 시작 시각을 쓰면 안 된다
+  const 시작 = Date.now();
   const pub = await (await fetch(`${acc.G}/${acc.id}/media_publish`, {
     method: "POST",
     body: new URLSearchParams({ creation_id: create.id, access_token: acc.token }),
   })).json();
-  if (!pub.id) throw new Error(`발행 실패(${acc.이름}): ` + JSON.stringify(pub).slice(0, 160));
-  console.log(`  · 인스타 릴스 게시: ${pub.id} (${acc.이름})`);
+  /* 오류가 와도 실제로 올라갔을 수 있다 — 확인하고 나서 실패로 친다 (위 방금올라갔나 주석 참고) */
+  let 게시id = pub.id;
+  if (!게시id) {
+    await sleep(5000);
+    게시id = await 방금올라갔나(acc, 시작);
+    if (게시id) console.log(`  · ⚠ 오류 응답이 왔지만 실제로는 올라갔습니다(${게시id}) — 다시 올리지 않습니다`);
+  }
+  if (!게시id) throw new Error(`발행 실패(${acc.이름}): ` + JSON.stringify(pub).slice(0, 600));
+  console.log(`  · 인스타 릴스 게시: ${게시id} (${acc.이름})`);
 
   // 첫 댓글에 해시태그 (실패해도 게시 자체는 성공으로 둔다)
-  try { await commentOn(acc, pub.id, commentTags, opts.댓글씨앗); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
-  return pub.id;
+  try { await commentOn(acc, 게시id, commentTags, opts.댓글씨앗); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
+  return 게시id;
 }
 
 // 컨테이너가 게시 가능한 상태가 될 때까지 기다린다.
@@ -168,21 +177,45 @@ async function 컨테이너대기(acc, id, 라벨) {
     if (!st.status_code) return;                    // 상태를 안 주는 계정 = 바로 준비된 것으로 본다
     if (st.status_code === "FINISHED") return;
     if (st.status_code === "ERROR")
-      throw new Error(`${라벨} 준비 실패(${acc.이름}): ` + JSON.stringify(st).slice(0, 160));
+      throw new Error(`${라벨} 준비 실패(${acc.이름}): ` + JSON.stringify(st).slice(0, 600));
     await sleep(2000);
   }
   throw new Error(`${라벨} 준비 지연 40초 초과(${acc.이름})`);
 }
 
+/* ★2026-08-18 — 발행 오류를 곧이곧대로 믿지 않는다.
+   그날 별의 결에서 media_publish 가 「Application request limit reached」 오류를 돌려줬는데
+   **실제로는 게시가 됐다.** 발행큐는 오류만 보고 실패로 치고 5분 뒤 다시 올렸고,
+   같은 캐러셀이 **14번** 올라갔다(도달은 전부 0 — 인스타가 도배로 보고 막았다).
+   그래서 오류가 오면 계정을 실제로 들여다보고, 방금 올라간 게 없을 때만 실패로 친다. */
+async function 방금올라갔나(acc, 기준시각) {
+  try {
+    const r = await (await fetch(
+      `${acc.G}/${acc.id}/media?fields=id,timestamp&limit=5&access_token=${acc.token}`)).json();
+    for (const m of (r.data || [])) {
+      // 기준시각 15초 전까지 허용 — 메타 시계와 우리 시계가 조금 어긋난다
+      if (m.timestamp && new Date(m.timestamp).getTime() >= 기준시각 - 15000) return m.id;
+    }
+  } catch { /* 확인 자체가 실패하면 판단하지 않는다 — 아래에서 원래 오류로 넘어간다 */ }
+  return null;
+}
+
 async function 게시(acc, containerId, 라벨, commentTags, 댓글씨앗) {
+  const 시작 = Date.now();
   const pub = await (await fetch(`${acc.G}/${acc.id}/media_publish`, {
     method: "POST",
     body: new URLSearchParams({ creation_id: containerId, access_token: acc.token }),
   })).json();
-  if (!pub.id) throw new Error(`발행 실패(${acc.이름}): ` + JSON.stringify(pub).slice(0, 160));
-  console.log(`  · 인스타 ${라벨} 게시: ${pub.id} (${acc.이름})`);
-  try { await commentOn(acc, pub.id, commentTags, 댓글씨앗); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
-  return pub.id;
+  let 게시id = pub.id;
+  if (!게시id) {
+    await sleep(5000);                     // 반영될 틈을 준다
+    게시id = await 방금올라갔나(acc, 시작);
+    if (게시id) console.log(`  · ⚠ 오류 응답이 왔지만 실제로는 올라갔습니다(${게시id}) — 다시 올리지 않습니다`);
+  }
+  if (!게시id) throw new Error(`발행 실패(${acc.이름}): ` + JSON.stringify(pub).slice(0, 600));
+  console.log(`  · 인스타 ${라벨} 게시: ${게시id} (${acc.이름})`);
+  try { await commentOn(acc, 게시id, commentTags, 댓글씨앗); } catch (e) { console.log("  · 인스타 댓글 건너뜀:", e.message); }
+  return 게시id;
 }
 
 /**
@@ -199,7 +232,7 @@ export async function postImageTo(계정키, imageUrl, caption, commentTags, opt
     method: "POST",
     body: new URLSearchParams({ image_url: imageUrl, caption, access_token: acc.token }),
   })).json();
-  if (!create.id) throw new Error(`컨테이너 실패(${acc.이름}): ` + JSON.stringify(create).slice(0, 160));
+  if (!create.id) throw new Error(`컨테이너 실패(${acc.이름}): ` + JSON.stringify(create).slice(0, 600));
   await 컨테이너대기(acc, create.id, "사진");
 
   if (opts.컨테이너까지) { console.log(`  · (점검) 사진 컨테이너까지만 확인: ${create.id} — 게시 안 함`); return create.id; }
@@ -224,7 +257,7 @@ export async function postCarouselTo(계정키, imageUrls, caption, commentTags,
       method: "POST",
       body: new URLSearchParams({ image_url: url, is_carousel_item: "true", access_token: acc.token }),
     })).json();
-    if (!c.id) throw new Error(`캐러셀 ${i + 1}장째 실패(${acc.이름}): ` + JSON.stringify(c).slice(0, 160));
+    if (!c.id) throw new Error(`캐러셀 ${i + 1}장째 실패(${acc.이름}): ` + JSON.stringify(c).slice(0, 600));
     await 컨테이너대기(acc, c.id, `캐러셀 ${i + 1}장째`);
     children.push(c.id);
   }
@@ -236,7 +269,7 @@ export async function postCarouselTo(계정키, imageUrls, caption, commentTags,
       media_type: "CAROUSEL", children: children.join(","), caption, access_token: acc.token,
     }),
   })).json();
-  if (!parent.id) throw new Error(`캐러셀 묶기 실패(${acc.이름}): ` + JSON.stringify(parent).slice(0, 160));
+  if (!parent.id) throw new Error(`캐러셀 묶기 실패(${acc.이름}): ` + JSON.stringify(parent).slice(0, 600));
   await 컨테이너대기(acc, parent.id, "캐러셀");
 
   if (opts.컨테이너까지) { console.log(`  · (점검) 캐러셀 컨테이너까지만 확인: ${parent.id} — 게시 안 함`); return parent.id; }

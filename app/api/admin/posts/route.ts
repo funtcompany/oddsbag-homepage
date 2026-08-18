@@ -25,6 +25,8 @@ const brief = (p: Post) => ({
   date: p.date,
   status: p.status,
   hidden: Boolean(p.hidden),
+  // 게시판 전용 글이면 그 게시판 slug ("wpms") — 화면에 «어디에만 보이는 글인지» 표시한다
+  boardOnly: p.boardOnly ?? "",
   featured: Boolean(p.featured),
   cover: p.cover ?? "",
   quality: p.quality?.score ?? null,

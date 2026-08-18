@@ -9,6 +9,7 @@ import {
 } from "@/lib/posts";
 import { articleJsonLd, articleMetadata } from "@/lib/articleMeta";
 import { postUrl } from "@/lib/channels";
+import { serviceOf } from "@/lib/services-catalog";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -44,6 +45,10 @@ export default async function OddsbagPostPage({
 
   const related = await getRelatedPosts(post, 4);
 
+  // 게시판 전용 글(boardOnly)이면 «뒤로»가 그 게시판으로 간다.
+  //  브랜드 소식 목록(/oddsbag)에는 이 글이 없으므로 그리로 보내면 독자가 길을 잃는다.
+  const 게시판 = post.boardOnly ? serviceOf(post.boardOnly) : undefined;
+
   return (
     <>
       <script
@@ -54,8 +59,10 @@ export default async function OddsbagPostPage({
       <ArticleView
         post={post}
         related={related}
-        backHref="/oddsbag"
-        backLabel="오즈백"
+        backHref={
+          게시판 ? `/oddsbag/service/${게시판.slug}#관련글` : "/oddsbag"
+        }
+        backLabel={게시판 ? 게시판.tab : "오즈백"}
       />
       <Footer />
     </>

@@ -49,3 +49,9 @@ next-env.d.ts
 _삭제보관/
 reports/status-*
 factory/refresh-token.txt
+
+# WPMS 일괄 발행 되돌림표 (열쇠는 아니지만 개인 실행 기록이라 올리지 않는다)
+content-factory/_wpms-되돌림표.json*
+
+# 작업 중 뜬 백업본 — 되돌릴 재료라 지우지 않고 두되, 깃엔 올리지 않는다
+*.bak-*

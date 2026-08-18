@@ -63,6 +63,21 @@ export interface Post {
    */
   hidden?: boolean;
   hiddenAt?: string;
+
+  /**
+   * 게시판 전용 글 — 여기에 서비스 slug(예: "wpms")를 적으면
+   * «만드는 것들» 그 서비스 게시판(/oddsbag/service/<slug>)에서만 보인다.
+   *
+   * 지시 2026-08-18 «WPMS 원고는 뉴스가 아니다. WPMS 게시판에서만 보이면 된다»
+   *
+   *  · 빠지는 곳 : 홈 · 매거진 목록/검색 · 카테고리 · 코너 목록(/oddsbag /music /story)
+   *                · 가이드 허브 · RSS · 구글 뉴스 사이트맵 · 관련글
+   *  · 남는 곳   : 그 서비스 게시판 · 글 주소(직접 열기) · 일반 sitemap.xml(구글 검색)
+   *
+   * ★hidden 과 다르다 — hidden 은 게시판에서도 같이 사라진다(getVisiblePosts 가 먼저 거른다).
+   *   게시판에 남겨야 하므로 hidden 을 쓰면 안 된다. 되돌리려면 이 값만 지우면 된다.
+   */
+  boardOnly?: string;
   auditedAt?: string; // 마지막 재점검 시각 (1일 3회 크론)
   social?: { ig?: string; fb?: string; at?: string }; // SNS 게시 결과
 
@@ -164,7 +179,16 @@ export const getAllPosts = unstable_cache(loadAllPublished, ["oddsbag-posts"], {
  * (getAllPosts 는 숨긴 글까지 포함한 전체 — 주소로 직접 들어오는 경우와 사이트맵에 쓴다)
  */
 export async function getVisiblePosts(): Promise<Post[]> {
-  return (await getAllPosts()).filter((p) => !p.hidden);
+  return (await getAllPosts()).filter((p) => !p.hidden && !p.boardOnly);
+}
+
+/**
+ * 서비스 게시판 전용 글 (boardOnly === board).
+ * 여기서만 보여준다 — /oddsbag/service/<board>
+ * 숨김(hidden) 처리한 글은 게시판에서도 뺀다 (사람이 일부러 내린 것이므로).
+ */
+export async function getBoardPosts(board: string): Promise<Post[]> {
+  return (await getAllPosts()).filter((p) => !p.hidden && p.boardOnly === board);
 }
 
 /** 이 글이 어느 코너 글인가 (값이 없으면 매거진) */
@@ -239,8 +263,13 @@ export async function getPostBySlug(slug: string): Promise<Post | undefined> {
 }
 
 export async function getRelatedPosts(post: Post, count = 4): Promise<Post[]> {
+  // 게시판 전용 글은 같은 게시판 글끼리만 이어 준다.
+  //  (WPMS 글 밑에 브랜드 소식이 뜨거나, 그 반대가 되면 게시판이 섞인다)
+  const pool = post.boardOnly
+    ? await getBoardPosts(post.boardOnly)
+    : await getVisiblePosts();
   // 같은 코너 안에서만 추천한다 (매거진 글 밑에 뮤직 글이 뜨지 않게)
-  const all = (await getVisiblePosts()).filter(
+  const all = pool.filter(
     (p) => p.slug !== post.slug && channelKeyOf(p) === channelKeyOf(post),
   );
   const same = all.filter((p) => p.category === post.category);
