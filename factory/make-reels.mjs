@@ -110,8 +110,16 @@ async function pickPending(limit) {
   //   빼지 않고 뒤로만 미룬다. 인스타 도달은 100% 릴스에서 나오므로,
   //   후보가 없다고 릴스를 아예 못 만드는 쪽이 중복보다 나쁘다.
   const card = new Set(cardArr || []);
+  // ★게시판 전용 글(WPMS 50편·별의 결)은 릴스로 만들지 않는다 (2026-08-20).
+  //   그 글들은 2026-08-18 에 «매거진에서 빼고 게시판에만» 두기로 한 자사 홍보글이다.
+  //   여기에 걸러내는 줄이 없어서, 릴스 워크플로를 다시 켜는 순간 자사 홍보 영상 50편이
+  //   유튜브·인스타로 쏟아질 자리였다. 지금은 워크플로가 꺼져 있어 겉으로 드러나지 않는다
+  //   — 켜는 날 사고가 나는 종류라 미리 막는다.
   const fresh = (pubSlugs || []).filter((s) => !done.has(s));
-  const posts = (await Promise.all(fresh.map((s) => getJSON(`post:${s}`)))).filter(Boolean).filter((p) => p.status === "published");
+  const posts = (await Promise.all(fresh.map((s) => getJSON(`post:${s}`))))
+    .filter(Boolean)
+    .filter((p) => p.status === "published")
+    .filter((p) => !p.boardOnly);
   posts.sort((a, b) => (b.publishedAt ?? b.date ?? "").localeCompare(a.publishedAt ?? a.date ?? ""));
   // 꿀팁(가이드)을 앞으로 — 인스타는 가이드만 올리는 채널이 됐다(사장님 지시 2026-08-05).
   // 뉴스가 먼저 잡히면 그날 인스타 릴스 자리가 그냥 비어버린다.
