@@ -16,6 +16,7 @@ import { sadd, smembers } from "@/lib/store";
 import { notionEnabled, addCollectedPage } from "@/lib/notion";
 import { findCoverImage } from "@/lib/images";
 import { resolveSourceText } from "@/lib/article";
+import { isOwnUrl } from "@/lib/source-links";
 import { kvGet, kvSet } from "@/lib/store";
 import type { IssueSource } from "@/lib/sources";
 
@@ -194,7 +195,11 @@ export async function runCollection(opts: {
         imageCredit: cover?.credit,
         readMinutes: Math.max(2, Math.round(draft.body.length / 400)),
         tags: draft.tags,
-        sources: [{ title: `원문 보기 (${issue.source})`, url: sourceUrl }],
+        // ★출처는 «바깥에 진짜로 있는 것»만. 우리 홈을 원문이라 적던 것을 막는다 (2026-08-20).
+        //   판정은 lib/sources.ts 한 곳에서 — 보여주는 쪽(ArticleView)과 같은 잣대를 쓴다.
+        sources: isOwnUrl(sourceUrl)
+          ? undefined
+          : [{ title: `원문 보기 (${issue.source})`, url: sourceUrl }],
         createdAt: new Date().toISOString(),
         // 위험 주제 표시 — 감사(audit)가 이 글을 자동으로 구조·발행하지 않게 막는 표시이기도 하다
         risky: risky ? true : undefined,

@@ -26,6 +26,28 @@ import { makeIllustration, illustrateEnabled } from "./illustrate.mjs";
 import { resolveSourceText } from "./article.mjs";
 import { kvGet, kvSet } from "./store.mjs";
 
+// ★출처는 «바깥에 진짜로 있는 것»만 적는다 (2026-08-20).
+//   가이드(꿀팁)는 원문 기사 없이 우리가 검증한 근거(facts)로 쓰므로 원문 주소가 없다.
+//   그 빈자리를 우리 홈(oddsbag.co.kr)으로 메우던 것을 걷어낸다 — 화면에 「출처: 원문 보기」로
+//   떠서 «바깥에 원문이 있다»는 거짓말이 됐다. 글 43편이 그 상태였다.
+//   주소가 없거나 우리 것이면 출처 칸을 «아예 만들지 않는다». 보여주는 쪽도 같이 막았다
+//   (homepage/lib/source-links.ts · components/ArticleView.tsx).
+function 출처목록(issue, sourceUrl) {
+  if (!sourceUrl) return undefined;
+  try {
+    const h = new URL(sourceUrl, "https://oddsbag.co.kr").hostname.toLowerCase();
+    if (h === "oddsbag.co.kr" || h.endsWith(".oddsbag.co.kr")) return undefined;
+  } catch {
+    return undefined;
+  }
+  return [
+    {
+      title: issue.ref?.title ? `참고 — ${issue.ref.title}` : `원문 보기 (${issue.source})`,
+      url: sourceUrl,
+    },
+  ];
+}
+
 export const K_SEEN = "issues:seen";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -458,12 +480,7 @@ export async function runCollection(opts) {
         imageCredit: cover?.credit ?? (illus ? "AI 생성 이미지" : undefined),
         readMinutes: Math.max(2, Math.round(draft.body.length / 400)),
         tags: draft.tags,
-        sources: [
-          {
-            title: issue.ref?.title ? `참고 — ${issue.ref.title}` : `원문 보기 (${issue.source})`,
-            url: sourceUrl,
-          },
-        ],
+        sources: 출처목록(issue, sourceUrl),
         createdAt: new Date().toISOString(),
         // 위험 주제 표시 — 감사(audit)가 이 글을 자동으로 구조·발행하지 않게 막는 표시이기도 하다
         risky: issue.risky === true ? true : undefined,

@@ -180,7 +180,7 @@ export const SEASONAL = [
     day: 2,
     leadDays: 14,
     title: "새 학기 시작 전 챙기면 편한 것들",
-    ref: { title: "오즈백 정리", url: "https://oddsbag.co.kr" },
+    // ref 없음 — 우리가 정리한 글이라 «바깥 원문»이 없다. 우리 홈을 출처라 적지 않는다 (2026-08-20)
     facts: `새 학기 준비에 관한 일반적인 내용.
 
 1) 생활 리듬 먼저 되돌리기

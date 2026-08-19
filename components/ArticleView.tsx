@@ -1,4 +1,5 @@
 import PostCard from "@/components/PostCard";
+import { externalSources } from "@/lib/source-links";
 import AdSlot from "@/components/AdSlot";
 import ReactionBar from "@/components/ReactionBar";
 import CommentSection from "@/components/CommentSection";
@@ -609,11 +610,14 @@ export default function ArticleView({
 
           <ReactionBar slug={post.slug} />
 
-          {post.sources && post.sources.length > 0 && (
+          {/* ★출처 칸 — 「우리 사이트」를 가리키는 것은 빼고 그린다 (lib/sources.ts, 2026-08-20).
+              가이드는 원문 기사가 없어서 그 자리가 우리 홈으로 메워져 있었다.
+              하나도 안 남으면 이 칸 자체를 그리지 않는다 — 빈 「출처」 상자가 더 이상하다. */}
+          {externalSources(post.sources).length > 0 && (
             <div className="mt-6 rounded-xl bg-oddsbag-light-gray/70 p-4">
               <p className="text-xs font-bold text-oddsbag-gray">출처</p>
               <ul className="mt-2 space-y-1">
-                {post.sources.map((s) => (
+                {externalSources(post.sources).map((s) => (
                   <li key={s.url}>
                     <a
                       href={s.url}

@@ -48,7 +48,14 @@ const TR = (id, title, ref, facts) => ({ ...T(id, title, ref, facts), risky: tru
 const APPLE = (u) => ({ title: "Apple 지원", url: u });
 const MS = (u) => ({ title: "Microsoft 지원", url: u });
 const GOOGLE = (u) => ({ title: "Google 고객센터", url: u });
-const ODDS = { title: "오즈백 정리", url: "https://oddsbag.co.kr" };
+// ★ODDS = null (2026-08-20). 예전에는 { title:"오즈백 정리", url:"https://oddsbag.co.kr" } 였다.
+//   이 재고의 꿀팁 161개는 «밖에서 긁어온 기사»가 아니라 우리가 검증해 넣은 근거(facts)로 쓴다.
+//   즉 원문 주소라는 게 «없다». 그런데 여기에 우리 홈 주소를 넣어 두는 바람에
+//   글 화면에 「출처: 원문 보기」 가 뜨고, 눌러 보면 우리 홈으로 돌아왔다 — 글 43편이 그랬다.
+//   ★null 이면 파이프라인이 출처 칸을 아예 만들지 않는다 (pipeline.mjs 출처목록()).
+//     ref 를 읽는 4곳이 전부 `?.` 라 null 이 안전하다(전수 확인).
+//   ※출처 대신 «누가 썼는지»를 밝히는 것은 다른 일이다 — 저자줄·AI 고지로 따로 붙인다.
+const ODDS = null;
 
 // ─────────────────────────────────────────────
 // 맥 / macOS
