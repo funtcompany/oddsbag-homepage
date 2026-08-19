@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import HomeEditor from "@/components/admin/HomeEditor";
 import PostManager from "@/components/admin/PostManager";
 import Inbox from "@/components/admin/Inbox";
+import CommentManager from "@/components/admin/CommentManager";
 
 const NOTION_DB_URL = "https://www.notion.so/39ba021454af81fda095e59a00525be0";
 
@@ -59,7 +60,15 @@ interface Stats {
   seo: { slug: string; title: string; problems: string[] }[];
 }
 
-type Tab = "dash" | "home" | "write" | "posts" | "inbox" | "seo" | "ops";
+type Tab =
+  | "dash"
+  | "home"
+  | "write"
+  | "posts"
+  | "inbox"
+  | "comments"
+  | "seo"
+  | "ops";
 type SortKey = "views" | "clicks" | "impressions" | "date" | "quality";
 
 const nf = (n: number) => n.toLocaleString("ko-KR");
@@ -230,6 +239,7 @@ export default function AdminPage() {
             ["write", "✍️ 글 관리"],
             ["posts", "📄 게시물 성과"],
             ["inbox", "📬 문의함"],
+            ["comments", "💬 댓글 관리"],
             ["seo", "🔍 SEO 점검"],
             ["ops", "⚙️ 운영"],
           ] as [Tab, string][]
@@ -254,14 +264,19 @@ export default function AdminPage() {
         </p>
       )}
 
-      {/* 메인화면 편집·글 관리·문의함은 통계와 상관없이 바로 열린다 */}
+      {/* 메인화면 편집·글 관리·문의함·댓글 관리는 통계와 상관없이 바로 열린다 */}
       {tab === "home" && <HomeEditor />}
       {tab === "write" && <PostManager />}
       {tab === "inbox" && <Inbox />}
+      {tab === "comments" && <CommentManager />}
 
-      {!s && tab !== "home" && tab !== "write" && tab !== "inbox" && (
-        <p className="mt-8 text-oddsbag-gray">불러오는 중…</p>
-      )}
+      {!s &&
+        tab !== "home" &&
+        tab !== "write" &&
+        tab !== "inbox" &&
+        tab !== "comments" && (
+          <p className="mt-8 text-oddsbag-gray">불러오는 중…</p>
+        )}
 
       {s && tab === "dash" && <Dashboard s={s} />}
       {s && tab === "posts" && (
