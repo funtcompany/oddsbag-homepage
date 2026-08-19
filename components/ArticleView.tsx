@@ -3,6 +3,7 @@ import AdSlot from "@/components/AdSlot";
 import ReactionBar from "@/components/ReactionBar";
 import CommentSection from "@/components/CommentSection";
 import SubscribeBox from "@/components/SubscribeBox";
+import ServiceBand from "@/components/ServiceBand";
 import ViewTracker from "@/components/ViewTracker";
 import {
   KeycapFigure,
@@ -543,6 +544,13 @@ export default function ArticleView({
               </ul>
             </div>
           )}
+
+          {/* 서비스로 가는 문 — 글과 «정말로» 맞는 서비스가 있을 때만 뜬다.
+              본문은 주소를 링크로 만들지 않으므로(renderBody), 글 안에 starflow.today 를
+              적어 봐야 눌리지 않는다. 그 통로를 여기서 연다.
+              ★맞는 서비스가 없거나 게시판 전용 글이면 ServiceBand 가 스스로 아무것도 안 그린다.
+              읽기를 마친 자리(출처 아래·구독 위)에 둔다 — 본문 중간을 끊지 않는다. */}
+          <ServiceBand post={post} />
 
           {/* 구독 칸 — 검색·유튜브로 들어온 사람이 도착하는 자리는 홈이 아니라 여기다. (2026-08-11)
               ★ 기사 페이지에는 이 한 곳에만 둔다. 두 개 넣으면 둘 다 무시당한다. */}
