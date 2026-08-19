@@ -18,16 +18,57 @@ import {
   AltFigure,
 } from "@/components/Figures";
 import { markOf, imageOf } from "@/lib/guide";
+import { krDate } from "@/lib/day";
 import { getDesign, fxStyle } from "@/lib/design";
 import type { Post } from "@/lib/posts";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-// 인라인 강조 (**굵게** → 형광펜)
+// 본문에 그냥 적힌 주소를 누를 수 있게 만든다.
+//  ★2026-08-19 확인 — 글 10편에 우리 서비스 주소가 13번 적혀 있는데 전부 «그냥 글자»였다.
+//    읽는 사람은 주소를 복사해 붙여넣어야 했다. 유입을 만들려고 적어 놓고 길을 막아 둔 셈.
+const URL_RE = /(https?:\/\/[^\s)>\]"']+)/g;
+const SITE = /^https?:\/\/(www\.)?oddsbag\.co\.kr/i;
+
+function linkify(text: string, keyBase: string): ReactNode[] {
+  return text.split(URL_RE).map((piece, i) => {
+    if (i % 2 === 0) return <span key={`${keyBase}t${i}`}>{piece}</span>;
+    // 문장 끝의 마침표·쉼표까지 주소로 빨려 들어가지 않게 떼어낸다
+    const m = piece.match(/^(.*?)([.,·!?]*)$/);
+    const href = m ? m[1] : piece;
+    const tail = m ? m[2] : "";
+    const 우리집 = SITE.test(href);
+    return (
+      <span key={`${keyBase}u${i}`}>
+        <a
+          href={우리집 ? href.replace(SITE, "") || "/" : href}
+          {...(우리집 ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+          className="font-bold text-oddsbag-purple underline decoration-oddsbag-purple/35 underline-offset-2 hover:decoration-oddsbag-purple"
+          style={{ wordBreak: "break-all" }}
+        >
+          {href.replace(/^https?:\/\//, "")}
+        </a>
+        {tail}
+      </span>
+    );
+  });
+}
+
+// 인라인 강조 (**굵게** → 형광펜) + 주소는 누를 수 있게
 function inline(text: string): ReactNode[] {
   return text.split(/\*\*(.+?)\*\*/g).map((p, i) =>
-    i % 2 === 1 ? <mark key={i}>{p}</mark> : <span key={i}>{p}</span>,
+    i % 2 === 1 ? (
+      <mark key={i}>{p}</mark>
+    ) : (
+      <span key={i}>{linkify(p, `k${i}`)}</span>
+    ),
   );
+}
+
+/** 그 줄이 주소 하나뿐인가 — 그러면 문단이 아니라 «바로 가기» 단추로 낸다 */
+function soleUrl(line: string): string | null {
+  const t = line.trim();
+  return /^https?:\/\/[^\s]+$/.test(t) ? t.replace(/[.,]$/, "") : null;
 }
 
 // ---- 도식 줄 인식 ----
@@ -60,15 +101,22 @@ function asPath(line: string): string[] | null {
 }
 
 // 본문에서 소제목만 뽑아 목차를 만든다 ('오즈백 한 줄 정리'는 뺀다)
+//
+// ★소제목이 스스로 번호를 달고 있는 글이 많다 («## 1. 거래처에 시안 보여주기»).
+//   거기에 목차가 또 번호를 매기면 «1  1. 거래처에 시안 보여주기»로 두 번 나온다.
+//   (사장님 지적 2026-08-19) → 자체 번호가 있으면 그걸 쓰고 글자에서는 뗀다.
 function tableOfContents(body: string) {
-  const out: { id: string; text: string }[] = [];
+  const out: { id: string; text: string; no?: string }[] = [];
   let n = 0;
   for (const line of body.split("\n")) {
     if (!line.startsWith("## ")) continue;
-    const text = line.slice(3).trim().replace(/\*\*/g, "");
+    const raw = line.slice(3).trim().replace(/\*\*/g, "");
     n++;
-    if (text.includes("오즈백 한 줄") || text.includes("한 줄 정리")) continue;
-    out.push({ id: `sec-${n}`, text });
+    if (raw.includes("오즈백 한 줄") || raw.includes("한 줄 정리")) continue;
+    const m = raw.match(/^(\d{1,2})\s*[.)]\s*(.+)$/);
+    out.push(
+      m ? { id: `sec-${n}`, text: m[2], no: m[1] } : { id: `sec-${n}`, text: raw },
+    );
   }
   return out;
 }
@@ -360,6 +408,28 @@ function renderBody(body: string): { nodes: ReactNode[]; oneLine: string } {
       continue;
     }
 
+    // 주소만 덩그러니 있는 줄은 문단이 아니라 «바로 가기» 단추로 낸다.
+    //  (그냥 두면 긴 주소가 한 줄을 차지하고 눈에는 띄는데 아무 일도 안 일어난다)
+    const only = soleUrl(rest);
+    if (only) {
+      const 우리집 = SITE.test(only);
+      out.push(
+        <p key={key++} className="not-prose">
+          <a
+            href={우리집 ? only.replace(SITE, "") || "/" : only}
+            {...(우리집 ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+            className="inline-flex items-center gap-2 rounded-full bg-oddsbag-purple px-5 py-2.5 text-[15px] font-bold text-white transition hover:bg-oddsbag-purple-dark"
+          >
+            바로 가기
+            <span aria-hidden>→</span>
+          </a>
+        </p>,
+      );
+      firstPara = false;
+      i++;
+      continue;
+    }
+
     out.push(
       <p key={key++} className={firstPara ? "lead" : undefined}>
         {inline(rest)}
@@ -417,6 +487,8 @@ export default function ArticleView({
   const d = getDesign(post);
   const hasPhoto = Boolean(post.cover);
   const toc = tableOfContents(post.body);
+  // 소제목이 스스로 번호를 달고 있는 글인가
+  const tocNumbered = toc.some((t) => t.no);
   const { nodes: bodyNodes, oneLine } = renderBody(post.body);
   // 사진 위엔 흰 글자 + 그림자, 아니면 디자인 엔진 색
   const headTitle = hasPhoto ? "#fff" : d.title;
@@ -434,7 +506,15 @@ export default function ArticleView({
           {hasPhoto ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={post.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              {/* 글 머리 사진은 화면에서 가장 큰 그림이다 — 브라우저에 «이걸 먼저 받아라»라고 알려준다.
+                  (지금까지 아무 표시가 없어 다른 파일들과 같은 순서로 줄을 섰다) */}
+              <img
+                src={post.cover}
+                alt=""
+                fetchPriority="high"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
               <div
                 className="absolute inset-0"
                 style={{ background: "linear-gradient(to top, rgba(10,6,20,.93) 0%, rgba(10,6,20,.65) 45%, rgba(10,6,20,.3) 100%)" }}
@@ -470,7 +550,8 @@ export default function ArticleView({
               {post.summary}
             </p>
             <div className="mt-6 flex items-center gap-2.5 text-[14px] font-semibold" style={{ color: headSub }}>
-              <span>{post.date}</span>
+              {/* 기계가 읽는 형식(2026-08-19)은 dateTime 에 두고, 눈에는 우리말로 */}
+              <time dateTime={post.date}>{krDate(post.date)}</time>
               {post.readMinutes && (
                 <>
                   <span className="opacity-40">·</span>
@@ -502,8 +583,11 @@ export default function ArticleView({
               <ol className="mt-3 space-y-2">
                 {toc.map((t, i) => (
                   <li key={t.id} className="flex gap-2.5 text-[15px] leading-snug">
-                    <span className="shrink-0 font-black text-oddsbag-purple/60">
-                      {i + 1}
+                    <span className="w-4 shrink-0 text-right font-black text-oddsbag-purple/60">
+                      {/* 글이 스스로 번호를 매긴 경우 목차는 번호를 새로 붙이지 않는다.
+                          번호 없는 소제목이 섞여 있으면 그 자리는 가운뎃점으로 둔다 —
+                          거기에 순번을 넣으면 본문 번호와 어긋나 더 헷갈린다. */}
+                      {t.no ?? (tocNumbered ? "·" : i + 1)}
                     </span>
                     <a
                       href={`#${t.id}`}

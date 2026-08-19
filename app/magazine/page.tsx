@@ -65,10 +65,10 @@ export default async function MagazinePage({
                   <strong className="text-oddsbag-dark">
                     &ldquo;{q}&rdquo;
                   </strong>{" "}
-                  검색 결과 {hits.length}개
+                  검색 결과 {hits.length}편
                 </>
               ) : (
-                <>오즈백 매거진의 모든 글 · 총 {posts.length}개</>
+                <>오즈백 매거진의 모든 글 · 총 {posts.length}편</>
               )}
             </p>
 

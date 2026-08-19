@@ -101,11 +101,14 @@ export default async function NotFound() {
                   {c.emoji} {c.label}
                 </Link>
               ))}
+              {/* 손으로 박아 둔 «💡 꿀팁» 이 있었다. 그 뒤 꿀팁이 정식 분류(tips)로 들어오면서
+                  위 목록에도 나와 같은 칩이 두 번 찍혔다. 여기 가리키는 곳은 /guide 이므로
+                  이름도 그 화면 이름(주제별 가이드)으로 바로잡는다. (2026-08-19) */}
               <Link
                 href="/guide"
                 className="rounded-full border border-oddsbag-light-gray px-4 py-2 text-sm text-oddsbag-gray transition hover:border-oddsbag-purple/40 hover:text-oddsbag-purple"
               >
-                💡 꿀팁
+                📚 주제별 가이드
               </Link>
             </div>
           </section>

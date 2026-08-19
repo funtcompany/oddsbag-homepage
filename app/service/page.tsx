@@ -1,7 +1,11 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PostListView from "@/components/PostListView";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { getPostsByChannel } from "@/lib/posts";
+import { toCardPosts } from "@/lib/cardPost";
+import { boardKeyOf } from "@/lib/boards";
 import {
   TOOLS_HUB_NAME,
   TOOLS_HUB_TAGLINE,
@@ -15,8 +19,17 @@ export const metadata: Metadata = {
   alternates: { canonical: "/service" },
 };
 
+export const revalidate = 60;
+
 // 오즈백 툴즈 — 웹 도구 모음 랜딩. 도구가 늘어나면 lib/tools-hub.ts 배열만 채우면 된다.
-export default function ToolsHubPage() {
+export default async function ToolsHubPage() {
+  // ★도구가 아직 하나뿐이라 카드 한 장만 놓으면 화면 아래 三분의 二가 텅 빈다.
+  //   들어온 사람이 빈손으로 나간다. 사용법·문제해결 글이 10편이나 있는데
+  //   여기서 이어지는 길이 없었다 → 아래에 붙인다. (안쪽 링크라 검색에도 도움이 된다)
+  const 사용법 = (await getPostsByChannel("oddsbag")).filter(
+    (p) => boardKeyOf(p) === "htmllink",
+  );
+
   return (
     <>
       <Header />
@@ -74,6 +87,22 @@ export default function ToolsHubPage() {
             ))}
           </div>
         </section>
+
+        {사용법.length > 0 && (
+          <section className="border-t border-oddsbag-light-gray bg-oddsbag-light-gray/30">
+            <div className="mx-auto max-w-6xl px-4 py-12">
+              <h2 className="text-xl font-black text-oddsbag-dark">
+                도구 쓰는 법 · 막힐 때
+              </h2>
+              <p className="mt-1 text-sm text-oddsbag-gray">
+                처음 쓰실 때 한 번 훑어보시면 헤맬 일이 줄어듭니다
+              </p>
+              <div className="mt-6">
+                <PostListView posts={toCardPosts(사용법)} />
+              </div>
+            </div>
+          </section>
+        )}
       </main>
       <Footer />
     </>

@@ -87,7 +87,7 @@ export default async function HubPage({
               {hub.lead}
             </p>
             <p className="mt-4 text-xs font-bold text-oddsbag-yellow">
-              글 {items.length}개
+              글 {items.length}편
             </p>
             <div className="mt-6 max-w-md">
               <SearchBox size="sm" placeholder="이 주제에서 찾기" />

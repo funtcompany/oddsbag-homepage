@@ -50,6 +50,7 @@ export default function SubscribeBox() {
         <form onSubmit={submit} className="mt-5 flex flex-col gap-2 sm:flex-row">
           <input
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일 주소를 입력하세요"

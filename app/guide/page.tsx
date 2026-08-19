@@ -69,7 +69,7 @@ export default async function GuideIndexPage() {
                         {hub.lead}
                       </p>
                       <p className="mt-3 text-xs font-bold text-oddsbag-purple">
-                        글 {items.length}개 보기 →
+                        글 {items.length}편 보기 →
                       </p>
                     </div>
                   </div>

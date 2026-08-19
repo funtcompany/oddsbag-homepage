@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { krDate } from "@/lib/day";
 
 interface Comment {
   name: string;
@@ -99,7 +100,9 @@ export default function CommentSection({ slug }: { slug: string }) {
                 <span className="text-sm font-bold text-oddsbag-dark">
                   {c.name}
                 </span>
-                <span className="text-xs text-oddsbag-gray/60">{c.date}</span>
+                <time dateTime={c.date} className="text-xs text-oddsbag-gray/60">
+                  {krDate(c.date)}
+                </time>
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm text-oddsbag-dark/90">
                 {c.text}

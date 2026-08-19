@@ -66,18 +66,23 @@ export default function ContactForm({ thanks }: { thanks: string }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
+        {/* autoComplete 를 달아 두면 폰에서 저장된 이름·메일이 바로 뜬다 (타자 두 번 덜 친다) */}
         <input
           className={box}
           placeholder="이름 (선택)"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={60}
         />
+        {/* 이름에는 «(선택)»이라 적어 두고 메일에는 아무 표시가 없어,
+            보내기를 눌러야 «필수»인 걸 알 수 있었다 → 미리 알려준다 */}
         <input
           className={box}
           type="email"
           required
-          placeholder="답장받을 이메일"
+          autoComplete="email"
+          placeholder="답장받을 이메일 (필수)"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           maxLength={120}

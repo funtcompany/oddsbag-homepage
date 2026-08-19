@@ -4,6 +4,7 @@ import StudioCover from "@/components/StudioCover";
 import { postUrl } from "@/lib/channels";
 import { coverSpecOf } from "@/lib/coverSpecs";
 import type { CardPost } from "@/lib/cardPost";
+import { krShort } from "@/lib/day";
 
 /**
  * 리스트 보기 한 줄.
@@ -17,9 +18,7 @@ import type { CardPost } from "@/lib/cardPost";
  */
 export default function PostRow({ post }: { post: CardPost }) {
   const studio = Boolean(coverSpecOf(post.slug));
-  // 2026-08-19 → «8월 19일». 앞의 0 은 뗀다 («08월 19일»은 눈에 걸린다)
-  const [mm, dd] = (post.date ?? "").split("-").slice(1);
-  const day = mm && dd ? `${Number(mm)}월 ${Number(dd)}일` : "";
+  const day = krShort(post.date);
 
   return (
     <Link
