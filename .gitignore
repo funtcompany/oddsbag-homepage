@@ -12,6 +12,9 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
+# 오즈백 툴즈 HTML 링크 생성기 — Blob 토큰 없을 때 쓰는 로컬 본문 저장소 (커밋 금지)
+.data/
+
 # testing
 /coverage
 
@@ -55,3 +58,11 @@ content-factory/_wpms-되돌림표.json*
 
 # 작업 중 뜬 백업본 — 되돌릴 재료라 지우지 않고 두되, 깃엔 올리지 않는다
 *.bak-*
+
+# dev 빌드 캐시가 여기로 잘못 떨어진 적이 있다 (NEXT_DIST_DIR 에 절대경로를 주면
+#  Next 가 프로젝트 루트 기준 상대경로로 해석해 homepage/private/... 에 쌓인다).
+#  커밋되면 1GB 넘는 캐시가 레포로 들어간다.
+private/
+
+# 세션 도구 설정 — 레포에 넣지 않는다
+.claude/
