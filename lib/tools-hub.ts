@@ -29,6 +29,22 @@ export const hubTools: HubTool[] = [
     emoji: "🔗",
     desc: "내가 만든 HTML을 올리면 링크가 나옵니다. 그 링크로 열면 효과까지 원본 그대로 재생되고, 원하면 공유링크로 남에게도 보여줄 수 있습니다.",
     href: "/service/html-link",
+    status: "쓸 수 있음",
+  },
+  {
+    slug: "ebook",
+    name: "이북 제작기",
+    emoji: "📚",
+    desc: "PDF나 사진 묶음(ZIP도 됩니다)을 올리면 넘겨 보는 전자책으로 만들어 드립니다. 파일로 받거나 링크로 보낼 수 있습니다.",
+    href: "/service/ebook",
+    status: "새로 나옴",
+  },
+  {
+    slug: "scrap",
+    name: "스크랩 정리기",
+    emoji: "🗂",
+    desc: "모아둔 주소와 사진을 한꺼번에 정리합니다. 주소는 제목을 붙여 엑셀로, 사진은 이름을 바꾸고 묶어서 압축파일로 내려받습니다.",
+    href: "/service/scrap",
     status: "새로 나옴",
   },
 ];

@@ -1,4 +1,5 @@
 import { getAllPosts } from "@/lib/posts";
+import { hubTools, TOOLS_HUB_HREF } from "@/lib/tools-hub";
 import { categories } from "@/lib/categories";
 import { hubs } from "@/lib/hubs";
 import { postUrl } from "@/lib/channels";
@@ -62,6 +63,20 @@ export async function GET() {
     priority: path === "" ? 1 : 0.8,
   }));
 
+  // 오즈백 툴즈 — 허브와 도구 화면들 (2026-08-20 신설).
+  //  ★도구 명부(lib/tools-hub.ts) 하나만 보므로 도구를 더 만들어도 여기는 손댈 일이 없다.
+  //  ※도구로 «만들어진 자료»(/service/html-link/<시리얼>)는 절대 여기 넣지 않는다 —
+  //    그건 받은 사람만 여는 것이고, 그쪽은 X-Robots-Tag: noindex 로 따로 막아 뒀다.
+  const toolRoutes: Entry[] = [
+    { path: TOOLS_HUB_HREF, priority: 0.8 },
+    ...hubTools.map((t) => ({ path: t.href, priority: 0.7 })),
+  ].map(({ path, priority }) => ({
+    url: `${BASE}${path}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority,
+  }));
+
   // 서비스 안내·앨범 화면 (2026-08-18 신설) — 목록이 늘면 여기도 저절로 따라온다
   const serviceRoutes: Entry[] = services.map((s) => ({
     url: `${BASE}/oddsbag/service/${s.slug}`,
@@ -115,6 +130,7 @@ export async function GET() {
 
   const urls = [
     ...staticRoutes,
+    ...toolRoutes,
     ...serviceRoutes,
     ...albumRoutes,
     ...hubRoutes,
