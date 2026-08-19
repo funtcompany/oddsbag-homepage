@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatCode } from "@/lib/htmllink-code";
 
 // 내 자료함 — 인터랙티브 로직만. Header/Footer 는 page.tsx(서버)가 감싼다.
 //  ★사장님 결정(2026-08-19): 로그인 없음(첫 방문 자동 등록) · 링크 자체가 공유용(A) · 방문자 5개 제한(c)
@@ -103,7 +104,7 @@ export default function HtmlLinkClient() {
   }
 
   function copyLink(it: Item) {
-    const url = `${origin}/service/html-link/v/${it.id}`;
+    const url = `${origin}/service/html-link/${formatCode(it.id)}`;
     navigator.clipboard?.writeText(url);
     setMsg("공유 링크를 복사했습니다. 거래처에 바로 붙여넣어 보내세요.");
   }
@@ -240,7 +241,7 @@ export default function HtmlLinkClient() {
                   </p>
                 </div>
                 <a
-                  href={`/service/html-link/v/${it.id}`}
+                  href={`/service/html-link/${formatCode(it.id)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="shrink-0 rounded-lg bg-oddsbag-purple px-3 py-1.5 text-sm font-bold text-white hover:bg-oddsbag-purple-dark"
@@ -271,7 +272,7 @@ export default function HtmlLinkClient() {
               </div>
 
               <p className="mt-2 truncate rounded-lg bg-oddsbag-light-gray/50 px-3 py-1.5 text-[12px] text-oddsbag-gray">
-                {origin}/service/html-link/v/{it.id}
+                {origin}/service/html-link/{formatCode(it.id)}
               </p>
             </li>
           ))}

@@ -1,23 +1,23 @@
 // 오즈백 툴즈 «HTML 링크 생성기» 저장소
 //
-//  메타(제목·소유자·공유토큰 등)  → Redis (lib/store.ts 재사용, 없으면 메모리 폴백)
+//  메타(제목·소유자·크기 등)    → Redis (lib/store.ts 재사용, 없으면 메모리 폴백)
 //  HTML 본문                       → Vercel Blob (BLOB_READ_WRITE_TOKEN 있을 때)
 //                                     없으면 로컬 .data/htmllink/<id>.html 파일 (토큰 없이 로컬 시험)
 //
 //  ★Blob 은 «private» 저장소다 (2026-08-19 운영에서 확인).
 //     public 으로 올리려 하면 «Cannot use public access on a private store» 로 막힌다.
 //     private 가 이 도구에 오히려 맞다 — 본문이 blob 공개주소로 새지 않고,
-//     반드시 우리 뷰어(v/[id])를 거치므로 거기 씌운 sandbox 를 우회할 길이 없다.
+//     반드시 우리 뷰어([code])를 거치므로 거기 씌운 sandbox 를 우회할 길이 없다.
 //
 //  Redis 키 구조
 //    htmllink:meta:<id>        → 메타 JSON 한 건
 //    htmllink:owner:<ownerId>  → 그 사람이 올린 id 들의 집합(SET)
 
-import crypto from "crypto";
 import { put, del, get } from "@vercel/blob";
 import { promises as fs } from "fs";
 import path from "path";
 import { kvGet, kvSet, kvDel, sadd, srem, smembers, scard } from "@/lib/store";
+import { makeCode } from "@/lib/htmllink-code";
 
 // 일반 방문자 업로드 상한 (관리자는 무제한). 사장님 결정 c, 2026-08-19.
 export const VISITOR_UPLOAD_LIMIT = 5;
@@ -107,7 +107,9 @@ export async function createItem(
   title: string,
   html: string,
 ): Promise<HtmlLinkMeta> {
-  const id = crypto.randomBytes(5).toString("hex"); // 10자
+  // ★사장님 결정(2026-08-19) — 시리얼키 방식. 방문자 지문 4자 + 자료 시리얼 12자 = 80비트.
+  //   옛 방식은 randomBytes(5) = 10자 hex(40비트)였다. lib/htmllink-code.ts 참고.
+  const id = makeCode(ownerId);
   const meta: HtmlLinkMeta = {
     id,
     ownerId,
