@@ -2,6 +2,8 @@
 // ⚠️ 다크 디자인으로 제작: 지메일 등이 다크모드에서 색을 뒤집지 않게 하려면
 //    애초에 어두운 배경이어야 한다. 라이트모드에서도 고급스러운 다크 매거진으로 보인다.
 
+import { createHmac } from "node:crypto";
+
 const KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM || "ODDSBAG 오즈백 <onboarding@resend.dev>";
 const SITE = "https://oddsbag.co.kr";
@@ -21,6 +23,41 @@ export async function sendEmail(to, subject, html) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || `Resend ${res.status}`);
   return data;
+}
+
+// ================= 구독 해지 링크 (서명 토큰) =================
+// ★ lib/email.ts 와 쌍둥이다. 한쪽만 고치면 그쪽 발송분에만 링크가 붙는다.
+//
+// 왜 서명하나
+//   해지 주소에 이메일을 그대로 실으면 ①남의 주소를 적어 넣어 마음대로 해지시킬 수 있고
+//   ②그 주소가 서버 접속 로그·리퍼러 헤더에 평문으로 남는다.
+//   그래서 토큰을 <주소를 base64url로 담은 조각>.<서명> 두 토막으로 만든다.
+//
+// 서명 열쇠: NEWSLETTER_SECRET. 없으면 ADMIN_PASSWORD 에서 파생한 값
+//   (관리자 비밀번호 자체가 열쇠로 메일에 실려 나가면 안 되므로 원본이 아니라 파생값).
+//   둘 다 없으면 링크를 만들지 않는다 — 지금까지의 동작 그대로.
+function unsubSecret() {
+  const direct = process.env.NEWSLETTER_SECRET;
+  if (direct) return direct;
+  const admin = process.env.ADMIN_PASSWORD;
+  if (!admin) return "";
+  return createHmac("sha256", admin).update("unsubscribe-v1").digest("hex");
+}
+
+function sign(payload, secret) {
+  return createHmac("sha256", secret).update(payload).digest("hex");
+}
+
+export function unsubscribeToken(email) {
+  const secret = unsubSecret();
+  if (!secret || !email) return null;
+  const payload = Buffer.from(email.trim().toLowerCase(), "utf8").toString("base64url");
+  return `${payload}.${sign(payload, secret)}`;
+}
+
+export function unsubscribeUrl(email) {
+  const t = unsubscribeToken(email);
+  return t ? `${SITE}/unsubscribe?t=${encodeURIComponent(t)}` : null;
 }
 
 // ---- 다크 팔레트 ----
@@ -60,7 +97,10 @@ function thumb(p, w, h) {
   return `<div style="width:${w}px;height:${h}px;border-radius:10px;${bg("#2f2148")}text-align:center;line-height:${h}px;font-size:${Math.round(h / 2.4)}px">${p.emoji ?? "📰"}</div>`;
 }
 
-function shell(inner, preheader) {
+// to 를 넘기면 그 주소 전용 해지 링크가 푸터에 붙는다.
+// 안 넘기면(관리자 리포트 등) 링크 없이 지금까지 그대로 나간다.
+function shell(inner, preheader, to) {
+  const unsub = to ? unsubscribeUrl(to) : null;
   return `<!doctype html><html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -84,7 +124,11 @@ function shell(inner, preheader) {
        &nbsp;·&nbsp;
        <a href="${SITE}/link" style="color:${SUB};text-decoration:none;font-weight:700">전체 채널</a>
      </div>
-     <div style="margin-top:14px;color:#6b5f88">이 메일은 오즈백 매거진 구독자에게 발송됩니다.</div>
+     <div style="margin-top:14px;color:#6b5f88">이 메일은 오즈백 매거진 구독자에게 발송됩니다.${
+       unsub
+         ? `<br><a href="${unsub}" style="color:${SUB};text-decoration:underline;font-weight:700">구독 해지</a>`
+         : ""
+     }</div>
    </td></tr>
   </table>
  </td></tr>
@@ -156,11 +200,12 @@ function bottomCta() {
 }
 
 // ================= 템플릿 =================
-export function newsletterHtml(posts) {
+// to = 받는 사람 주소. 넘기면 그 주소 전용 해지 링크가 푸터에 붙는다 (선택).
+export function newsletterHtml(posts, to) {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, ". ");
   const [top, ...rest] = posts.slice(0, 5);
   if (!top)
-    return shell(hero("오늘의 이슈", "곧 새 이슈로 찾아올게요."), "오즈백 매거진");
+    return shell(hero("오늘의 이슈", "곧 새 이슈로 찾아올게요."), "오즈백 매거진", to);
   return shell(
     hero("오늘의 이슈, 골라서 📮", "한번쯤 알아두면 좋은 것만 오즈백 시선으로.", today) +
       featured(top) +
@@ -168,20 +213,23 @@ export function newsletterHtml(posts) {
       rest.map(row).join("") +
       bottomCta(),
     `${top.title} 외 ${rest.length}건`,
+    to,
   );
 }
 
-export function welcomeHtml(latest) {
+export function welcomeHtml(latest, to) {
   const [top, ...rest] = latest.slice(0, 4);
   return shell(
     hero(
       "구독해주셔서 감사해요 🎉",
-      "이제 매일 아침, 오즈백이 정리한 오늘의 핵심 이슈를 이 메일로 받아보실 수 있어요.",
+      // 정기(매일 아침) 발송 코드가 없다. 없는 걸 약속하지 않는다. (2026-08-19)
+      "새 글이 올라오면 오즈백이 정리해 이 메일로 보내드릴게요.",
     ) +
       (top ? featured(top) : "") +
       (rest.length ? sectionLabel("요즘 인기 이슈") : "") +
       rest.map(row).join("") +
       bottomCta(),
     "오즈백 매거진 구독을 환영합니다",
+    to,
   );
 }

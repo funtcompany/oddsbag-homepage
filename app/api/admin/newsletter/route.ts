@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
     const { to, all } = await req.json();
     const posts = await getLatestPosts(5);
     const subject = "오즈백 매거진 · 오늘의 이슈 📮";
-    const html = newsletterHtml(posts);
+    // ★html 을 여기서 한 번 만들지 않는다.
+    //   해지 링크에 «받는 사람마다 다른 서명 토큰»이 들어가야 해서,
+    //   한 벌을 모두에게 보내면 남의 링크로 남이 해지되는 사고가 난다.
+    //   그래서 아래 수신자 루프 안에서 사람마다 새로 만든다.
 
     // all=true 면 전체 구독자, 아니면 지정 이메일(샘플)
     let recipients: string[];
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
     const errors: string[] = [];
     for (const r of recipients) {
       try {
-        await sendEmail(r, subject, html);
+        await sendEmail(r, subject, newsletterHtml(posts, r));
         sent++;
       } catch (e) {
         errors.push(`${r}: ${(e as Error).message}`);

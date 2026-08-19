@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     if (added === 1 && emailEnabled) {
       try {
         const latest = await getLatestPosts(3);
-        await sendEmail(clean, "오즈백 매거진 구독을 환영해요 🎒", welcomeHtml(latest));
+        await sendEmail(clean, "오즈백 매거진 구독을 환영해요 🎒", welcomeHtml(latest, clean));
       } catch (e) {
         console.warn("환영메일 발송 실패:", (e as Error).message);
       }
