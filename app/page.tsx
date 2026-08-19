@@ -7,6 +7,7 @@ import HeroShowcase from "@/components/HeroShowcase";
 import Link from "next/link";
 import { showcase } from "@/lib/showcase";
 import { services } from "@/lib/services-catalog";
+import { TOOLS_HUB_NAME, TOOLS_HUB_HREF } from "@/lib/tools-hub";
 import {
   getMagazinePosts,
   getPopularPosts,
@@ -176,6 +177,14 @@ function MakesSection() {
       href: `/oddsbag/service/${s.slug}`,
       badge: s.status,
     })),
+    {
+      key: "tools",
+      emoji: "🧰",
+      title: TOOLS_HUB_NAME,
+      desc: "필요할 때 바로 꺼내 쓰는 웹 도구 모음. 지금은 내 HTML을 올려 링크로 만드는 «HTML 링크 생성기»가 있습니다.",
+      href: TOOLS_HUB_HREF,
+      badge: "새로 나옴",
+    },
     {
       key: "music",
       emoji: "🎵",

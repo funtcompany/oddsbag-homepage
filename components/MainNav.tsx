@@ -28,8 +28,8 @@ export default function MainNav() {
   const inMagazine = ["/magazine", "/category", "/guide"].some((m) =>
     path.startsWith(m),
   );
-  const inMade = ["/oddsbag", "/services", "/apps", "/tools"].some((m) =>
-    path.startsWith(m),
+  const inMade = ["/oddsbag", "/services", "/service", "/apps", "/tools"].some(
+    (m) => path.startsWith(m),
   );
   const activeCat = path.startsWith("/category/") ? path.split("/")[2] : null;
   const activeService = path.startsWith("/oddsbag/service/")
@@ -139,10 +139,18 @@ export default function MainNav() {
               </Link>
             ))}
             <Link
+              href="/service"
+              className={subTab(
+                path === "/service" || path.startsWith("/service/"),
+              )}
+            >
+              🧰 오즈백 툴즈
+            </Link>
+            <Link
               href="/services"
               className={subTab(path.startsWith("/services"))}
             >
-              🧰 전체 보기
+              전체 보기
             </Link>
           </div>
         </div>
