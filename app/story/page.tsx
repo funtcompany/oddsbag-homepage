@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PostCard from "@/components/PostCard";
+import PostListView from "@/components/PostListView";
+import { toCardPosts } from "@/lib/cardPost";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getPostsByChannel } from "@/lib/posts";
@@ -88,18 +89,11 @@ export default async function StoryPage() {
         {/* ── 이야기 목록 ── */}
         <div className="mx-auto max-w-6xl px-4 py-12">
           {posts.length > 0 ? (
-            <>
-              <h2 className="mb-4 text-xl font-black text-oddsbag-dark">
-                이야기 {posts.length}편
-              </h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {posts.map((p, i) => (
-                  <div key={p.slug} className="ob-reveal" data-reveal-index={i}>
-                    <PostCard post={p} />
-                  </div>
-                ))}
-              </div>
-            </>
+            <PostListView
+              posts={toCardPosts(posts)}
+              heading={`이야기 ${posts.length}편`}
+              reveal
+            />
           ) : (
             <div className="rounded-2xl border border-dashed border-oddsbag-light-gray bg-oddsbag-light-gray/30 px-6 py-14 text-center">
               <span className="text-4xl" aria-hidden>

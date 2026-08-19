@@ -1,5 +1,6 @@
 import Link from "next/link";
-import PostCard from "@/components/PostCard";
+import PostListView, { type BoardLink } from "@/components/PostListView";
+import { toCardPosts } from "@/lib/cardPost";
 import type { Post } from "@/lib/posts";
 
 /**
@@ -15,6 +16,8 @@ export default function ChannelPage({
   posts,
   links,
   emptyText,
+  showBoards = false,
+  boardLinks = [],
   children,
 }: {
   emoji: string;
@@ -25,6 +28,10 @@ export default function ChannelPage({
   posts: Post[];
   links?: { label: string; href: string }[];
   emptyText: string;
+  /** 게시판 탭을 보여줄지 («만드는 것들») */
+  showBoards?: boolean;
+  /** 자기 게시판 페이지에 사는 글묶음 */
+  boardLinks?: BoardLink[];
   children?: React.ReactNode;
 }) {
   return (
@@ -66,14 +73,14 @@ export default function ChannelPage({
         {children}
 
         {posts.length > 0 ? (
-          <>
-            <h2 className="mb-4 text-xl font-black text-oddsbag-dark">글 목록</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {posts.map((p) => (
-                <PostCard key={p.slug} post={p} />
-              ))}
-            </div>
-          </>
+          <PostListView
+            posts={toCardPosts(posts)}
+            heading="글 목록"
+            showBoards={showBoards}
+            boardLinks={boardLinks}
+            emptyText="이 게시판엔 아직 글이 없습니다."
+            reveal
+          />
         ) : (
           <div className="rounded-2xl border border-dashed border-oddsbag-light-gray bg-oddsbag-light-gray/30 px-6 py-12 text-center">
             <p className="text-[15px] font-bold text-oddsbag-dark">{emptyText}</p>

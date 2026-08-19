@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PostCard from "@/components/PostCard";
+import PostListView from "@/components/PostListView";
+import { toCardPosts } from "@/lib/cardPost";
 import SearchBox from "@/components/SearchBox";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -100,11 +101,7 @@ export default async function HubPage({
               이 주제의 글을 준비하고 있습니다.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {items.map((p) => (
-                <PostCard key={p.slug} post={p} />
-              ))}
-            </div>
+            <PostListView posts={toCardPosts(items)} />
           )}
 
           {/* 다른 주제로 넘어갈 길을 열어둔다 (내부 링크 + 체류시간) */}

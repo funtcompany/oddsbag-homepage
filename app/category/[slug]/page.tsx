@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PostCard from "@/components/PostCard";
+import PostListView from "@/components/PostListView";
+import { toCardPosts } from "@/lib/cardPost";
 import AdSlot from "@/components/AdSlot";
 import { categories, getCategoryBySlug } from "@/lib/categories";
 import { getPostsByCategory } from "@/lib/posts";
@@ -56,11 +57,7 @@ export default async function CategoryPage({
 
         <div className="mx-auto max-w-6xl px-4 py-10">
           {posts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {posts.map((post) => (
-                <PostCard key={post.slug} post={post} />
-              ))}
-            </div>
+            <PostListView posts={toCardPosts(posts)} />
           ) : (
             <div className="rounded-2xl border border-dashed border-oddsbag-purple/30 bg-white p-12 text-center">
               <p className="font-bold text-oddsbag-dark">

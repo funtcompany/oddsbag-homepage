@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PostCard from "@/components/PostCard";
+import PostListView from "@/components/PostListView";
+import { toCardPosts } from "@/lib/cardPost";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getPostsByChannel } from "@/lib/posts";
@@ -243,14 +244,7 @@ export default async function MusicPage() {
         {/* ── 뮤직 코너 글 (있을 때만) ── */}
         {posts.length > 0 && (
           <section className="mx-auto max-w-6xl px-4 pb-12">
-            <h2 className="mb-4 text-xl font-black text-oddsbag-dark">
-              ✍️ 만드는 이야기
-            </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {posts.map((p) => (
-                <PostCard key={p.slug} post={p} />
-              ))}
-            </div>
+            <PostListView posts={toCardPosts(posts)} heading="✍️ 만드는 이야기" />
           </section>
         )}
 

@@ -1,5 +1,5 @@
 import { getDesign, fxStyle, titleFontPx } from "@/lib/design";
-import type { Post } from "@/lib/posts";
+import type { CardPost } from "@/lib/cardPost";
 import type { CSSProperties } from "react";
 
 type Variant = "card" | "hero" | "article";
@@ -17,10 +17,17 @@ export default function GenerativeCover({
   className = "",
   showTitle = true,
   watermark = false,
+  compact = false,
 }: {
-  post: Post;
+  post: CardPost;
   variant?: Variant;
   className?: string;
+  /**
+   * 리스트 보기의 작은 썸네일용 — 브랜드 마크·카테고리 글자를 뺀다.
+   *  136px 짜리 칸에 «ODDSBAG»과 카테고리까지 얹으면 사진이 안 보이고 글자만 뭉갠다.
+   *  옆에 카테고리·제목이 큰 글씨로 따로 있으니 여기선 그림만 남긴다.
+   */
+  compact?: boolean;
   /** 커버 안에 제목을 그릴지. 카드에서는 아래 글자칸에 제목이 또 있어 끈다. */
   showTitle?: boolean;
   /** @oddsbag_official 표시. 인스타 내보내기용이라 웹 화면에서는 기본으로 끈다.
@@ -200,7 +207,7 @@ export default function GenerativeCover({
             </span>
           </div>
         )}
-        <div>{cat}</div>
+        {!compact && <div>{cat}</div>}
       </div>
     );
   else if (layout === "center")
@@ -220,11 +227,13 @@ export default function GenerativeCover({
     <div className={`relative overflow-hidden ${className}`} style={{ background: d.bg, isolation: "isolate" }}>
       {layers}
       {motif}
-      <div className="absolute inset-0 z-[3] flex flex-col" style={{ padding: v.pad }}>
-        <div className="inline-flex items-center gap-1.5 self-start font-black" style={{ color: titleColor, fontSize: v.brand, letterSpacing: "-0.02em", ...shadow }}>
-          <span className="grid place-items-center rounded-[6px] font-black" style={{ width: v.brand + 5, height: v.brand + 5, background: d.accent, color: "#20122e", fontSize: v.brand - 2 }}>O</span>
-          ODDSBAG
-        </div>
+      <div className="absolute inset-0 z-[3] flex flex-col" style={{ padding: compact ? "10px" : v.pad }}>
+        {!compact && (
+          <div className="inline-flex items-center gap-1.5 self-start font-black" style={{ color: titleColor, fontSize: v.brand, letterSpacing: "-0.02em", ...shadow }}>
+            <span className="grid place-items-center rounded-[6px] font-black" style={{ width: v.brand + 5, height: v.brand + 5, background: d.accent, color: "#20122e", fontSize: v.brand - 2 }}>O</span>
+            ODDSBAG
+          </div>
+        )}
         {body}
       </div>
       {watermark && (

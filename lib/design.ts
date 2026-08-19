@@ -2,7 +2,8 @@
 // 기사 slug로 시드를 고정 → 각 기사는 자기만의 고유 디자인.
 // 배경 = 기사 무드, 포인트 = 현재 계절/트렌드 컬러. 가독성은 규칙으로 보장.
 
-import type { Post } from "@/lib/posts";
+// 목록(클라이언트 컴포넌트)에서도 부르므로 Post 전체가 아니라 «디자인에 쓰는 칸»만 받는다.
+// Post 는 이 모양을 이미 만족하므로 기존 호출부는 그대로다.
 import type { CSSProperties } from "react";
 
 // ---- 시드 RNG ----
@@ -126,7 +127,14 @@ export interface Design {
   emoji: string;
 }
 
-export function getDesign(post: Post): Design {
+export interface DesignInput {
+  slug: string;
+  category: string;
+  mood?: string;
+  emoji?: string;
+}
+
+export function getDesign(post: DesignInput): Design {
   // AI가 판별한 무드 우선, 없으면 카테고리 기본값
   const mood =
     (post.mood && MOOD_GROUNDS[post.mood] ? post.mood : undefined) ||

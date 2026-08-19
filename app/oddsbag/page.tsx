@@ -2,7 +2,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ChannelPage from "@/components/ChannelPage";
 import Link from "next/link";
-import { getPostsByChannel } from "@/lib/posts";
+import { getPostsByChannel, getBoardPosts } from "@/lib/posts";
+import { oddsbagBoards, NEWS_BOARD } from "@/lib/boards";
+import type { BoardLink } from "@/components/PostListView";
 import { getSiteConfig } from "@/lib/sitecfg";
 import { services } from "@/lib/services-catalog";
 import type { Metadata } from "next";
@@ -22,6 +24,23 @@ export default async function OddsbagPage() {
     getSiteConfig(),
   ]);
 
+  // 게시판 명부 중 «자기 페이지에 따로 사는» 글묶음(WPMS 원고·별의 결)의 편수를 센다.
+  //  이 글들은 boardOnly 라 위 목록에는 안 들어온다 — 그게 2026-08-18 지시다.
+  //  탭에서 고르면 그 게시판으로 보낸다. (여기로 끌어오면 그 지시를 뒤집는 셈이 된다)
+  const boardLinks: BoardLink[] = (
+    await Promise.all(
+      oddsbagBoards
+        .filter((b) => b.key !== NEWS_BOARD && b.href)
+        .map(async (b) => ({
+          key: b.key,
+          label: b.label,
+          emoji: b.emoji,
+          href: b.href as string,
+          count: (await getBoardPosts(b.key)).length,
+        })),
+    )
+  ).filter((b) => b.count > 0);
+
   return (
     <>
       <Header />
@@ -34,6 +53,8 @@ export default async function OddsbagPage() {
         bgFrom="#4c1d95"
         bgTo="#7b4fb5"
         posts={posts}
+        showBoards
+        boardLinks={boardLinks}
         links={[
           { label: "매거진 보기", href: "/magazine" },
           { label: "문의하기", href: "/contact" },

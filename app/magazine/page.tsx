@@ -1,6 +1,8 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
+import PostListView from "@/components/PostListView";
+import { toCardPosts } from "@/lib/cardPost";
 import SearchBox from "@/components/SearchBox";
 import { getVisiblePosts, getMagazinePosts } from "@/lib/posts";
 import { searchPosts, looseSearch } from "@/lib/search";
@@ -126,11 +128,10 @@ export default async function MagazinePage({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {(q ? hits.map((h) => h.post) : posts).map((post) => (
-                <PostCard key={post.slug} post={post} />
-              ))}
-            </div>
+            <PostListView
+              posts={toCardPosts(q ? hits.map((h) => h.post) : posts)}
+              emptyText={q ? "검색 결과가 없습니다." : "아직 올라온 글이 없습니다."}
+            />
           )}
         </div>
       </main>

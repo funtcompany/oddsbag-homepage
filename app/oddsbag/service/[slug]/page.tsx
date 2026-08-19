@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PostCard from "@/components/PostCard";
+import PostListView from "@/components/PostListView";
+import { toCardPosts } from "@/lib/cardPost";
 import SubscribeBox from "@/components/SubscribeBox";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,7 +14,6 @@ import {
   type ServiceCTA,
 } from "@/lib/services-catalog";
 import { getBoardPosts, getVisiblePosts } from "@/lib/posts";
-import type { Post } from "@/lib/posts";
 
 export const revalidate = 60;
 
@@ -367,17 +367,7 @@ export default async function ServiceDetailPage({
 
             {related.length > 0 ? (
               <>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {먼저.map((p, i) => (
-                    <div
-                      key={p.slug}
-                      className="ob-reveal"
-                      data-reveal-index={i}
-                    >
-                      <PostCard post={p} />
-                    </div>
-                  ))}
-                </div>
+                <PostListView posts={toCardPosts(먼저)} reveal />
 
                 {나머지.length > 0 && (
                   <details className="group mt-4">
@@ -387,10 +377,8 @@ export default async function ServiceDetailPage({
                       </span>
                       <span className="hidden group-open:inline">접기 ▴</span>
                     </summary>
-                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                      {나머지.map((p: Post) => (
-                        <PostCard key={p.slug} post={p} />
-                      ))}
+                    <div className="mt-4">
+                      <PostListView posts={toCardPosts(나머지)} showToggle={false} />
                     </div>
                   </details>
                 )}
