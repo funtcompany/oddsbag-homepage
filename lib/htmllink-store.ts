@@ -4,13 +4,18 @@
 //  HTML 본문                       → Vercel Blob (BLOB_READ_WRITE_TOKEN 있을 때)
 //                                     없으면 로컬 .data/htmllink/<id>.html 파일 (토큰 없이 로컬 시험)
 //
+//  ★Blob 은 «private» 저장소다 (2026-08-19 운영에서 확인).
+//     public 으로 올리려 하면 «Cannot use public access on a private store» 로 막힌다.
+//     private 가 이 도구에 오히려 맞다 — 본문이 blob 공개주소로 새지 않고,
+//     반드시 우리 뷰어(v/[id])를 거치므로 거기 씌운 sandbox 를 우회할 길이 없다.
+//
 //  Redis 키 구조
 //    htmllink:meta:<id>        → 메타 JSON 한 건
 //    htmllink:owner:<ownerId>  → 그 사람이 올린 id 들의 집합(SET)
 //    htmllink:share:<token>    → 공유토큰 → id (역색인)
 
 import crypto from "crypto";
-import { put, del, list } from "@vercel/blob";
+import { put, del, get } from "@vercel/blob";
 import { promises as fs } from "fs";
 import path from "path";
 import { kvGet, kvSet, kvDel, sadd, srem, smembers, scard } from "@/lib/store";
@@ -28,6 +33,8 @@ export interface HtmlLinkMeta {
 }
 
 const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+// 저장소가 private 로 만들어져 있다. 올릴 때와 읽을 때가 «같아야» 한다 → 한 곳에서 정한다.
+const BLOB_ACCESS = "private" as const;
 // Vercel 서버는 파일시스템이 «읽기 전용»이라 .data/ 폴백이 통하지 않는다.
 //  Blob 토큰 없이 배포하면 업로드가 알 수 없는 500 으로 죽는다 → 원인을 말해 주는 오류로 바꾼다.
 const onServerless = process.env.VERCEL === "1" || !!process.env.VERCEL_ENV;
@@ -45,7 +52,7 @@ const safeId = (id: string) => /^[a-zA-Z0-9_-]+$/.test(id);
 async function saveBody(id: string, html: string): Promise<void> {
   if (useBlob) {
     await put(blobPath(id), html, {
-      access: "public",
+      access: BLOB_ACCESS,
       contentType: "text/html; charset=utf-8",
       addRandomSuffix: false,
       allowOverwrite: true,
@@ -65,11 +72,10 @@ async function saveBody(id: string, html: string): Promise<void> {
 export async function getBody(id: string): Promise<string | null> {
   if (!safeId(id)) return null;
   if (useBlob) {
-    const { blobs } = await list({ prefix: blobPath(id), limit: 1 });
-    const hit = blobs.find((b) => b.pathname === blobPath(id));
-    if (!hit) return null;
-    const res = await fetch(hit.url, { cache: "no-store" });
-    return res.ok ? await res.text() : null;
+    // useCache:false — 방금 올린 것을 바로 열어도 옛 내용이 나오지 않게
+    const found = await get(blobPath(id), { access: BLOB_ACCESS, useCache: false });
+    if (!found) return null;
+    return await new Response(found.stream).text();
   }
   try {
     return await fs.readFile(localPath(id), "utf8");
@@ -80,9 +86,8 @@ export async function getBody(id: string): Promise<string | null> {
 
 async function deleteBody(id: string): Promise<void> {
   if (useBlob) {
-    const { blobs } = await list({ prefix: blobPath(id) });
-    const urls = blobs.map((b) => b.url);
-    if (urls.length) await del(urls);
+    // pathname 을 그대로 넘길 수 있다 — 목록을 훑을 필요가 없다
+    await del(blobPath(id));
   } else {
     await fs.rm(localPath(id), { force: true });
   }
