@@ -3,10 +3,11 @@
 import { useEffect } from "react";
 
 // 구글 애드센스 광고 슬롯
-// NEXT_PUBLIC_ADSENSE_CLIENT (ca-pub-XXXX) 가 설정되면 실제 광고를 노출하고,
-// 없으면 자리표시(placeholder)를 보여준다. (애드센스 승인 전 개발용)
+// 게시자 ID와 켜짐/꺼짐은 lib/adsense.ts 한 곳에서만 정한다 (값이 두 군데 있으면
+// 한쪽만 고쳐서 조용히 어긋난다). 승인 전에는 ADS_ENABLED 가 false 라
+// 이 컴포넌트는 아무것도 그리지 않고, 화면은 지금과 똑같다.
 
-const CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+import { ADSENSE_PUB, ADS_ENABLED } from "@/lib/adsense";
 
 declare global {
   interface Window {
@@ -22,7 +23,7 @@ export default function AdSlot({
   className?: string;
 }) {
   useEffect(() => {
-    if (!CLIENT) return;
+    if (!ADS_ENABLED) return;
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch {
@@ -30,9 +31,9 @@ export default function AdSlot({
     }
   }, []);
 
-  // 애드센스 승인(NEXT_PUBLIC_ADSENSE_CLIENT 설정) 전에는 아무것도 노출하지 않음.
-  // 승인 후 게시자 ID를 환경변수에 넣으면 실제 광고가 자동으로 나타남.
-  if (!CLIENT) return null;
+  // 애드센스 승인 전에는 아무것도 노출하지 않음 (사장님 결정 2026-08-19).
+  // 승인 후 Vercel 환경변수 NEXT_PUBLIC_ADSENSE_ON=1 을 넣고 재배포하면 켜진다.
+  if (!ADS_ENABLED) return null;
 
   // 광고가 들어올 자리를 미리 잡아둔다.
   //  안 잡아두면 광고가 뜨는 순간 본문이 아래로 확 밀린다 —
@@ -42,7 +43,7 @@ export default function AdSlot({
       <ins
         className={`adsbygoogle block w-full ${className}`}
         style={{ display: "block", minHeight: 280 }}
-        data-ad-client={CLIENT}
+        data-ad-client={ADSENSE_PUB}
         data-ad-slot={slot}
         data-ad-format="auto"
         data-full-width-responsive="true"

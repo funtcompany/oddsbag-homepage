@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR } from "next/font/google";
-import Script from "next/script";
+import { ADSENSE_PUB } from "@/lib/adsense";
 import Interactions from "@/components/Interactions";
 import "./globals.css";
 
@@ -21,8 +21,6 @@ const notoSansKr = Noto_Sans_KR({
     "sans-serif",
   ],
 });
-
-const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
 // 구글 애널리틱스 측정ID.
 //  이 값은 비밀키가 아니라 페이지 소스에 그대로 노출되는 공개 식별자다.
@@ -118,6 +116,9 @@ export const metadata: Metadata = {
       : {}),
     other: {
       "naver-site-verification": "86499460c0cebd8ea3e67ab9760eb64b80932da7",
+      // 구글 애드센스 소유확인 (애드센스 화면 → 「메타 태그」 방식).
+      //  이 자리에 넣으면 홈·기사·카테고리 전 페이지 <head> 에 붙는다.
+      "google-adsense-account": ADSENSE_PUB,
     },
   },
 };
@@ -163,6 +164,20 @@ gtag('config', '${GA_ID}');`,
             />
           </>
         )}
+        {/*
+          구글 애드센스 코드.
+          ★반드시 <head> 안에 둔다 — 애드센스 소유확인 화면이
+            「각 페이지의 <head></head> 태그 사이에 붙여넣으세요」라고 요구한다.
+            바로 위 GA 주석과 똑같은 함정이다. next/script 의 afterInteractive 는
+            <body> 끝에 붙어서, 브라우저에선 돌지만 심사 크롤러가 못 본다.
+            2026-08-19 이전이 정확히 그 상태였다 (lib/adsense.ts 참고).
+          ※같은 계정의 starflow.today 도 head 에 이 스크립트만 두고 통과했다.
+        */}
+        <script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUB}`}
+          crossOrigin="anonymous"
+        />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <script
@@ -174,14 +189,6 @@ gtag('config', '${GA_ID}');`,
             손가락으로 쓰는 기기와 「움직임 줄이기」를 켠 사람에게는 스스로 꺼진다.
             자바스크립트가 안 돌아도 글은 전부 그대로 읽힌다. */}
         <Interactions />
-        {ADSENSE_CLIENT && (
-          <Script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-        )}
       </body>
     </html>
   );
