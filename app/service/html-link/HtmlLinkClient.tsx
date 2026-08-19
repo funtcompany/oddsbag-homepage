@@ -13,7 +13,6 @@ interface Item {
   title: string;
   createdAt: string;
   size: number;
-  shareToken: string | null;
 }
 
 export default function HtmlLinkClient() {

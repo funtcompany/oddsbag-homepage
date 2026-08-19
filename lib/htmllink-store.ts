@@ -12,7 +12,6 @@
 //  Redis 키 구조
 //    htmllink:meta:<id>        → 메타 JSON 한 건
 //    htmllink:owner:<ownerId>  → 그 사람이 올린 id 들의 집합(SET)
-//    htmllink:share:<token>    → 공유토큰 → id (역색인)
 
 import crypto from "crypto";
 import { put, del, get } from "@vercel/blob";
@@ -29,7 +28,6 @@ export interface HtmlLinkMeta {
   title: string;
   createdAt: string; // ISO
   size: number; // bytes
-  shareToken: string | null; // 공유 켜짐 = 토큰 있음
 }
 
 const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
@@ -44,7 +42,6 @@ const localPath = (id: string) => path.join(DATA_DIR, `${id}.html`);
 
 const metaKey = (id: string) => `htmllink:meta:${id}`;
 const ownerKey = (ownerId: string) => `htmllink:owner:${ownerId}`;
-const shareKey = (token: string) => `htmllink:share:${token}`;
 
 const safeId = (id: string) => /^[a-zA-Z0-9_-]+$/.test(id);
 
@@ -117,7 +114,6 @@ export async function createItem(
     title: (title || "제목 없는 자료").slice(0, 120),
     createdAt: new Date().toISOString(),
     size: Buffer.byteLength(html, "utf8"),
-    shareToken: null,
   };
   await saveBody(id, html);
   await putMeta(meta);
@@ -148,41 +144,12 @@ export async function renameItem(id: string, title: string): Promise<HtmlLinkMet
   return meta;
 }
 
-// ── 공유 켜기/끄기 ──
-export async function setShare(id: string, on: boolean): Promise<HtmlLinkMeta | null> {
-  const meta = await getMeta(id);
-  if (!meta) return null;
-  if (on) {
-    if (!meta.shareToken) {
-      const token = crypto.randomBytes(12).toString("hex"); // 24자, 추측 어려움
-      meta.shareToken = token;
-      await kvSet(shareKey(token), id);
-    }
-  } else if (meta.shareToken) {
-    await kvDel(shareKey(meta.shareToken));
-    meta.shareToken = null;
-  }
-  await putMeta(meta);
-  return meta;
-}
-
-// ── 공유토큰으로 찾기 (비회원 열람) ──
-export async function getByShareToken(token: string): Promise<HtmlLinkMeta | null> {
-  if (!token || !/^[a-f0-9]+$/.test(token)) return null;
-  const id = await kvGet(shareKey(token));
-  if (!id) return null;
-  const meta = await getMeta(id);
-  // 역색인이 낡았을 수 있으니 실제 메타의 토큰과 일치할 때만 인정
-  return meta && meta.shareToken === token ? meta : null;
-}
-
-// ── 삭제 (본문 + 메타 + 소유자색인 + 공유색인) ──
+// ── 삭제 (본문 + 메타 + 소유자색인) ──
 export async function deleteItem(id: string): Promise<void> {
   const meta = await getMeta(id);
   await deleteBody(id);
   await kvDel(metaKey(id));
   if (meta) {
     await srem(ownerKey(meta.ownerId), id);
-    if (meta.shareToken) await kvDel(shareKey(meta.shareToken));
   }
 }

@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/htmllink-user";
 import {
   getMeta,
   renameItem,
-  setShare,
   deleteItem,
   type HtmlLinkMeta,
 } from "@/lib/htmllink-store";
@@ -55,15 +54,6 @@ export async function PATCH(req: NextRequest) {
   if (!title)
     return NextResponse.json({ error: "새 이름을 입력해 주세요." }, { status: 400 });
   const meta = await renameItem(r.id, title);
-  return NextResponse.json({ ok: true, meta });
-}
-
-// 공유 켜기/끄기 — { id, share: boolean }
-export async function POST(req: NextRequest) {
-  const r = await ownedMeta(req);
-  if (!r.ok) return fail(r.kind);
-  const on = Boolean(r.body.share);
-  const meta = await setShare(r.id, on);
   return NextResponse.json({ ok: true, meta });
 }
 
