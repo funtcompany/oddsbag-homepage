@@ -103,6 +103,22 @@ function collectLocalRefs(html: string): string[] {
   return [...found];
 }
 
+/**
+ * <script> 안의 «코드»만 모은다.
+ *  ★본문 글자를 같이 보면 안 된다 — 보고서가 "localStorage 를 안 씁니다" 라고
+ *    설명만 해도 「저장소를 쓰는 문서」로 잘못 짚는다(board.html 에서 실제로 걸렸다).
+ */
+function scriptBodies(html: string): string[] {
+  const out: string[] = [];
+  const re = /<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) out.push(m[1] ?? "");
+  // 인라인 이벤트(onclick="..." 등)도 코드다
+  const on = /\son[a-z]+\s*=\s*("([^"]*)"|'([^']*)')/gi;
+  while ((m = on.exec(html)) !== null) out.push(m[2] ?? m[3] ?? "");
+  return out;
+}
+
 export interface HtmlInspection {
   /** 옆 파일을 가리키는 주소들 — 링크에는 «안 담긴다» */
   localRefs: string[];
@@ -115,7 +131,9 @@ export interface HtmlInspection {
 /** 올리기 직전에 한 번 훑어, 링크로 옮기면 달라질 것을 미리 말해 준다. */
 export function inspectHtml(html: string): HtmlInspection {
   const localRefs = collectLocalRefs(html);
-  const usesStorage = /\b(localStorage|sessionStorage|document\.cookie|indexedDB)\b/.test(html);
+  const usesStorage = scriptBodies(html).some((code) =>
+    /\b(localStorage|sessionStorage|document\.cookie|indexedDB)\b/.test(code),
+  );
   const notes: string[] = [];
 
   if (localRefs.length) {
