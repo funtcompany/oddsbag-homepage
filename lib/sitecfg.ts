@@ -290,9 +290,18 @@ async function loadConfig(): Promise<SiteConfig> {
   }
 }
 
-/** 화면에서 쓰는 설정 (60초 캐시 — 저장하면 곧바로 갱신된다) */
+/**
+ * 화면에서 쓰는 설정 (저장하면 revalidateTag 로 곧바로 갱신된다)
+ *
+ * ★주기를 60초에서 10분으로 늘렸다.
+ *   설정은 사장님이 관리자 화면에서 고칠 때만 바뀌고, 고치면 그 자리에서 갱신된다.
+ *   그런데 60초 폴링이 하루 1,440 명령 = 한 달 4.3만을 «아무도 안 고쳐도» 쓰고 있었다.
+ *   글 목록보다 큰 고정비였다. 10분이면 한 달 4천 개다.
+ */
+const SITECFG_TTL_SEC = Math.max(60, Number(process.env.SITECFG_CACHE_TTL_SEC || 600));
+
 export const getSiteConfig = unstable_cache(loadConfig, ["oddsbag-sitecfg"], {
-  revalidate: 60,
+  revalidate: SITECFG_TTL_SEC,
   tags: [SITE_CONFIG_TAG],
 });
 
