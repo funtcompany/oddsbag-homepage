@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublishedRaw, getDrafts, type Post } from "@/lib/posts";
-import { getTotals, getDailyTotals } from "@/lib/views";
 import {
   ga4Configured,
   googleConfigured,
@@ -55,11 +54,11 @@ function seoIssues(posts: Post[], indexedPaths: Set<string>) {
 export async function GET(req: NextRequest) {
   const days = Math.min(Number(req.nextUrl.searchParams.get("days")) || 28, 90);
 
-  const [published, drafts, viewTotals, viewDaily] = await Promise.all([
+  // ★우리가 직접 세던 조회수는 2026-08-20 에 껐다 (사장님 지시).
+  //   방문자 수는 GA4, 검색 성적은 서치콘솔 — 아래 둘이 그 자리를 대신한다.
+  const [published, drafts] = await Promise.all([
     getPublishedRaw(),
     getDrafts().catch(() => [] as Post[]),
-    getTotals(),
-    getDailyTotals(14),
   ]);
 
   const [daily, sources, search, keywords, pages] = await Promise.all([
@@ -104,7 +103,6 @@ export async function GET(req: NextRequest) {
       cover: Boolean(p.cover),
       quality: p.quality?.score ?? null,
       fakeRisk: p.quality?.fakeRisk ?? null,
-      views: viewTotals[p.slug] ?? 0,
       clicks: s?.clicks ?? 0,
       impressions: s?.impressions ?? 0,
       position: s?.position ?? null,
@@ -125,7 +123,6 @@ export async function GET(req: NextRequest) {
       published: published.length,
       hidden: published.filter((p) => p.hidden).length,
       drafts: drafts.length,
-      totalViews: Object.values(viewTotals).reduce((a, b) => a + b, 0),
       noCover: published.filter((p) => !p.cover).length,
       avgQuality: (() => {
         const s = published.map((p) => p.quality?.score).filter(Boolean) as number[];
@@ -133,7 +130,6 @@ export async function GET(req: NextRequest) {
       })(),
     },
     categoryCounts,
-    viewDaily,
     traffic: {
       daily: daily?.ok ? daily.data : null,
       sources: sources?.ok ? sources.data : null,

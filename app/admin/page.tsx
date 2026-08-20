@@ -18,7 +18,6 @@ interface Row {
   cover: boolean;
   quality: number | null;
   fakeRisk: string | null;
-  views: number;
   clicks: number;
   impressions: number;
   position: number | null;
@@ -33,12 +32,10 @@ interface Stats {
     published: number;
     hidden: number;
     drafts: number;
-    totalViews: number;
     noCover: number;
     avgQuality: number | null;
   };
   categoryCounts: Record<string, number>;
-  viewDaily: { date: string; views: number }[];
   traffic: {
     daily: { date: string; users: number; pageViews: number }[] | null;
     sources: { label: string; sessions: number }[] | null;
@@ -69,7 +66,7 @@ type Tab =
   | "comments"
   | "seo"
   | "ops";
-type SortKey = "views" | "clicks" | "impressions" | "date" | "quality";
+type SortKey = "clicks" | "impressions" | "date" | "quality";
 
 const nf = (n: number) => n.toLocaleString("ko-KR");
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -82,7 +79,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("dash");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [sort, setSort] = useState<SortKey>("views");
+  const [sort, setSort] = useState<SortKey>("date");
   const [days, setDays] = useState(28);
 
   const loadStats = useCallback(async (d: number) => {
@@ -310,18 +307,12 @@ export default function AdminPage() {
 // ---------------- 유입 현황 ----------------
 function Dashboard({ s }: { s: Stats }) {
   const maxSess = Math.max(1, ...(s.traffic.sources ?? []).map((x) => x.sessions));
-  const maxDaily = Math.max(1, ...s.viewDaily.map((d) => d.views));
 
   return (
     <div className="mt-6 space-y-8">
       {/* 요약 카드 */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card label="발행글" value={nf(s.summary.published)} sub={`검수함 ${s.summary.drafts}건 대기`} />
-        <Card
-          label="누적 조회수 (우리 집계)"
-          value={nf(s.summary.totalViews)}
-          sub="오즈백이 직접 세는 숫자"
-        />
         <Card
           label={`검색 유입 (${s.days}일)`}
           value={s.search.totals ? nf(s.search.totals.clicks) : "—"}
@@ -388,30 +379,6 @@ function Dashboard({ s }: { s: Stats }) {
             하루 정도 걸립니다.
           </p>
         )}
-      </section>
-
-      {/* 조회수 추이 */}
-      <section>
-        <h2 className="text-lg font-black text-oddsbag-dark">
-          하루 조회수 <span className="text-sm font-normal text-oddsbag-gray">최근 14일 · 우리 집계</span>
-        </h2>
-        <div className="mt-3 flex h-32 items-end gap-1">
-          {s.viewDaily.map((d) => (
-            <div key={d.date} className="group relative flex-1">
-              <div
-                className="w-full rounded-t bg-oddsbag-purple/80"
-                style={{ height: `${Math.max(2, (d.views / maxDaily) * 120)}px` }}
-              />
-              <span className="pointer-events-none absolute -top-6 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-oddsbag-dark px-1.5 py-0.5 text-[11px] text-white group-hover:block">
-                {d.date.slice(5)} · {nf(d.views)}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-1 flex justify-between text-[11px] text-oddsbag-gray">
-          <span>{s.viewDaily[0]?.date.slice(5)}</span>
-          <span>{s.viewDaily.at(-1)?.date.slice(5)}</span>
-        </div>
       </section>
 
       {/* 검색 키워드 */}
@@ -506,7 +473,6 @@ function Posts({
         <span className="text-oddsbag-gray">정렬:</span>
         {(
           [
-            ["views", "조회수"],
             ["clicks", "검색 클릭"],
             ["impressions", "검색 노출"],
             ["date", "최신순"],
@@ -535,7 +501,6 @@ function Posts({
               <th className="py-2">제목</th>
               <th className="py-2">분류</th>
               <th className="py-2">발행일</th>
-              <th className="py-2 text-right">조회수</th>
               <th className="py-2 text-right">검색 클릭</th>
               <th className="py-2 text-right">검색 노출</th>
               <th className="py-2 text-right">순위</th>
@@ -559,7 +524,6 @@ function Posts({
                 </td>
                 <td className="py-2 text-oddsbag-gray">{r.category}</td>
                 <td className="py-2 text-oddsbag-gray">{r.date}</td>
-                <td className="py-2 text-right font-bold text-oddsbag-dark">{nf(r.views)}</td>
                 <td className="py-2 text-right">{nf(r.clicks)}</td>
                 <td className="py-2 text-right text-oddsbag-gray">{nf(r.impressions)}</td>
                 <td className="py-2 text-right text-oddsbag-gray">

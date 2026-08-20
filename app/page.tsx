@@ -10,7 +10,6 @@ import { services } from "@/lib/services-catalog";
 import { TOOLS_HUB_NAME, TOOLS_HUB_HREF } from "@/lib/tools-hub";
 import {
   getMagazinePosts,
-  getPopularPosts,
   getPostsByChannel,
   type Post,
 } from "@/lib/posts";
@@ -22,9 +21,13 @@ export const revalidate = 60; // 1분마다 새 발행글 반영 (ISR)
  * 홈 — 2026-08-18 리뉴얼 (사장님 지시)
  *
  *   ① 맨 위    브랜드·프로젝트를 좌우로 넘기는 큰 띠 (HeroShowcase)
- *   ② 그 아래  인기 게시물 · 오즈백 소식 · 최근 이슈  — 세 묶음, 각각 «두 줄»
+ *   ② 그 아래  오즈백 소식 · 최근 이슈  — 두 묶음, 각각 «두 줄»
  *
  * 두 줄 = 큰 화면에서 4칸 × 2줄 = 8개. 폰에서는 2칸씩 4줄로 접힌다.
+ *
+ * ★«인기 게시물»은 2026-08-20 사장님 지시로 뺐다. 우리가 직접 세던 조회수가
+ *   그 정렬에만 쓰였는데, 글 하나 열릴 때마다 레디스 명령 2개를 쓰는 유일한
+ *   변동비였다. 성과는 애널리틱스로 본다.
  *
  * ★예전 홈은 관리자 설정(sitecfg.sections)대로 섹션을 그렸다. 그 화면은
  *   섹션이 8개까지 늘어나 한참 내려야 했고, 무엇이 중요한지 알 수 없었다.
@@ -33,18 +36,14 @@ export const revalidate = 60; // 1분마다 새 발행글 반영 (ISR)
 export default async function Home() {
   const cfg = await getSiteConfig();
 
-  const [popular, magazine, oddsbagPosts] = await Promise.all([
-    getPopularPosts(8),
+  const [magazine, oddsbagPosts] = await Promise.all([
     getMagazinePosts(),
     getPostsByChannel("oddsbag", 8),
   ]);
 
   const wrap = maxWidthClass(cfg.layout.width);
 
-  // 같은 글이 인기·최신 양쪽에 겹쳐 나오지 않게 한다.
-  //  (예전 홈은 카드 38장 중 고유한 글이 29개뿐이라 내려도 볼 게 없어 보였다)
-  const used = new Set(popular.map((p) => p.slug));
-  const latest = magazine.filter((p) => !used.has(p.slug)).slice(0, 8);
+  const latest = magazine.slice(0, 8);
 
   // 관리자 화면에서 섹션을 꺼 두었으면 그대로 존중한다
   const on = (id: string) =>
@@ -70,19 +69,7 @@ export default async function Home() {
         <HeroShowcase items={showcase} />
 
         <div className={`mx-auto ${wrap} space-y-14 px-4 py-10 sm:py-12`}>
-          {/* ②-1 인기 게시물 */}
-          {on("featured") && popular.length > 0 && (
-            <PostSection
-              title="인기 게시물"
-              subtitle="지금 가장 많이 본 글"
-              emoji="🔥"
-              posts={popular}
-              more="/magazine"
-              ranked
-            />
-          )}
-
-          {/* ②-2 오즈백 소식
+          {/* ②-1 오즈백 소식
               오즈백 코너에 올라온 글이 아직 없으면 «우리가 만드는 것들» 카드로 채운다.
               빈 띠를 남겨 두면 사장님이 보실 때 화면이 고장 난 것처럼 보인다. */}
           {on("oddsbag") &&
@@ -100,7 +87,7 @@ export default async function Home() {
 
           {on("ad") && <AdSlot />}
 
-          {/* ②-3 최근 이슈 */}
+          {/* ②-2 최근 이슈 */}
           {on("latest") && latest.length > 0 && (
             <PostSection
               title="최근 이슈"
@@ -128,15 +115,12 @@ function PostSection({
   emoji,
   posts,
   more,
-  ranked,
 }: {
   title: string;
   subtitle?: string;
   emoji: string;
   posts: Post[];
   more?: string;
-  /** 1·2·3 순위 번호를 붙인다 (인기 게시물) */
-  ranked?: boolean;
 }) {
   return (
     <section>
@@ -148,14 +132,6 @@ function PostSection({
             className="ob-reveal relative"
             data-reveal-index={i}
           >
-            {ranked && i < 3 && (
-              <span
-                aria-hidden
-                className="absolute -left-1.5 -top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full bg-oddsbag-yellow text-[13px] font-black text-oddsbag-dark shadow-md"
-              >
-                {i + 1}
-              </span>
-            )}
             <PostCard post={post} />
           </div>
         ))}

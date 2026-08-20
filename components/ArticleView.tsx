@@ -5,7 +5,6 @@ import ReactionBar from "@/components/ReactionBar";
 import CommentSection from "@/components/CommentSection";
 import SubscribeBox from "@/components/SubscribeBox";
 import ServiceBand from "@/components/ServiceBand";
-import ViewTracker from "@/components/ViewTracker";
 import {
   KeycapFigure,
   PathFigure,
@@ -500,7 +499,6 @@ export default function ArticleView({
 
   return (
     <>
-      <ViewTracker slug={post.slug} />
       <main className="flex-1">
         {/* 헤더 — 사진 있으면 사진+스크림, 없으면 생성형 배경 */}
         <header className="relative overflow-hidden" style={{ background: d.bg }}>
@@ -553,12 +551,6 @@ export default function ArticleView({
             <div className="mt-6 flex items-center gap-2.5 text-[14px] font-semibold" style={{ color: headSub }}>
               {/* 기계가 읽는 형식(2026-08-19)은 dateTime 에 두고, 눈에는 우리말로 */}
               <time dateTime={post.date}>{krDate(post.date)}</time>
-              {post.readMinutes && (
-                <>
-                  <span className="opacity-40">·</span>
-                  <span>{post.readMinutes}분 읽기</span>
-                </>
-              )}
             </div>
             {post.imageCredit && (
               <div className="mt-4 text-[11px]" style={{ color: headSub, opacity: 0.6 }}>

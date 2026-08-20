@@ -37,7 +37,6 @@ export default function PostRow({ post }: { post: CardPost }) {
         <span className="text-[11.5px] font-bold text-oddsbag-gray sm:text-[12px]">
           {post.category}
           {day ? ` · ${day}` : ""}
-          {post.readMinutes ? ` · ${post.readMinutes}분` : ""}
         </span>
         <h3
           className="mt-1 line-clamp-2 text-[16px] font-black leading-snug text-oddsbag-dark group-hover:text-oddsbag-purple sm:text-[19px]"

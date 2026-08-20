@@ -27,7 +27,6 @@ export default function PostCard({ post }: { post: CardPost }) {
       <div className="flex flex-1 flex-col p-4">
         <span className="text-[12px] font-bold text-oddsbag-gray">
           {post.category}
-          {post.readMinutes ? ` · ${post.readMinutes}분` : ""}
         </span>
         <h3
           className="mt-1 line-clamp-3 text-[15.5px] font-bold leading-snug text-oddsbag-dark group-hover:text-oddsbag-purple"
