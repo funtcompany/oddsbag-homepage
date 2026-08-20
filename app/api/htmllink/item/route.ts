@@ -38,6 +38,18 @@ async function ownedMeta(req: NextRequest): Promise<OwnedResult> {
   return { ok: true, id, meta, body };
 }
 
+// 저장소가 말썽일 때 — 「자료 없음」으로 속이지 않는다. 자료는 그대로 있다.
+function storeFail(e: unknown) {
+  console.error("[htmllink] 자료 조작 실패", e);
+  return NextResponse.json(
+    {
+      error: "지금 저장소를 읽지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
+      detail: String(e instanceof Error ? e.message : e).slice(0, 200),
+    },
+    { status: 503 },
+  );
+}
+
 function fail(kind: "unauth" | "noid" | "notfound") {
   if (kind === "unauth")
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -48,19 +60,27 @@ function fail(kind: "unauth" | "noid" | "notfound") {
 
 // 이름 변경 — { id, title }
 export async function PATCH(req: NextRequest) {
-  const r = await ownedMeta(req);
-  if (!r.ok) return fail(r.kind);
-  const title = String((r.body.title as string) || "").trim();
-  if (!title)
-    return NextResponse.json({ error: "새 이름을 입력해 주세요." }, { status: 400 });
-  const meta = await renameItem(r.id, title);
-  return NextResponse.json({ ok: true, meta });
+  try {
+    const r = await ownedMeta(req);
+    if (!r.ok) return fail(r.kind);
+    const title = String((r.body.title as string) || "").trim();
+    if (!title)
+      return NextResponse.json({ error: "새 이름을 입력해 주세요." }, { status: 400 });
+    const meta = await renameItem(r.id, title);
+    return NextResponse.json({ ok: true, meta });
+  } catch (e) {
+    return storeFail(e);
+  }
 }
 
 // 삭제 — { id } (또는 ?id=)
 export async function DELETE(req: NextRequest) {
-  const r = await ownedMeta(req);
-  if (!r.ok) return fail(r.kind);
-  await deleteItem(r.id);
-  return NextResponse.json({ ok: true });
+  try {
+    const r = await ownedMeta(req);
+    if (!r.ok) return fail(r.kind);
+    await deleteItem(r.id);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return storeFail(e);
+  }
 }

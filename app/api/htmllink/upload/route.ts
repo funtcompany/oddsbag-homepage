@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/htmllink-user";
-import { createItem, countByOwner, VISITOR_UPLOAD_LIMIT } from "@/lib/htmllink-store";
+import { createItem, countByOwner, VISITOR_UPLOAD_LIMIT, storeReady } from "@/lib/htmllink-store";
+import { inspectHtml } from "@/lib/htmllink-render";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,15 @@ export async function POST(req: Request) {
 
   // 일반 방문자는 5개까지 (관리자는 무제한) — 사장님 결정 c
   if (!user.isAdmin) {
-    const count = await countByOwner(user.userId);
+    // ★목록을 «못 읽는» 것과 «상한을 넘은» 것은 다르다.
+    //   읽기 실패를 상한으로 취급하면 멀쩡한 사람이 못 올린다 → 못 읽으면 통과시킨다.
+    let count = 0;
+    try {
+      count = await countByOwner(user.userId);
+    } catch (e) {
+      console.error("[htmllink] 상한 확인 실패 — 통과시킨다", e);
+      count = 0;
+    }
     if (count >= VISITOR_UPLOAD_LIMIT) {
       return NextResponse.json(
         {
@@ -27,6 +36,13 @@ export async function POST(req: Request) {
         { status: 403 },
       );
     }
+  }
+
+  if (!storeReady()) {
+    return NextResponse.json(
+      { error: "지금 자료를 저장할 수 없습니다(저장소 미연결). 잠시 뒤 다시 시도해 주세요." },
+      { status: 503 },
+    );
   }
 
   let html = "";
@@ -62,7 +78,10 @@ export async function POST(req: Request) {
 
   try {
     const meta = await createItem(user.userId, title, html);
-    return NextResponse.json({ ok: true, id: meta.id });
+    // ★링크로 옮기면 «달라지는 것»을 올리는 그 자리에서 알려 준다.
+    //   (옆 파일 참조는 고칠 수 없는 성질이라, 나중에 발견하면 원인을 못 찾는다)
+    const { notes } = inspectHtml(html);
+    return NextResponse.json({ ok: true, id: meta.id, notes });
   } catch (e) {
     return NextResponse.json(
       {

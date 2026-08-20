@@ -26,10 +26,18 @@ export default function HtmlLinkClient() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  // 올린 파일이 «링크로는 달라지는» 성질을 가졌을 때 서버가 알려 주는 안내
+  const [notes, setNotes] = useState<string[]>([]);
 
   const loadItems = useCallback(async () => {
     const res = await fetch("/api/htmllink/items");
-    if (res.ok) setItems((await res.json()).items ?? []);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setItems(data.items ?? []);
+      return;
+    }
+    // ★조용히 «빈 목록»으로 두지 않는다 — 자료가 사라진 줄 알고 다시 올리게 된다
+    if (res.status !== 401) setMsg(data.error || "자료함을 읽지 못했습니다.");
   }, []);
 
   useEffect(() => {
@@ -49,6 +57,7 @@ export default function HtmlLinkClient() {
   async function upload(e: React.FormEvent) {
     e.preventDefault();
     setMsg("");
+    setNotes([]);
     setBusy(true);
     try {
       const fd = new FormData();
@@ -76,6 +85,7 @@ export default function HtmlLinkClient() {
       setPasted("");
       setFile(null);
       setMsg("올렸습니다. 아래 목록에서 '링크 복사'로 공유하세요.");
+      setNotes(Array.isArray(data.notes) ? data.notes : []);
       await loadItems();
     } finally {
       setBusy(false);
@@ -212,6 +222,17 @@ export default function HtmlLinkClient() {
           )}
           {msg && <span className="text-sm text-oddsbag-gray">{msg}</span>}
         </div>
+
+        {notes.length > 0 && (
+          <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-[13px] leading-relaxed text-sky-900">
+            <b>링크로 열면 이 점이 달라집니다</b>
+            <ul className="mt-1.5 list-disc space-y-1 pl-4">
+              {notes.map((n, i) => (
+                <li key={i}>{n}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </form>
 
       {/* 목록 */}
