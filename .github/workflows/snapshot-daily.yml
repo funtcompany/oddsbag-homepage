@@ -1,0 +1,71 @@
+name: 오즈백 발행글 스냅샷 (매일)
+
+# 왜 있는가 — 2026-08-20 사장님 지시 「매일 자동 스냅샷 켜기」
+#
+#   글 본문이 전부 레디스에만 있어서, 레디스가 한 달 한도(50만 명령)에 걸리면
+#   매거진이 통째로 «아직 올라온 글이 없습니다»가 된다. 실제로 그렇게 됐다.
+#   scripts/snapshot.mjs 가 발행글을 파일 한 장으로 떠 두고, 레디스가 죽으면 그걸로 화면을 그린다.
+#
+#   그 스냅샷은 지금까지 «배포할 때만» 새로 떴다(prebuild). 배포를 며칠 안 하면 그만큼 낡는다.
+#   ★이 워크플로가 채우는 구멍은 하나다 — 배포가 없는 날에도 레포 안 스냅샷을 하루치로 유지한다.
+#   그래야 레디스가 죽은 채로 배포가 돌아도, 빈 화면 대신 어제치 목록이 나간다.
+#
+# ★하지 않는 일 — 글쓰기 · 발행 · SNS 게시 · 노션 동기화. 아래 env 에 레디스 키 둘 말고는
+#   «일부러 아무것도 넣지 않았다». 코드가 바뀌어도 키가 없으면 밖으로 나갈 수 없다.
+#
+# ★배포를 부르지 않는다 — 커밋 메시지에 [skip ci] 를 넣어 버셀이 이 커밋으로는 빌드하지 않는다.
+#   매일 예고 없는 배포가 도는 것이 더 위험하다(헌법 4장 1항). 다음 정상 배포가 이 파일을 싣는다.
+#
+# ★2026-08-12 에 사장님이 끄신 워크플로 8개와는 무관하다. 되살리지 말 것.
+#
+# 값 — 레디스 명령 4개(SMEMBERS 1 + MGET 3). 한 달 한도의 0.0008%.
+#
+# ※ 2026-08-20 현재 레디스 한 달 한도가 소진된 상태라, 9월 1일 한도가 풀릴 때까지
+#   이 워크플로는 매일 「못 읽어 건너뜀」만 남기고 아무것도 하지 않는다(그게 정상이다).
+#   9월 1일이 되면 스스로 148편을 떠서 저장한다 — 손으로 꺼낼 필요가 없다.
+
+on:
+  schedule:
+    - cron: "10 5 * * *" # 14:10 KST — 하루치 발행(08:10/10:10/13:10)이 다 끝난 뒤
+  workflow_dispatch:
+
+concurrency:
+  group: oddsbag-snapshot # ★하루치 발행(oddsbag-daily)과 다른 이름 — 서로를 취소하지 않는다
+  cancel-in-progress: false
+
+permissions:
+  contents: write # 스냅샷 파일을 레포에 저장해야 해서 필요하다 (기본값은 읽기 전용)
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # npm install 을 하지 않는다 — snapshot.mjs 는 fs/path 와 내장 fetch 만 쓴다
+      - name: 스냅샷 뜨기
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: node scripts/snapshot.mjs
+
+      - name: 바뀐 게 있으면 저장
+        run: |
+          set -e
+          FILE=content/published-snapshot.json
+          if [ -z "$(git status --porcelain -- "$FILE")" ]; then
+            echo "바뀐 게 없어 저장하지 않음"
+            exit 0
+          fi
+          COUNT=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).count")
+          git config user.name  "oddsbag-bot"
+          git config user.email "bot@oddsbag.co.kr"
+          git add "$FILE"
+          git commit -m "스냅샷 갱신 — 발행글 ${COUNT}편 [skip ci]"
+          git pull --rebase origin main   # 사이에 다른 커밋이 들어왔을 때 부딪히지 않게
+          git push origin HEAD:main
+          echo "저장 완료 — ${COUNT}편"

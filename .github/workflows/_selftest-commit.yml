@@ -1,0 +1,31 @@
+name: (임시) 저장 권한 시험 — 확인 후 삭제
+
+# ★미끼 시험용. 진짜 스냅샷 파일은 건드리지 않는다.
+#   깃허브 Actions 가 레포에 파일을 저장(commit+push)할 수 있는지만 확인한다.
+#   레디스 한도가 9월 1일까지 막혀 있어 진짜 워크플로로는 이 경로를 시험할 수 없어서 만들었다.
+#   확인되면 이 파일과 미끼 파일을 같이 지운다.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: 미끼 파일 저장 시험
+        run: |
+          set -e
+          FILE=content/_snapshot-selftest.txt
+          echo "저장 권한 시험 $(date -u +%FT%TZ) run=${GITHUB_RUN_ID}" > "$FILE"
+          git config user.name  "oddsbag-bot"
+          git config user.email "bot@oddsbag.co.kr"
+          git add "$FILE"
+          git commit -m "미끼 저장 시험 [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo "저장 성공"
