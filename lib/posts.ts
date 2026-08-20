@@ -171,49 +171,147 @@ function findSeedPost(slug: string): Post | undefined {
 }
 
 // ---- 공개(발행) 조회 ----
-// 파일 시드 + Redis 발행글 병합
-// 마지막으로 성공한 발행글 목록 (이 서버 인스턴스 메모리).
-// 레디스가 한도·장애로 안 될 때 제일 먼저 여기로 물러선다 — 방금 전까지 보이던 화면이 그대로 유지된다.
+//
+// ★2026-08-20 «읽기를 파일로 전환» — 기본 자료는 배포에 함께 실린 파일이다.
+//
+//   예전 : 300초마다 레디스에서 slug 목록(SMEMBERS 1) + 본문 전체(MGET 3) = 명령 4개.
+//          방문자가 0명이어도 한 달 3.5만 명령이 그냥 나갔다.
+//   지금 : 본문은 스냅샷 파일(content/published-snapshot.json)에서 읽는다 — 명령 0개.
+//          레디스에는 «무엇이 바뀌었나»만 물어본다.
+//
+//     · 300초마다 → 발행 slug 목록만 (명령 1개). 새 글·내린 글이 여기서 바로 잡힌다.
+//     · 본문 전체 다시 읽기 → 글이 바뀌었다는 신호(revalidateTag("posts"))가 올 때.
+//       발행·수정·삭제·감사·노션동기화는 전부 그 신호를 부른다. 신호가 없어도 6시간에 한 번은 읽는다(보험).
+//     · 파일에 아직 없는 새 글 → 그 slug 만 골라 MGET (하루 1편이면 명령 1개).
+//     · 레디스가 안 되면 전부 파일로 그린다 — 목록이 비지 않는다.
+//
+//   한 달 3.5만 → 9천 명령. 값도 값이지만, ★읽기가 레디스에 매달려 있지 않게 되는 것이 본론이다.
+//
+//   ※ 스냅샷 파일이 낡으면 «본문 수정»이 최대 6시간 늦게 보일 수 있다(신호가 빠졌을 때만).
+//     파일은 배포마다(prebuild) · 매일 14:10(snapshot-daily.yml) 새로 뜬다.
+
+// 마지막으로 성공한 발행글 본문 (이 서버 인스턴스 메모리).
+// 레디스가 한도·장애로 안 될 때 파일보다 먼저 여기로 물러선다 — 방금 전까지 보이던 화면이 유지된다.
 let lastGood: Post[] | null = null;
 
-async function loadAllPublished(): Promise<Post[]> {
-  const seeds = readSeedPosts().filter((p) => p.status === "published");
+// 「바뀌었나」를 확인하는 주기 (명령 1개)
+// ★300초 폴링은 보험이다. 발행·수정·삭제는 revalidateTag("posts") 로 «즉시» 반영된다.
+const POSTS_TTL_SEC = Math.max(30, Number(process.env.POSTS_CACHE_TTL_SEC || 300));
 
-  let live: Post[] | null = null;
-  try {
-    if (isPersistent) live = await readRedisPosts(K_PUBLISHED);
-  } catch (e) {
-    console.warn("발행글 레디스 읽기 실패:", (e as Error).message);
+// 아무 신호가 없어도 본문 전체를 다시 읽는 주기 (명령 4개)
+const POSTS_FULL_TTL_SEC = Math.max(
+  POSTS_TTL_SEC,
+  Number(process.env.POSTS_FULL_TTL_SEC || 6 * 60 * 60),
+);
+
+/** 지금 발행 중인 slug 목록만 (명령 1개). 못 읽으면 null — 이때는 아무것도 걸러내지 않는다 */
+const getPublishedSlugs = unstable_cache(
+  async (): Promise<string[] | null> => {
+    if (!isPersistent) return null;
+    try {
+      const slugs = await smembers(K_PUBLISHED);
+      // ★빈 목록은 «글이 없다»가 아니라 «못 읽었다»로 본다. 빈 화면 사고를 막는 자리다.
+      return slugs.length > 0 ? slugs : null;
+    } catch (e) {
+      console.warn("발행 slug 목록 읽기 실패:", (e as Error).message);
+      return null;
+    }
+  },
+  ["oddsbag-posts-slugs"],
+  { revalidate: POSTS_TTL_SEC, tags: ["posts"] },
+);
+
+/** 본문까지 전부 (명령 4개). 글이 바뀌었을 때와 6시간마다만 실제로 부른다 */
+const getFullPosts = unstable_cache(
+  async (): Promise<Post[] | null> => {
+    if (!isPersistent) return null;
+    try {
+      const live = await readRedisPosts(K_PUBLISHED);
+      return live.length > 0 ? live : null;
+    } catch (e) {
+      console.warn("발행글 본문 읽기 실패:", (e as Error).message);
+      return null;
+    }
+  },
+  ["oddsbag-posts-full"],
+  { revalidate: POSTS_FULL_TTL_SEC, tags: ["posts"] },
+);
+
+/**
+ * 파일에 아직 없는 새 글만 따로 읽는다.
+ * ★slug 목록이 캐시 열쇠에 들어간다 — 같은 새 글을 300초마다 다시 읽지 않는다.
+ */
+const getExtraPosts = unstable_cache(
+  async (slugs: string[]): Promise<Post[]> => {
+    if (!isPersistent || slugs.length === 0) return [];
+    try {
+      const raws = await kvMget(slugs.map(postKey));
+      const out: Post[] = [];
+      for (const r of raws) {
+        if (!r) continue;
+        try {
+          out.push(JSON.parse(r) as Post);
+        } catch {
+          // 깨진 글 한 편 때문에 목록 전체가 죽지 않게 한다
+        }
+      }
+      return out;
+    } catch (e) {
+      console.warn("새 글 읽기 실패:", (e as Error).message);
+      return [];
+    }
+  },
+  ["oddsbag-posts-extra"],
+  { revalidate: POSTS_FULL_TTL_SEC, tags: ["posts"] },
+);
+
+async function loadAllPublished(): Promise<Post[]> {
+  const bySlug = new Map<string, Post>();
+
+  // ① 파일 시드 (content/posts/*.json) — 레디스에 없는 글도 있다. 걸러내지 않는다.
+  for (const p of readSeedPosts().filter((p) => p.status === "published")) {
+    bySlug.set(p.slug, p);
   }
 
-  if (live && live.length > 0) {
-    lastGood = live;
-  } else {
-    // ★레디스가 안 될 때 목록을 비우지 않는다. 순서대로 물러선다.
-    //   ① 방금 전까지 읽던 목록 → ② 배포에 실린 스냅샷 → ③ 파일 시드
-    //   (2026-08-20 한도 소진 때 매거진이 «아직 올라온 글이 없습니다»가 됐다. 그걸 막는 자리다)
-    live = lastGood ?? readPublishedSnapshot();
-    if (live.length > 0) {
-      console.warn(`발행글 ${live.length}편을 대체 자료로 렌더 (레디스 대신)`);
-    } else if (isPersistent) {
-      console.warn("발행글을 레디스·스냅샷 어디서도 못 읽었다 — 시드만으로 렌더");
+  // ② 스냅샷 파일 — 여기가 본진이다. 명령 0개.
+  const fromRedis = new Set<string>();
+  for (const p of readPublishedSnapshot()) {
+    bySlug.set(p.slug, p);
+    fromRedis.add(p.slug);
+  }
+
+  // ③ 본문 전체 (신호가 왔거나 6시간이 지났을 때만 레디스를 부른다)
+  const full = await getFullPosts();
+  if (full) lastGood = full;
+  const live = full ?? lastGood;
+  if (live) {
+    for (const p of live) {
+      bySlug.set(p.slug, p); // 최신 자료가 파일보다 우선
+      fromRedis.add(p.slug);
     }
   }
 
-  const bySlug = new Map<string, Post>();
-  for (const p of seeds) bySlug.set(p.slug, p);
-  for (const p of live) bySlug.set(p.slug, p); // 최신 자료가 시드보다 우선
+  // ④ 지금 발행 중인 목록과 대조 (명령 1개)
+  const slugs = await getPublishedSlugs();
+  if (slugs) {
+    const now = new Set(slugs);
+    // 내려간 글은 즉시 뺀다 — 파일은 어제 것일 수 있다.
+    // ★파일 시드는 건드리지 않는다(레디스에 없는 채로 보여주는 글이라 지우면 사라진다).
+    for (const slug of fromRedis) {
+      if (!now.has(slug)) bySlug.delete(slug);
+    }
+    // 파일에 아직 없는 새 글만 골라 읽는다
+    const missing = slugs.filter((s) => !bySlug.has(s)).sort();
+    if (missing.length > 0) {
+      for (const p of await getExtraPosts(missing)) bySlug.set(p.slug, p);
+    }
+  }
+
+  if (bySlug.size === 0 && isPersistent) {
+    console.warn("발행글을 파일·레디스 어디서도 못 읽었다 — 빈 목록으로 렌더된다");
+  }
   return sortByDateDesc([...bySlug.values()]);
 }
-
-// 트래픽 최적화: 방문마다 DB를 읽지 않고 60초에 한 번만 읽어 캐시.
-// 발행/동기화/삭제 시 revalidateTag("posts")로 즉시 갱신 (아래 API 라우트).
-// 이 캐싱 덕분에 방문자는 CDN에서 받고, DB 부하는 트래픽과 무관하게 일정.
-// ★주기를 60초에서 300초로 늘렸다.
-//   발행·수정·삭제는 전부 revalidateTag("posts") 를 부르므로 «즉시» 반영된다.
-//   60초 폴링은 그 위에 얹힌 보험일 뿐인데, 그 보험료가 하루 명령의 절반이었다.
-//   값을 바꾸고 싶으면 환경변수 POSTS_CACHE_TTL_SEC 로 조절한다.
-const POSTS_TTL_SEC = Math.max(30, Number(process.env.POSTS_CACHE_TTL_SEC || 300));
 
 export const getAllPosts = unstable_cache(loadAllPublished, ["oddsbag-posts"], {
   revalidate: POSTS_TTL_SEC,

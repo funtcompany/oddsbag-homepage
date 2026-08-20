@@ -97,14 +97,16 @@ async function main() {
   }
 
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
-  fs.writeFileSync(
-    OUT,
-    JSON.stringify(
-      { at: new Date().toISOString(), count: posts.length, posts },
-      null,
-      0,
-    ),
-  );
+  // ★글 한 편을 한 줄로 적는다.
+  //   이 파일은 매일 레포에 커밋된다(snapshot-daily.yml). 전부 한 줄이면 한 글자만 바뀌어도
+  //   깃이 «700KB 통째로 바뀜»으로 기록해 레포가 해마다 수백 MB 로 분다.
+  //   한 편 한 줄이면 바뀐 글만 기록된다. 읽는 쪽은 그냥 JSON.parse 라 달라지는 게 없다.
+  const body =
+    `{"at":${JSON.stringify(new Date().toISOString())},` +
+    `"count":${posts.length},"posts":[\n` +
+    posts.map((p) => JSON.stringify(p)).join(",\n") +
+    `\n]}\n`;
+  fs.writeFileSync(OUT, body);
   const kb = Math.round(fs.statSync(OUT).size / 1024);
   done(`${posts.length}편 저장 (${kb}KB, 명령 ${1 + Math.ceil(slugs.length / CHUNK)}개)`);
 }
