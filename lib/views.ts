@@ -27,11 +27,19 @@ export function lastDays(n: number): string[] {
   return Array.from({ length: n }, (_, i) => kstDate(n - 1 - i));
 }
 
+// 오늘 날짜 키에 만료시간을 이미 걸었나 (이 서버 인스턴스 기준).
+// ★한 번 걸면 그만인 EXPIRE 를 방문마다 부르면 조회 1건이 레디스 명령 3개가 된다.
+//   같은 날 처음 한 번만 걸고 넘어가면 2개다 — 트래픽이 곧 명령 수인 자리라 33%가 그대로 여유가 된다.
+let ttlSetFor = "";
+
 export async function recordView(slug: string): Promise<void> {
-  const key = dayKey(kstDate());
+  const day = kstDate();
+  const key = dayKey(day);
   await Promise.all([hincr(TOTAL_KEY, slug, 1), hincr(key, slug, 1)]);
-  // 날짜별 집계는 무한정 쌓아둘 필요가 없다
-  await expire(key, DAY_TTL);
+  if (ttlSetFor !== day) {
+    ttlSetFor = day; // 실패해도 다시 걸지 않는다 — 다음 인스턴스가 건다
+    await expire(key, DAY_TTL); // 날짜별 집계는 무한정 쌓아둘 필요가 없다
+  }
 }
 
 export async function getTotals(): Promise<Record<string, number>> {

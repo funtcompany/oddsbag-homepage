@@ -18,8 +18,36 @@ const mem = {
   set: new Map(),
 };
 
+// ---- 차단기 (circuit breaker) ----
+//
+// 하루 한도(50만)가 터지면 Upstash 는 요청을 거절하는데, ★거절된 요청도 한도에서 깎인다.
+// 실패할 때마다 계속 두드리면 한도가 풀리는 순간 그 두드림이 다시 즉시 태운다.
+// 한 번 「한도 초과」를 보면 정해진 시간 동안 아예 부르지 않는다.
+const QUOTA_COOLDOWN_MS = Number(
+  process.env.REDIS_QUOTA_COOLDOWN_MS || 15 * 60_000,
+);
+let openUntil = 0;
+let lastReason = "";
+
+export function redisStatus() {
+  return {
+    blocked: Date.now() < openUntil,
+    openUntil: openUntil ? new Date(openUntil).toISOString() : null,
+    lastReason,
+  };
+}
+
+const isQuotaError = (msg) =>
+  /max requests limit|max daily request|quota|exceeded|too many requests|429/i.test(
+    msg,
+  );
+
 // ---- Upstash REST 호출 ----
 async function redis(command) {
+  if (Date.now() < openUntil) {
+    throw new Error(`레디스 차단 중 (${lastReason})`);
+  }
+
   const res = await fetch(KV_URL, {
     method: "POST",
     headers: {
@@ -29,8 +57,31 @@ async function redis(command) {
     body: JSON.stringify(command),
     cache: "no-store",
   });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
+
+  // ★res.json() 을 바로 쓰지 않는다 — 한도 초과 응답이 JSON 이 아닐 때가 있어
+  //   여기서 던지면 「한도 초과」라는 진짜 이유가 파싱 오류에 묻힌다.
+  const text = await res.text();
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { error: text.slice(0, 200) || `HTTP ${res.status}` };
+  }
+
+  const err = data.error ?? (res.ok ? undefined : `HTTP ${res.status}`);
+  if (err) {
+    lastReason = err;
+    if (isQuotaError(err) || res.status === 429) {
+      openUntil = Date.now() + QUOTA_COOLDOWN_MS;
+      console.warn(
+        `[redis] 한도 초과 — ${Math.round(QUOTA_COOLDOWN_MS / 60000)}분간 호출 중단:`,
+        err,
+      );
+    }
+    throw new Error(err);
+  }
+
+  openUntil = 0;
   return data.result;
 }
 
@@ -139,4 +190,23 @@ export async function srem(key, member) {
     return;
   }
   mem.set.get(key)?.delete(member);
+}
+
+// ---- 여러 키를 한 번에 읽기 (MGET) ----
+//
+// 발행글 148편을 GET 148번으로 읽으면 점검 한 회차에 149 명령이 나간다.
+// MGET 으로 묶으면 4 명령이다. Upstash 는 «명령 수»로 세니 키가 몇 개든 MGET 은 1이다.
+const MGET_CHUNK = Math.max(1, Number(process.env.REDIS_MGET_CHUNK || 50));
+
+export async function kvMget(keys) {
+  if (keys.length === 0) return [];
+  if (!isPersistent) return keys.map((k) => memKv.get(k) ?? null);
+
+  const out = [];
+  for (let i = 0; i < keys.length; i += MGET_CHUNK) {
+    const chunk = keys.slice(i, i + MGET_CHUNK);
+    const res = (await redis(["MGET", ...chunk])) ?? [];
+    for (let j = 0; j < chunk.length; j += 1) out.push(res[j] ?? null);
+  }
+  return out;
 }

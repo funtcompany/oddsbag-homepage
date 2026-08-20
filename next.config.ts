@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   //   ② .next 를 로컬 SSD 심링크로 → turbopack 이 그 자리에서 node_modules 를 못 찾아
   //      «Cannot find module '@tailwindcss/postcss'» 로 홈이 500.
   //   그래서 캐시는 그냥 여기 둔다. 커지면 .next 폴더를 지우면 된다(다시 생긴다).
+
+  // ★content/ 를 서버 함수에 반드시 함께 싣는다.
+  //   레디스가 한도·장애로 안 될 때 화면을 채우는 자료가 전부 여기 있다
+  //   (content/posts/*.json 시드 · content/published-snapshot.json 발행글 스냅샷).
+  //   Next 가 «안 쓰는 파일»로 보고 빼면 비상 대비가 통째로 사라진다.
+  outputFileTracingIncludes: {
+    "/**": ["./content/**"],
+  },
 };
 
 export default nextConfig;

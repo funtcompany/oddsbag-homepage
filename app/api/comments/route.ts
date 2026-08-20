@@ -11,13 +11,20 @@ function fmtDate(): string {
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");
   if (!slug) return NextResponse.json({ error: "slug 필요" }, { status: 400 });
-  const raw = await lrange(key(slug));
-  const comments = raw.map((s) => JSON.parse(s));
+  // ★레디스가 안 되면 500 대신 «댓글 없음»으로 답한다 (본문 화면을 지킨다)
+  let comments: unknown[] = [];
+  try {
+    comments = (await lrange(key(slug))).map((s) => JSON.parse(s));
+  } catch (e) {
+    console.warn("댓글 읽기 실패, 빈 목록으로 표시:", (e as Error).message);
+  }
   return NextResponse.json(
     { comments },
     {
       headers: {
-        "Cache-Control": "public, s-maxage=20, stale-while-revalidate=40",
+        // ★20초 → 2분. 20초 캐시는 글이 많아지는 만큼 명령 수가 그대로 늘어난다.
+        //   내가 쓴 댓글은 POST 응답으로 즉시 보이므로 화면에서 느려지는 것이 없다.
+        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
       },
     },
   );

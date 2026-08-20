@@ -3,7 +3,7 @@
 // 실행: node cleanup-broken-reels.mjs          → 모의실행(무엇을 지울지 목록만)
 //       APPLY=1 node cleanup-broken-reels.mjs  → 실제 삭제 + reels:done 제거
 import fs from "node:fs";
-import { getJSON, srem, sadd } from "./redis.mjs";
+import { getPosts, srem, sadd } from "./redis.mjs";
 
 const APPLY = process.env.APPLY === "1";
 const SLUGS = JSON.parse(fs.readFileSync("/tmp/broken-slugs.json", "utf8"));
@@ -44,7 +44,7 @@ async function fbVideos() {
 }
 
 async function main() {
-  const posts = (await Promise.all(SLUGS.map((s) => getJSON(`post:${s}`)))).filter(Boolean);
+  const posts = await getPosts(SLUGS); // MGET 한 번 — 예전엔 글 수만큼 GET 했다
   const tok = await ytToken();
   const [yt, ig, fb] = await Promise.all([ytUploads(tok), igMedia(), fbVideos()]);
   console.log(`대상 ${posts.length}개 · ${APPLY ? "실제 삭제" : "모의실행(APPLY=1 로 실제 삭제)"}\n`);

@@ -20,6 +20,29 @@ export async function getJSON(key) {
   const v = await cmd(["GET", key]);
   return v ? JSON.parse(v) : null;
 }
+
+// ★여러 글을 한 번에 읽는다 (MGET).
+//   글 148편을 getJSON 148번으로 읽으면 스크립트 한 번에 148 명령이 나간다.
+//   MGET 으로 묶으면 3 명령이다 — Upstash 는 «명령 수»로 세니 키가 몇 개든 MGET 은 1이다.
+//   릴스·유튜브·정리 스크립트가 매일 발행글 전수를 훑기 때문에 여기가 크다.
+const MGET_CHUNK = Math.max(1, Number(process.env.REDIS_MGET_CHUNK || 50));
+
+export async function mgetJSON(keys) {
+  if (!keys.length) return [];
+  const out = [];
+  for (let i = 0; i < keys.length; i += MGET_CHUNK) {
+    const raws = (await cmd(["MGET", ...keys.slice(i, i + MGET_CHUNK)])) ?? [];
+    for (const r of raws) {
+      if (!r) { out.push(null); continue; }
+      try { out.push(JSON.parse(r)); } catch { out.push(null); }
+    }
+  }
+  return out;
+}
+
+/** 글 slug 목록 → 글 객체 목록 (못 읽은 건 빠진다) */
+export const getPosts = (slugs) =>
+  mgetJSON(slugs.map((s) => `post:${s}`)).then((a) => a.filter(Boolean));
 // 값 저장 (채널 성적표처럼 날짜별로 쌓아 두는 기록에 쓴다)
 export const kvSet = (key, value) => cmd(["SET", key, value]);
 export const redisReady = Boolean(URL && TOKEN);

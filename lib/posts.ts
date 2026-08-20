@@ -12,7 +12,17 @@
 import fs from "fs";
 import path from "path";
 import { unstable_cache } from "next/cache";
-import { kvGet, kvSet, kvDel, smembers, sadd, srem } from "@/lib/store";
+import {
+  kvGet,
+  kvSet,
+  kvDel,
+  kvMget,
+  smembers,
+  sadd,
+  srem,
+  isPersistent,
+} from "@/lib/store";
+import { readPublishedSnapshot } from "@/lib/snapshot";
 import { DEFAULT_CHANNEL, type ChannelKey } from "@/lib/channels";
 
 export type PostStatus = "draft" | "queued" | "published" | "archived";
@@ -116,13 +126,16 @@ const MAX_DRAFT_LOAD = 200;
 // ---- 파일 시드 ----
 function readSeedPosts(): Post[] {
   if (!fs.existsSync(POSTS_DIR)) return [];
-  return fs
-    .readdirSync(POSTS_DIR)
-    .filter((f) => f.endsWith(".json") && !f.startsWith("._"))
-    .map(
-      (f) =>
-        JSON.parse(fs.readFileSync(path.join(POSTS_DIR, f), "utf-8")) as Post,
-    );
+  const out: Post[] = [];
+  for (const f of fs.readdirSync(POSTS_DIR)) {
+    if (!f.endsWith(".json") || f.startsWith("._")) continue;
+    try {
+      out.push(JSON.parse(fs.readFileSync(path.join(POSTS_DIR, f), "utf-8")) as Post);
+    } catch {
+      // 시드 한 장이 깨져도 사이트 전체가 죽지 않게 한다 (여기는 비상 경로다)
+    }
+  }
+  return out;
 }
 
 // ---- Redis ----
@@ -130,10 +143,19 @@ async function readRedisPosts(setKey: string, max?: number): Promise<Post[]> {
   let slugs = await smembers(setKey);
   if (slugs.length === 0) return [];
   if (max && slugs.length > max) slugs = slugs.slice(0, max);
-  const raws = await Promise.all(slugs.map((s) => kvGet(postKey(s))));
-  return raws
-    .filter((r): r is string => Boolean(r))
-    .map((r) => JSON.parse(r) as Post);
+  // ★GET 을 slug 수만큼 부르지 않는다 — MGET 한 번(50개씩)으로 묶는다.
+  //   148편이면 148 명령 → 3 명령. 하루 한도(50만)를 목록 새로고침만으로 태우던 원인이었다.
+  const raws = await kvMget(slugs.map(postKey));
+  const out: Post[] = [];
+  for (const r of raws) {
+    if (!r) continue;
+    try {
+      out.push(JSON.parse(r) as Post);
+    } catch {
+      // 깨진 글 한 편 때문에 목록 전체가 죽지 않게 한다
+    }
+  }
+  return out;
 }
 
 function sortByDateDesc(posts: Post[]): Post[] {
@@ -150,26 +172,51 @@ function findSeedPost(slug: string): Post | undefined {
 
 // ---- 공개(발행) 조회 ----
 // 파일 시드 + Redis 발행글 병합
+// 마지막으로 성공한 발행글 목록 (이 서버 인스턴스 메모리).
+// 레디스가 한도·장애로 안 될 때 제일 먼저 여기로 물러선다 — 방금 전까지 보이던 화면이 그대로 유지된다.
+let lastGood: Post[] | null = null;
+
 async function loadAllPublished(): Promise<Post[]> {
   const seeds = readSeedPosts().filter((p) => p.status === "published");
-  // Redis가 일시적으로 안 돼도 시드 콘텐츠로 안전하게 렌더 (ISR이 곧 복구)
-  let redis: Post[] = [];
+
+  let live: Post[] | null = null;
   try {
-    redis = await readRedisPosts(K_PUBLISHED);
+    if (isPersistent) live = await readRedisPosts(K_PUBLISHED);
   } catch (e) {
-    console.warn("Redis 읽기 실패, 시드만 사용:", (e as Error).message);
+    console.warn("발행글 레디스 읽기 실패:", (e as Error).message);
   }
+
+  if (live && live.length > 0) {
+    lastGood = live;
+  } else {
+    // ★레디스가 안 될 때 목록을 비우지 않는다. 순서대로 물러선다.
+    //   ① 방금 전까지 읽던 목록 → ② 배포에 실린 스냅샷 → ③ 파일 시드
+    //   (2026-08-20 한도 소진 때 매거진이 «아직 올라온 글이 없습니다»가 됐다. 그걸 막는 자리다)
+    live = lastGood ?? readPublishedSnapshot();
+    if (live.length > 0) {
+      console.warn(`발행글 ${live.length}편을 대체 자료로 렌더 (레디스 대신)`);
+    } else if (isPersistent) {
+      console.warn("발행글을 레디스·스냅샷 어디서도 못 읽었다 — 시드만으로 렌더");
+    }
+  }
+
   const bySlug = new Map<string, Post>();
   for (const p of seeds) bySlug.set(p.slug, p);
-  for (const p of redis) bySlug.set(p.slug, p); // Redis가 시드보다 우선
+  for (const p of live) bySlug.set(p.slug, p); // 최신 자료가 시드보다 우선
   return sortByDateDesc([...bySlug.values()]);
 }
 
 // 트래픽 최적화: 방문마다 DB를 읽지 않고 60초에 한 번만 읽어 캐시.
 // 발행/동기화/삭제 시 revalidateTag("posts")로 즉시 갱신 (아래 API 라우트).
 // 이 캐싱 덕분에 방문자는 CDN에서 받고, DB 부하는 트래픽과 무관하게 일정.
+// ★주기를 60초에서 300초로 늘렸다.
+//   발행·수정·삭제는 전부 revalidateTag("posts") 를 부르므로 «즉시» 반영된다.
+//   60초 폴링은 그 위에 얹힌 보험일 뿐인데, 그 보험료가 하루 명령의 절반이었다.
+//   값을 바꾸고 싶으면 환경변수 POSTS_CACHE_TTL_SEC 로 조절한다.
+const POSTS_TTL_SEC = Math.max(30, Number(process.env.POSTS_CACHE_TTL_SEC || 300));
+
 export const getAllPosts = unstable_cache(loadAllPublished, ["oddsbag-posts"], {
-  revalidate: 60,
+  revalidate: POSTS_TTL_SEC,
   tags: ["posts"],
 });
 

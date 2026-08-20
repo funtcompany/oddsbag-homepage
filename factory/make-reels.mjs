@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { smembers, sadd, srem, getJSON, redisReady, bumpDaily, readDaily } from "./redis.mjs";
+import { smembers, sadd, srem, getJSON, getPosts, redisReady, bumpDaily, readDaily } from "./redis.mjs";
 import { makeMusic, writeWav, pickBgm, pickTrack } from "./music.mjs";
 import { uploadShort, setThumbnail, addToCategoryPlaylist } from "./youtube.mjs";
 import { postReel } from "./instagram.mjs";
@@ -98,7 +98,7 @@ async function tts(text, outPath) {
 async function pickPending(limit) {
   if (process.env.REEL_SLUGS) { // 특정 글만 강제 제작(수동)
     const want = process.env.REEL_SLUGS.split(",").map((s) => s.trim()).filter(Boolean);
-    return (await Promise.all(want.map((s) => getJSON(`post:${s}`)))).filter(Boolean);
+    return await getPosts(want); // MGET 한 번 — 예전엔 글 수만큼 GET 했다
   }
   const [pubSlugs, doneArr, prioArr, cardArr] = await Promise.all([
     smembers(K_PUB), smembers(DONE), smembers("reels:priority"), smembers(K_CARD),
@@ -116,7 +116,7 @@ async function pickPending(limit) {
   //   유튜브·인스타로 쏟아질 자리였다. 지금은 워크플로가 꺼져 있어 겉으로 드러나지 않는다
   //   — 켜는 날 사고가 나는 종류라 미리 막는다.
   const fresh = (pubSlugs || []).filter((s) => !done.has(s));
-  const posts = (await Promise.all(fresh.map((s) => getJSON(`post:${s}`))))
+  const posts = (await getPosts(fresh)) // MGET 한 번 — 예전엔 글 수만큼 GET 했다
     .filter(Boolean)
     .filter((p) => p.status === "published")
     .filter((p) => !p.boardOnly);

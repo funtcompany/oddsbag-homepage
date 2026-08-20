@@ -61,13 +61,22 @@ async function ipTag(ip: string): Promise<string> {
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");
   if (!slug) return NextResponse.json({ error: "slug 필요" }, { status: 400 });
-  const counts = await hgetall(key(slug));
-  // 짧은 엣지 캐싱 — 반복 조회로 DB 부담을 주지 않도록 (내 반응은 즉시 반영됨)
+  // ★레디스가 한도·장애로 안 되면 500 이 아니라 «아직 0개»로 답한다.
+  //   여기서 500 을 내면 글 화면의 반응 막대가 오류로 깨진다 — 본문은 멀쩡한데도.
+  let counts: Record<string, number> = {};
+  try {
+    counts = await hgetall(key(slug));
+  } catch (e) {
+    console.warn("반응 읽기 실패, 0으로 표시:", (e as Error).message);
+  }
+  // ★엣지 캐싱 30초 → 5분.
+  //   글이 100편 뜨는 날 30초 캐시면 반응 조회만 하루 57만 명령이다 — 한도를 이것 하나로 넘긴다.
+  //   반응 숫자는 30초 만에 안 바뀌어도 아무도 모르고, 내가 누른 값은 POST 응답으로 즉시 보인다.
   return NextResponse.json(
     { counts },
     {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
       },
     },
   );

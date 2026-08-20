@@ -4,7 +4,7 @@
 //  실행: node repost-cards.mjs           → 모의실행(무엇을 바꿀지 목록만)
 //        APPLY=1 node repost-cards.mjs   → 실제 교체
 import fs from "node:fs";
-import { getJSON } from "./redis.mjs";
+import { getPosts } from "./redis.mjs";
 import { buildCards, buildCaption, buildHashtags, firstComment } from "../content-factory/cards.mjs";
 
 const APPLY = process.env.APPLY === "1";
@@ -78,7 +78,7 @@ async function findJustPosted(post) {
   return m ? m.id : null;
 }
 
-const posts = (await Promise.all(SLUGS.map((s) => getJSON(`post:${s}`)))).filter(Boolean);
+const posts = await getPosts(SLUGS); // MGET 한 번 — 예전엔 글 수만큼 GET 했다
 const media = await igMedia();
 const q = await quotaLeft();
 const targets = [];

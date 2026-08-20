@@ -3,7 +3,7 @@
 //  ② 카테고리별 재생목록("오즈백 · 경제" 등) 생성 후 영상 자동 분류
 // 실행: node boost-youtube.mjs         → 현황만 리포트(읽기전용)
 //       APPLY=1 node boost-youtube.mjs → 실제 반영
-import { smembers, getJSON, redisReady } from "./redis.mjs";
+import { smembers, getPosts, redisReady } from "./redis.mjs";
 // 설명·태그는 새 영상과 같은 원본에서 만든다. (2026-08-11)
 //  전에는 이 파일이 설명을 자체 문구로 덮어쓰고 태그도 다른 계산기(hashtags.mjs, 30개)를 썼다.
 //  새 영상은 youtube-seo.mjs(20개)로 나가므로, 이 도구를 돌릴 때마다 방금 잘 올라간 영상이
@@ -55,7 +55,7 @@ async function main() {
 
   // 발행글 로드 → 제목으로 매칭할 지도
   const slugs = await smembers("posts:published");
-  const posts = (await Promise.all((slugs || []).map((s) => getJSON(`post:${s}`)))).filter(Boolean);
+  const posts = await getPosts(slugs || []); // MGET 한 번 — 예전엔 글 수만큼 GET 했다
   const byTitle = new Map();
   for (const p of posts) if (p.title) byTitle.set(norm(p.title), p);
   console.log(`발행글 ${posts.length}개, `);

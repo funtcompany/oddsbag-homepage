@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { unstable_cache } from "./cache.mjs";
-import { kvGet, kvSet, kvDel, smembers, sadd, srem } from "./store.mjs";
+import { kvGet, kvSet, kvDel, kvMget, smembers, sadd, srem } from "./store.mjs";
 
 const POSTS_DIR = path.join(process.cwd(), "content", "posts");
 const K_PUBLISHED = "posts:published";
@@ -45,7 +45,9 @@ async function readRedisPosts(setKey, max) {
   let slugs = await smembers(setKey);
   if (slugs.length === 0) return [];
   if (max && slugs.length > max) slugs = slugs.slice(0, max);
-  const raws = await Promise.all(slugs.map((s) => kvGet(postKey(s))));
+  // ★GET 을 slug 수만큼 부르지 않는다 — MGET 한 번(50개씩)으로 묶는다.
+  //   148편이면 148 명령 → 3 명령. 점검·발행 크론이 하루 한도를 태우던 원인이었다.
+  const raws = await kvMget(slugs.map(postKey));
   return raws
     .filter((r) => Boolean(r))
     .map((r) => JSON.parse(r));

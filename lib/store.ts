@@ -10,7 +10,15 @@ const KV_URL =
 const KV_TOKEN =
   process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
-export const isPersistent = Boolean(KV_URL && KV_TOKEN);
+/**
+ * 비상 차단 스위치.
+ * Vercel 환경변수에 REDIS_OFF=1 만 넣으면 이 파일이 레디스를 아예 부르지 않는다.
+ * 화면은 스냅샷(content/published-snapshot.json)으로 그대로 뜬다.
+ * ★쓰기는 메모리로 빠져 사라진다 — 읽기 전용 비상 모드다. 풀리면 값을 지운다.
+ */
+const FORCED_OFF = /^(1|on|true|yes)$/i.test(process.env.REDIS_OFF ?? "");
+
+export const isPersistent = Boolean(KV_URL && KV_TOKEN) && !FORCED_OFF;
 
 // ---- 메모리 폴백 ----
 const mem = {
@@ -18,19 +26,103 @@ const mem = {
   set: new Map<string, Set<string>>(),
 };
 
+// ---- 차단기 (circuit breaker) ----
+//
+// 하루 한도(50만)가 터지면 Upstash 는 요청을 거절하는데, ★거절된 요청도 한도에서 깎인다.
+// 그래서 실패할 때마다 계속 두드리면 한도가 풀리는 순간 그 두드림이 다시 즉시 태운다.
+// 「한도 초과」를 한 번 보면 정해진 시간 동안 아예 부르지 않는다. 그동안 화면은 스냅샷으로 뜬다.
+const QUOTA_COOLDOWN_MS = Number(
+  process.env.REDIS_QUOTA_COOLDOWN_MS || 15 * 60_000,
+);
+const FAIL_COOLDOWN_MS = 30_000;
+const FAIL_THRESHOLD = 3;
+
+let openUntil = 0; // 이 시각까지는 부르지 않는다
+let failures = 0;
+let lastReason = "";
+
+export class RedisUnavailable extends Error {}
+
+/** 지금 레디스를 부를 수 있나 */
+export function redisReady(): boolean {
+  return isPersistent && Date.now() >= openUntil;
+}
+
+/** 관리자 화면·점검용 상태 */
+export function redisStatus() {
+  return {
+    persistent: isPersistent,
+    forcedOff: FORCED_OFF,
+    blocked: Date.now() < openUntil,
+    openUntil: openUntil ? new Date(openUntil).toISOString() : null,
+    lastReason,
+  };
+}
+
+const isQuotaError = (msg: string) =>
+  /max requests limit|max daily request|quota|exceeded|too many requests|429/i.test(
+    msg,
+  );
+
+function trip(reason: string, quota: boolean): void {
+  lastReason = reason;
+  if (quota) {
+    openUntil = Date.now() + QUOTA_COOLDOWN_MS;
+    failures = 0;
+    console.warn(
+      `[redis] 한도 초과 — ${Math.round(QUOTA_COOLDOWN_MS / 60000)}분간 호출 중단:`,
+      reason,
+    );
+    return;
+  }
+  failures += 1;
+  if (failures >= FAIL_THRESHOLD) {
+    openUntil = Date.now() + FAIL_COOLDOWN_MS;
+    failures = 0;
+    console.warn("[redis] 연속 실패 — 30초간 호출 중단:", reason);
+  }
+}
+
 // ---- Upstash REST 호출 ----
 async function redis(command: (string | number)[]): Promise<unknown> {
-  const res = await fetch(KV_URL!, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${KV_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(command),
-    cache: "no-store",
-  });
-  const data = (await res.json()) as { result?: unknown; error?: string };
-  if (data.error) throw new Error(data.error);
+  if (Date.now() < openUntil) {
+    throw new RedisUnavailable(`레디스 차단 중 (${lastReason})`);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(KV_URL!, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${KV_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(command),
+      cache: "no-store",
+    });
+  } catch (e) {
+    trip((e as Error).message, false);
+    throw e;
+  }
+
+  // ★res.json() 을 바로 쓰지 않는다 — 한도 초과 응답이 JSON 이 아닐 때가 있어
+  //   여기서 던지면 「한도 초과」라는 진짜 이유가 파싱 오류에 묻힌다.
+  const text = await res.text();
+  let data: { result?: unknown; error?: string } = {};
+  try {
+    data = JSON.parse(text) as typeof data;
+  } catch {
+    data = { error: text.slice(0, 200) || `HTTP ${res.status}` };
+  }
+
+  const err = data.error ?? (res.ok ? undefined : `HTTP ${res.status}`);
+  if (err) {
+    trip(err, isQuotaError(err) || res.status === 429);
+    throw new Error(err);
+  }
+
+  failures = 0;
+  openUntil = 0;
   return data.result;
 }
 
@@ -187,4 +279,26 @@ export async function srem(key: string, member: string): Promise<void> {
     return;
   }
   mem.set.get(key)?.delete(member);
+}
+
+// ---- 여러 키를 한 번에 읽기 (MGET) ----
+//
+// ★왜 있는가
+//   발행글 148편을 GET 148번으로 읽으면 목록을 한 번 새로 고칠 때마다 149 명령이 나간다.
+//   1분마다 새로 고치면 방문자 0명이어도 하루 21만 명령 — 한도(50만)의 절반을 그냥 쓴다.
+//   MGET 으로 묶으면 같은 일이 4 명령이다. Upstash 는 «명령 수»로 세니 키가 몇 개든 MGET 은 1이다.
+//   (한 번에 너무 많이 담으면 응답이 커지므로 50개씩 끊는다)
+const MGET_CHUNK = Math.max(1, Number(process.env.REDIS_MGET_CHUNK || 50));
+
+export async function kvMget(keys: string[]): Promise<(string | null)[]> {
+  if (keys.length === 0) return [];
+  if (!isPersistent) return keys.map((k) => memKv.get(k) ?? null);
+
+  const out: (string | null)[] = [];
+  for (let i = 0; i < keys.length; i += MGET_CHUNK) {
+    const chunk = keys.slice(i, i + MGET_CHUNK);
+    const res = (await redis(["MGET", ...chunk])) as (string | null)[] | null;
+    for (let j = 0; j < chunk.length; j += 1) out.push(res?.[j] ?? null);
+  }
+  return out;
 }
