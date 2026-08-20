@@ -81,24 +81,54 @@ export function withStorageShim(html: string): string {
 const OK_PREFIX =
   /^(https?:|\/\/|data:|blob:|#|mailto:|tel:|javascript:|about:)/i;
 
+/**
+ * «진짜 태그»의 속성 부분만 모은다.
+ *  ★HTML 전체를 훑으면 안 된다 — 보고서가 HTML 을 «설명»하느라
+ *    <code>&lt;img src="사진/표.png"&gt;</code> 라고 적어 둔 것까지 진짜 참조로 오인한다.
+ *    (board.html 에서 실제로 걸렸다. 이스케이프된 글자에는 진짜 < 가 없으므로 이 방식이면 안 걸린다)
+ */
+function tagAttrRegions(html: string): string[] {
+  const out: string[] = [];
+  const re = /<([a-zA-Z][a-zA-Z0-9:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) out.push(m[2] ?? "");
+  return out;
+}
+
+/** <style> 안의 CSS 만 모은다 (본문 글자의 url(...) 을 집지 않으려고) */
+function styleBodies(html: string): string[] {
+  const out: string[] = [];
+  const re = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) out.push(m[1] ?? "");
+  return out;
+}
+
 /** src="..." / href="..." 에서 옆 파일을 가리키는 것만 골라낸다. */
 function collectLocalRefs(html: string): string[] {
   const found = new Set<string>();
   const attr = /\b(?:src|href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
-  let m: RegExpExecArray | null;
-  while ((m = attr.exec(html)) !== null) {
-    const v = (m[2] ?? m[3] ?? m[4] ?? "").trim();
-    if (!v || OK_PREFIX.test(v)) continue;
-    found.add(v.slice(0, 120));
-    if (found.size >= 50) break;
+  for (const region of tagAttrRegions(html)) {
+    let m: RegExpExecArray | null;
+    attr.lastIndex = 0;
+    while ((m = attr.exec(region)) !== null) {
+      const v = (m[2] ?? m[3] ?? m[4] ?? "").trim();
+      if (!v || OK_PREFIX.test(v)) continue;
+      found.add(v.slice(0, 120));
+      if (found.size >= 50) return [...found];
+    }
   }
   // <style> 안의 url(...) 도 같은 함정이다
   const css = /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi;
-  while ((m = css.exec(html)) !== null) {
-    const v = (m[1] ?? "").trim();
-    if (!v || OK_PREFIX.test(v)) continue;
-    found.add(v.slice(0, 120));
-    if (found.size >= 50) break;
+  for (const region of styleBodies(html)) {
+    let m: RegExpExecArray | null;
+    css.lastIndex = 0;
+    while ((m = css.exec(region)) !== null) {
+      const v = (m[1] ?? "").trim();
+      if (!v || OK_PREFIX.test(v)) continue;
+      found.add(v.slice(0, 120));
+      if (found.size >= 50) return [...found];
+    }
   }
   return [...found];
 }
