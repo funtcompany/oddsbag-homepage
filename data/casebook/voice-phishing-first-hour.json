@@ -1,0 +1,127 @@
+{
+  "id": "voice-phishing-first-hour",
+  "situation": "보이스피싱을 당했거나 당한 것 같다",
+  "title": "보이스피싱 당했을 때 — 순서가 정해져 있습니다. 이 순서를 바꾸면 돈을 못 잡습니다",
+  "summary": "정부가 안내하는 조치 순서는 「지급정지 → 신고 → 환급 신청」입니다. 순서를 바꾸면 그 사이에 돈이 빠져나갑니다. 어디에 무엇을 신청하는지 번호까지 정리했습니다.",
+  "who": "돈을 보냈거나, 개인정보나 신분증 사진을 넘겼거나, 모르는 돈이 통장에 들어온 사람",
+  "weekdayHint": [
+    "금",
+    "목"
+  ],
+  "oneLine": "신고보다 지급정지가 먼저다.",
+  "tags": [
+    "보이스피싱",
+    "지급정지",
+    "피해구제",
+    "금융감독원"
+  ],
+  "steps": [
+    {
+      "when": "3분",
+      "what": "거래하는 금융회사에 지급정지를 신청한다",
+      "where": "거래 금융회사 콜센터 · 금융감독원 1332",
+      "why": "정부가 안내하는 조치 순서에서 «맨 앞»이 지급정지다. 신고를 먼저 하고 은행에 나중에 걸면 그 사이에 돈이 빠져나간다",
+      "docs": []
+    },
+    {
+      "when": "3분",
+      "what": "경찰에 피해 신고를 한다",
+      "where": "경찰청 112",
+      "why": "보이스피싱 피해 신고는 112로 받는다. 지급정지를 걸어 둔 뒤에 하는 것이 안내된 순서다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "피해금 환급(피해구제)을 금융회사에 신청한다",
+      "where": "지급정지를 건 그 금융회사",
+      "why": "환급 신청은 경찰이 아니라 금융회사에서 받는다. 지급정지 → 신고 → 환급 신청이 한 묶음이다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "모르는 돈이 통장에 들어와 있으면 손대지 말고 바로 신고한다",
+      "where": "거래 금융회사",
+      "why": "남의 피해금이 내 통장을 거쳐 가는 수법이 있다. 쓰면 내가 가담자가 된다. 즉시 신고해 환급 절차를 밟게 한다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "내 이름으로 개통·개설된 것이 없는지 확인한다",
+      "where": "명의도용방지서비스 msafer.or.kr",
+      "why": "신분증 사진이 넘어갔으면 명의도용이 뒤따른다. 휴대폰이 먼저 뚫린다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "스팸·미끼 문자를 차단 신고한다",
+      "where": "한국인터넷진흥원 118",
+      "why": "범행에 쓰인 번호와 문자를 막는 창구가 따로 있다",
+      "docs": []
+    }
+  ],
+  "alts": [
+    {
+      "what": "어느 은행인지 모르겠으면 금융감독원으로 먼저 전화한다",
+      "where": "금융감독원 1332"
+    },
+    {
+      "what": "밤이나 주말이라 콜센터가 안 되면 112로 먼저 건다",
+      "where": "경찰청 112"
+    },
+    {
+      "what": "문자·메신저로 온 미끼면 링크를 누르지 말고 그대로 신고한다",
+      "where": "한국인터넷진흥원 118"
+    }
+  ],
+  "deadline": {
+    "kind": "안내",
+    "text": "조치 순서가 정해져 있다 — 지급정지 신청(금융회사) → 피해 신고(112) → 피해금 환급 신청(금융회사). 빠를수록 잡을 수 있는 돈이 많다",
+    "basisRef": "korea-kr-phishing"
+  },
+  "volatile": [
+    {
+      "label": "피해구제 신청 기한과 필요 서류",
+      "checkUrl": "https://www.fss.or.kr/fss/main/main.do?menuNo=200000"
+    },
+    {
+      "label": "환급 절차에 걸리는 기간",
+      "checkUrl": "https://www.fss.or.kr/fss/main/main.do?menuNo=200000"
+    },
+    {
+      "label": "최근 수법(그놈 목소리)",
+      "checkUrl": "https://www.fss.or.kr/fss/bbs/B0000206/list.do?menuNo=200691"
+    }
+  ],
+  "basis": [
+    {
+      "id": "korea-kr-phishing",
+      "title": "보이스피싱 예방과 피해구제 신청 방법 — 조치 순서와 신고처(금융위원회)",
+      "url": "https://www.korea.kr/news/policyNewsView.do?newsId=148933209",
+      "publisher": "대한민국 정책브리핑(금융위원회)",
+      "article": null,
+      "checkedAt": "2026-08-21",
+      "hash": null
+    },
+    {
+      "id": "fss-phishing-hub",
+      "title": "금융감독원 보이스피싱지킴이",
+      "url": "https://www.fss.or.kr/fss/main/main.do?menuNo=200000",
+      "publisher": "금융감독원",
+      "article": null,
+      "checkedAt": "2026-08-21",
+      "hash": null
+    },
+    {
+      "id": "msafer-check",
+      "title": "명의도용방지서비스 Msafer — 가입사실현황조회",
+      "url": "https://www.msafer.or.kr/inquiry_join/inquiry.do",
+      "publisher": "한국정보통신진흥협회(KAIT)",
+      "article": "전기통신사업법 제32조의6",
+      "checkedAt": "2026-08-21",
+      "hash": null
+    }
+  ],
+  "verifiedAt": "2026-08-21",
+  "recheckDays": 90,
+  "status": "live"
+}

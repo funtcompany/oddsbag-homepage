@@ -28,7 +28,9 @@ export async function GET() {
     // 게시판 전용 글(boardOnly — WPMS 제품 안내 등)은 뉴스가 아니다.
     //  구글 뉴스에 제출하지 않는다. 일반 sitemap.xml 에는 그대로 남아 검색에는 잡힌다.
     //  (지시 2026-08-18) hidden 글도 예전부터 여기서 뺀다.
-    .filter((p) => !p.hidden && !p.boardOnly)
+    //  케이스북 글(생활 절차 안내)도 뉴스가 아니다 — 「지갑 잃어버렸을 때」가
+    //  구글 뉴스에 기사로 들어가면 안 된다. 일반 sitemap.xml 에는 그대로 남는다.
+    .filter((p) => !p.hidden && !p.boardOnly && !p.casebook)
     .map((p) => ({ post: p, 발행: new Date(p.publishedAt ?? p.date) }))
     .filter(({ 발행 }) => !Number.isNaN(발행.getTime()) && now - 발행.getTime() <= 이틀)
     .sort((a, b) => b.발행.getTime() - a.발행.getTime())

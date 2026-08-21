@@ -88,6 +88,8 @@ export interface Post {
    *   게시판에 남겨야 하므로 hidden 을 쓰면 안 된다. 되돌리려면 이 값만 지우면 된다.
    */
   boardOnly?: string;
+  /** 케이스북(data/casebook)에서 뽑은 글. 뉴스가 아니므로 sitemap-news.xml 에서 뺀다. */
+  casebook?: string;
   auditedAt?: string; // 마지막 재점검 시각 (1일 3회 크론)
   social?: { ig?: string; fb?: string; at?: string }; // SNS 게시 결과
 

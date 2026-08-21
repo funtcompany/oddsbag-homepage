@@ -1,0 +1,57 @@
+{
+  "id": "power-outage",
+  "situation": "갑자기 정전이 됐다",
+  "who": "집이나 가게에 전기가 끊긴 사람",
+  "weekdayHint": [
+    "금",
+    "목"
+  ],
+  "steps": [
+    {
+      "when": "3분",
+      "what": "우리 집만인지 동네 전체인지 가른다",
+      "where": "두꺼비집(차단기) · 창밖 이웃집",
+      "why": "우리 집만이면 차단기 문제이고, 동네 전체면 신고 대상이다 (원문 확인 필요)",
+      "docs": []
+    },
+    {
+      "when": "3분",
+      "what": "한국전력에 신고한다",
+      "where": "한국전력 123",
+      "why": "동네 전체 정전은 한전이 처리한다 (확인 필요)",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "국민행동요령을 확인한다",
+      "where": "국민안전24 safekorea.go.kr",
+      "why": "「정전 및 전력부족」 항목이 목록에 있는 것은 확인했으나 본문은 아직 못 읽었다",
+      "docs": []
+    }
+  ],
+  "deadline": {
+    "kind": "없음",
+    "text": "기한 개념이 없다",
+    "basisRef": null
+  },
+  "volatile": [
+    {
+      "label": "정전 국민행동요령 본문",
+      "checkUrl": "https://www.safekorea.go.kr/safekorea-kor/acts/nacts/nationalActionTips.do?menuSn=4"
+    }
+  ],
+  "basis": [
+    {
+      "id": "safekorea-tips",
+      "title": "국민안전24 국민행동요령 — 목록에 「정전 및 전력부족」 있음을 2026-08-21 확인 (본문 미독)",
+      "url": "https://www.safekorea.go.kr/safekorea-kor/acts/nacts/nationalActionTips.do?menuSn=4",
+      "publisher": "행정안전부 국민안전24",
+      "article": null,
+      "checkedAt": null,
+      "hash": null
+    }
+  ],
+  "verifiedAt": null,
+  "recheckDays": 180,
+  "status": "unverified"
+}

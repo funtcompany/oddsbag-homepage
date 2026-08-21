@@ -1,0 +1,116 @@
+{
+  "id": "phone-identity-theft",
+  "situation": "내 이름으로 휴대폰이 몰래 개통됐을까 걱정된다",
+  "title": "내 이름으로 휴대폰이 개통됐는지 3분 만에 확인하는 법",
+  "summary": "통신사마다 따로 물어볼 필요가 없습니다. 본인 명의 회선을 한 번에 조회하는 정부 지정 창구와, 앞으로 개통을 막아 두는 방법까지 정리했습니다.",
+  "who": "신분증을 잃어버렸거나, 유출 사고 소식을 들었거나, 모르는 요금 청구를 받은 사람",
+  "weekdayHint": [
+    "금",
+    "일"
+  ],
+  "steps": [
+    {
+      "when": "3분",
+      "what": "내 이름으로 개통된 회선을 한 번에 조회한다",
+      "where": "명의도용방지서비스 Msafer 「가입사실현황조회」",
+      "why": "본인 명의의 전기통신서비스 회선 개통 현황을 한꺼번에 확인하는 창구다. 통신사마다 따로 물어볼 필요가 없다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "모르는 회선이 나오면 그 통신사에 바로 알린다",
+      "where": "해당 통신사 고객센터",
+      "why": "개통을 되돌리는 것은 통신사가 한다. 조회 서비스는 알려 줄 뿐 해지까지 해 주지는 않는다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "상담이 필요하면 전용 상담센터에 전화한다",
+      "where": "부정가입·명의도용 방지 상담센터 1670-1382 (평일 09:00~18:00, 점심 12:00~13:00)",
+      "why": "무엇부터 해야 할지 모를 때 순서를 안내받을 수 있다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "앞으로 개통이 안 되게 미리 잠근다",
+      "where": "Msafer 「가입제한 서비스」",
+      "why": "이동전화 개통을 사전에 차단해 둔다. 이미 벌어진 일을 확인하는 것보다 다음을 막는 쪽이 값이 크다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "개통되면 알림이 오도록 걸어 둔다",
+      "where": "Msafer 「가입사실 이메일 안내서비스」",
+      "why": "본인이 신청한 이메일로 개통 사실을 알려 준다. 다음부터는 직접 조회하지 않아도 알게 된다",
+      "docs": []
+    }
+  ],
+  "deadline": {
+    "kind": "없음",
+    "text": "법으로 정해진 기한은 없다. 다만 빨리 알수록 되돌리기 쉽다",
+    "basisRef": null
+  },
+  "volatile": [
+    {
+      "label": "이용 가능 시간·점검 일정",
+      "checkUrl": "https://www.msafer.or.kr/notice/index.do"
+    },
+    {
+      "label": "본인확인 수단(공동인증서 등)",
+      "checkUrl": "https://www.msafer.or.kr/certification_center/public_certification.do"
+    }
+  ],
+  "basis": [
+    {
+      "id": "msafer-main",
+      "title": "명의도용방지서비스 Msafer — 서비스 안내",
+      "url": "https://www.msafer.or.kr/protection_use/guide.do",
+      "publisher": "한국정보통신진흥협회(KAIT)",
+      "article": "전기통신사업법 제32조의6",
+      "checkedAt": "2026-08-21",
+      "hash": null
+    },
+    {
+      "id": "msafer-inquiry",
+      "title": "가입사실현황조회 서비스",
+      "url": "https://www.msafer.or.kr/inquiry_join/inquiry.do",
+      "publisher": "한국정보통신진흥협회(KAIT)",
+      "article": null,
+      "checkedAt": "2026-08-21",
+      "hash": null
+    },
+    {
+      "id": "msafer-limit",
+      "title": "가입제한 서비스",
+      "url": "https://www.msafer.or.kr/protection_use/status.do",
+      "publisher": "한국정보통신진흥협회(KAIT)",
+      "article": null,
+      "checkedAt": "2026-08-21",
+      "hash": null
+    }
+  ],
+  "verifiedAt": "2026-08-21",
+  "recheckDays": 120,
+  "status": "live",
+  "oneLine": "통신사마다 묻지 말고 한 곳에서 한 번에 조회한다.",
+  "tags": [
+    "명의도용",
+    "보이스피싱",
+    "개인정보",
+    "Msafer"
+  ],
+  "alts": [
+    {
+      "what": "조회가 안 되면 전용 상담센터에 전화한다",
+      "where": "부정가입·명의도용 방지 상담센터 1670-1382 (평일 09:00~18:00)"
+    },
+    {
+      "what": "모르는 회선이 나왔으면 그 통신사 고객센터로 간다",
+      "where": "해당 통신사 고객센터"
+    },
+    {
+      "what": "앞으로를 막으려면 가입제한을 걸어 둔다",
+      "where": "Msafer 「가입제한 서비스」"
+    }
+  ]
+}

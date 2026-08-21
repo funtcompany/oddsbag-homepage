@@ -1,0 +1,86 @@
+{
+  "id": "lost-wallet",
+  "situation": "지갑을 잃어버렸다",
+  "who": "신분증과 카드가 한 지갑에 들어 있던 사람",
+  "weekdayHint": [
+    "일",
+    "토"
+  ],
+  "steps": [
+    {
+      "when": "3분",
+      "what": "카드사 앱이나 콜센터로 분실 신고",
+      "where": "각 카드사 앱 · 카드 뒷면 번호",
+      "why": "신고 시각이 기록으로 남는 것이 중요하다",
+      "docs": []
+    },
+    {
+      "when": "3분",
+      "what": "본인 명의 계좌·카드 목록을 한눈에 확인",
+      "where": "어카운트인포 payinfo.or.kr",
+      "why": "지갑에 뭐가 있었는지 기억이 안 날 때 빠진 게 잡힌다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "가까운 지구대·파출소에 분실 신고",
+      "where": "경찰청 유실물 통합포털 lost112.go.kr",
+      "why": "습득물이 등록되면 여기서 대조된다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "주민등록증 재발급 신청",
+      "where": "주민센터 방문 · 정부24 gov.kr",
+      "why": "신분증이 없으면 그 뒤 모든 절차가 막힌다",
+      "docs": [
+        "주민등록증"
+      ]
+    },
+    {
+      "when": "이번주",
+      "what": "명의도용(휴대폰 개통) 여부 확인",
+      "where": "명의도용방지서비스 msafer.or.kr",
+      "why": "신분증이 남의 손에 있을 때 가장 먼저 나타나는 흔적",
+      "docs": []
+    }
+  ],
+  "deadline": {
+    "kind": "없음",
+    "text": "법으로 정해진 기한은 두지 않는다",
+    "basisRef": null
+  },
+  "volatile": [
+    {
+      "label": "주민등록증 재발급 수수료",
+      "checkUrl": "https://www.gov.kr"
+    },
+    {
+      "label": "카드사별 보상 규정",
+      "checkUrl": "https://www.fss.or.kr"
+    }
+  ],
+  "basis": [
+    {
+      "id": "police-lost112",
+      "title": "경찰청 유실물 통합포털 (2026-08-21 확인 시도 — 해외망에서 접속 거절)",
+      "url": "https://www.lost112.go.kr",
+      "publisher": "경찰청",
+      "article": null,
+      "checkedAt": null,
+      "hash": null
+    },
+    {
+      "id": "payinfo-account",
+      "title": "어카운트인포 — 계좌·카드/포인트·보험/대출·자동이체 조회",
+      "url": "https://www.payinfo.or.kr/payinfo.html",
+      "publisher": "금융결제원(확인 필요)",
+      "article": null,
+      "checkedAt": null,
+      "hash": null
+    }
+  ],
+  "verifiedAt": null,
+  "recheckDays": 120,
+  "status": "unverified"
+}
