@@ -21,10 +21,66 @@ export const TOOLS_HUB_TAGLINE =
 export const TOOLS_HUB_EMOJI = "🧰";
 export const TOOLS_HUB_HREF = "/service";
 
+// ── 갈래(카테고리) ────────────────────────────────────────────
+//
+// ★지금은 도구가 여섯이라 갈래로 나누면 오히려 더 헷갈린다(한 갈래에 한두 개씩 흩어진다).
+//   그래서 «칸이 찰 때까지는 한 판»으로 두고, CATEGORY_VIEW_MIN 을 넘는 순간
+//   화면이 스스로 갈래별로 나뉜다. 그날 코드를 고치러 오지 않아도 되게 미리 심어 둔다.
+//   갈래 이름표는 지금도 카드에 작게 붙어서, 사람이 «무슨 갈래가 있는지» 미리 익힌다.
+
+export interface ToolCategory {
+  id: string;
+  label: string;
+  emoji: string;
+  /** 갈래 한 줄 설명 — 갈래별로 나뉜 뒤 소제목 밑에 붙는다 */
+  lead: string;
+}
+
+/** 이 수를 넘으면 /service 랜딩이 «갈래별»로 나뉜다 */
+export const CATEGORY_VIEW_MIN = 8;
+
+export const toolCategories: ToolCategory[] = [
+  {
+    id: "photo",
+    label: "사진",
+    emoji: "📸",
+    lead: "찍어 둔 사진을 쓸 수 있게 만듭니다",
+  },
+  {
+    id: "doc",
+    label: "문서·글",
+    emoji: "📄",
+    lead: "내야 하는 것, 써야 하는 것",
+  },
+  {
+    id: "share",
+    label: "보내기",
+    emoji: "🔗",
+    lead: "남에게 건네야 할 때",
+  },
+  {
+    id: "organize",
+    label: "정리",
+    emoji: "🗂",
+    lead: "쌓아만 둔 것을 쓸 수 있게",
+  },
+  {
+    id: "safety",
+    label: "안전",
+    emoji: "🔒",
+    lead: "나도 모르게 새는 것을 막습니다",
+  },
+];
+
+export const categoryOf = (id: string): ToolCategory | undefined =>
+  toolCategories.find((c) => c.id === id);
+
 export interface HubTool {
   slug: string;
   name: string;
   emoji: string;
+  /** 어느 갈래인가 — toolCategories 의 id */
+  category: string;
   /** 한 줄 소개 */
   desc: string;
   href: string;
@@ -35,6 +91,7 @@ export interface HubTool {
 export const hubTools: HubTool[] = [
   {
     slug: "html-link",
+    category: "share",
     name: "HTML 링크 생성기",
     emoji: "🔗",
     desc: "내가 만든 HTML을 올리면 링크가 나옵니다. 그 링크로 열면 효과까지 원본 그대로 재생되고, 원하면 공유링크로 남에게도 보여줄 수 있습니다.",
@@ -43,6 +100,7 @@ export const hubTools: HubTool[] = [
   },
   {
     slug: "ebook",
+    category: "doc",
     name: "이북 제작기",
     emoji: "📚",
     desc: "PDF나 사진 묶음(ZIP도 됩니다)을 올리면 넘겨 보는 전자책으로 만들어 드립니다. 파일로 받거나 링크로 보낼 수 있습니다.",
@@ -51,6 +109,7 @@ export const hubTools: HubTool[] = [
   },
   {
     slug: "image",
+    category: "photo",
     name: "사진 줄이기",
     emoji: "🖼",
     desc: "「파일이 너무 큽니다」로 막혔을 때. 사진을 여러 장 한꺼번에 가볍게 만들고 형식도 바꿔 드립니다. 압축파일 하나로 받으실 수 있습니다.",
@@ -59,6 +118,7 @@ export const hubTools: HubTool[] = [
   },
   {
     slug: "idphoto",
+    category: "photo",
     name: "증명사진 만들기",
     emoji: "🪪",
     desc: "갖고 계신 사진을 여권·운전면허 규격 크기로 잘라 드립니다. 인화지 한 장에 여러 장 앉힌 것도 같이 나와서 사진관에 그대로 맡기시면 됩니다.",
@@ -67,6 +127,7 @@ export const hubTools: HubTool[] = [
   },
   {
     slug: "count",
+    category: "doc",
     name: "글자수 세기",
     emoji: "🔢",
     desc: "자기소개서처럼 「몇 자 이내」가 정해진 글을 쓸 때. 공백 포함·공백 제외·바이트를 한 화면에 보여 드리고, 한도까지 몇 자 남았는지 셉니다.",
@@ -75,6 +136,7 @@ export const hubTools: HubTool[] = [
   },
   {
     slug: "scrap",
+    category: "organize",
     name: "스크랩 정리기",
     emoji: "🗂",
     desc: "모아둔 주소와 사진을 한꺼번에 정리합니다. 주소는 제목을 붙여 엑셀로, 사진은 이름을 바꾸고 묶어서 압축파일로 내려받습니다.",
@@ -82,3 +144,13 @@ export const hubTools: HubTool[] = [
     status: "새로 나옴",
   },
 ];
+
+/** 갈래별로 묶는다 — 도구가 하나도 없는 갈래는 내놓지 않는다(빈 칸을 눌러 빈손으로 나가지 않게) */
+export function groupedTools(): { category: ToolCategory; tools: HubTool[] }[] {
+  return toolCategories
+    .map((category) => ({ category, tools: hubTools.filter((t) => t.category === category.id) }))
+    .filter((g) => g.tools.length > 0);
+}
+
+/** 지금 화면을 갈래별로 나눠야 하나 */
+export const shouldGroupByCategory = (): boolean => hubTools.length >= CATEGORY_VIEW_MIN;

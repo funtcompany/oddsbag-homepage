@@ -11,6 +11,10 @@ import {
   TOOLS_HUB_TAGLINE,
   TOOLS_HUB_EMOJI,
   hubTools,
+  categoryOf,
+  groupedTools,
+  shouldGroupByCategory,
+  type HubTool,
 } from "@/lib/tools-hub";
 
 export const metadata: Metadata = {
@@ -58,38 +62,32 @@ export default async function ToolsHubPage() {
           </div>
         </section>
 
+        {/* ★갈래별로 나눌지 «화면이 스스로» 정한다 (lib/tools-hub.ts CATEGORY_VIEW_MIN).
+            도구가 적을 땐 한 판이 낫고, 많아지면 갈래가 낫다. 그날 여기 고치러 오지 않아도 된다. */}
         <section className="mx-auto max-w-6xl px-4 py-12">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {hubTools.map((t, i) => (
-              <Link
-                key={t.slug}
-                href={t.href}
-                data-reveal-index={i}
-                className="ob-reveal ob-lift group flex flex-col rounded-2xl border border-oddsbag-light-gray bg-white p-6 hover:border-oddsbag-purple hover:shadow-lg hover:shadow-oddsbag-purple/10"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-4xl" aria-hidden>
-                    {t.emoji}
-                  </span>
-                  <span className="rounded-full bg-oddsbag-light-gray px-2 py-0.5 text-[11px] font-bold text-oddsbag-gray">
-                    {t.status}
-                  </span>
+          {shouldGroupByCategory() ? (
+            <div className="space-y-12">
+              {groupedTools().map(({ category, tools }) => (
+                <div key={category.id}>
+                  <h2 className="text-xl font-black text-oddsbag-dark">
+                    {category.emoji} {category.label}
+                  </h2>
+                  <p className="mt-1 text-sm text-oddsbag-gray">{category.lead}</p>
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {tools.map((t, i) => (
+                      <ToolCard key={t.slug} tool={t} index={i} />
+                    ))}
+                  </div>
                 </div>
-                <h2 className="mt-4 text-lg font-black text-oddsbag-dark group-hover:text-oddsbag-purple">
-                  {t.name}
-                </h2>
-                <p
-                  className="mt-2 flex-1 text-sm leading-relaxed text-oddsbag-gray"
-                  style={{ wordBreak: "keep-all" }}
-                >
-                  {t.desc}
-                </p>
-                <span className="mt-5 text-[13.5px] font-black text-oddsbag-purple">
-                  열어보기 →
-                </span>
-              </Link>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {hubTools.map((t, i) => (
+                <ToolCard key={t.slug} tool={t} index={i} />
+              ))}
+            </div>
+          )}
         </section>
 
         {게시판별.length > 0 && (
@@ -130,5 +128,46 @@ export default async function ToolsHubPage() {
       </main>
       <Footer />
     </>
+  );
+}
+
+/** 도구 카드 한 장. 한 판으로 놓을 때도, 갈래별로 나눌 때도 같은 것을 쓴다 */
+function ToolCard({ tool: t, index }: { tool: HubTool; index: number }) {
+  const cat = categoryOf(t.category);
+  return (
+    <Link
+      href={t.href}
+      data-reveal-index={index}
+      className="ob-reveal ob-lift group flex flex-col rounded-2xl border border-oddsbag-light-gray bg-white p-6 hover:border-oddsbag-purple hover:shadow-lg hover:shadow-oddsbag-purple/10"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-4xl" aria-hidden>
+          {t.emoji}
+        </span>
+        <span className="rounded-full bg-oddsbag-light-gray px-2 py-0.5 text-[11px] font-bold text-oddsbag-gray">
+          {t.status}
+        </span>
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <h2 className="text-lg font-black text-oddsbag-dark group-hover:text-oddsbag-purple">
+          {t.name}
+        </h2>
+        {/* ★갈래로 나뉘기 «전»에도 이름표는 보인다 — 사람이 갈래를 미리 익히게 */}
+        {cat && (
+          <span className="rounded-full bg-oddsbag-purple/10 px-2 py-0.5 text-[10.5px] font-black text-oddsbag-purple">
+            {cat.label}
+          </span>
+        )}
+      </div>
+      <p
+        className="mt-2 flex-1 text-sm leading-relaxed text-oddsbag-gray"
+        style={{ wordBreak: "keep-all" }}
+      >
+        {t.desc}
+      </p>
+      <span className="mt-5 text-[13.5px] font-black text-oddsbag-purple">
+        열어보기 →
+      </span>
+    </Link>
   );
 }

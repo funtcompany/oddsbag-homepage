@@ -10,6 +10,13 @@
 
 import fs from "node:fs";
 import { boardKeyOf, oddsbagBoards, TOOL_BOARD_KEYS } from "@/lib/boards";
+import {
+  hubTools,
+  toolCategories,
+  groupedTools,
+  shouldGroupByCategory,
+  CATEGORY_VIEW_MIN,
+} from "@/lib/tools-hub";
 
 let 통과 = 0;
 const 실패 = [];
@@ -86,6 +93,33 @@ for (const key of TOOL_BOARD_KEYS) {
 for (const b of oddsbagBoards) {
   같나(`${b.key} 힌트에 허브 태그 «오즈백툴즈» 가 없다`, !(b.tagHints ?? []).includes("오즈백툴즈"), true);
 }
+
+// ── 도구 명부와 갈래(카테고리) ───────────────────────────────────
+// ★도구 명부와 게시판 명부가 어긋나면 그 도구 글이 «어느 화면에도» 안 뜬다.
+const 갈래id = new Set(toolCategories.map((c) => c.id));
+for (const t of hubTools) {
+  같나(`${t.slug} 에 갈래가 있다`, !!t.category, true);
+  같나(`${t.slug} 의 갈래가 명부에 있다`, 갈래id.has(t.category), true);
+  // ★도구 slug 와 게시판 key 는 «달라도 된다» (html-link ↔ htmllink 가 실제로 다르다).
+  //   진짜 지켜야 하는 것은 «둘이 같은 화면을 가리키는가» 다. 여기가 어긋나면
+  //   도구 글이 그 도구 밑에 안 붙고, 눌러도 다른 데로 간다.
+  const 짝 = oddsbagBoards.find((b) => b.href === t.href);
+  같나(`${t.slug} 에 짝지은 게시판이 있다`, !!짝, true);
+  if (짝) 같나(`${t.slug} 의 게시판이 도구 게시판으로 등록돼 있다`, TOOL_BOARD_KEYS.includes(짝.key), true);
+}
+같나("게시판 수와 도구 수가 맞는다", TOOL_BOARD_KEYS.length, hubTools.length);
+같나("갈래 id 가 겹치지 않는다", toolCategories.length, 갈래id.size);
+
+// 갈래로 묶어도 «한 도구도 안 사라진다»
+같나(
+  "묶어도 도구가 안 샌다",
+  groupedTools().reduce((n, g) => n + g.tools.length, 0),
+  hubTools.length,
+);
+// 도구가 없는 갈래는 내놓지 않는다 (빈 칸을 눌러 빈손으로 나가지 않게)
+같나("빈 갈래는 안 내놓는다", groupedTools().every((g) => g.tools.length > 0), true);
+// 지금은 한 판, CATEGORY_VIEW_MIN 을 넘으면 갈래별 — 문턱이 도구 수와 어긋나지 않게
+같나("갈래 전환 문턱 판정", shouldGroupByCategory(), hubTools.length >= CATEGORY_VIEW_MIN);
 
 // ── 결과 ────────────────────────────────────────────────────────
 console.log(`\n[게시판 시험] 원고 ${판정.size}편 · 통과 ${통과} · 실패 ${실패.length}`);
