@@ -1,0 +1,129 @@
+{
+  "id": "child-vaccination",
+  "situation": "아이 예방접종에 빠진 게 없는지 모르겠다",
+  "title": "아이 예방접종에 빠진 게 없는지 확인하는 법 — 수첩 말고 국가 기록으로",
+  "summary": "종이 수첩은 잃어버리고 기억은 흐려집니다. 질병관리청 예방접종도우미에서 아이 접종 내역과 다음 일정을 직접 조회하는 법, 무료로 맞을 수 있는 병원을 찾는 법, 입학 전에 미리 챙길 것을 정리했습니다.",
+  "who": "어린 자녀를 둔 보호자. 초등학교·중학교 입학을 앞두고 있으면 학교에서 접종 기록을 확인하는 절차가 따로 있다",
+  "weekdayHint": [
+    "금",
+    "일"
+  ],
+  "applies": {
+    "everyone": false,
+    "have": [
+      "아이"
+    ],
+    "ageFrom": null,
+    "ageTo": null,
+    "ageBasisRef": null,
+    "ageNotes": []
+  },
+  "steps": [
+    {
+      "when": "3분",
+      "what": "아이 예방접종 내역을 조회한다",
+      "where": "질병관리청 예방접종도우미 「아이 예방접종 내역조회」",
+      "why": "종이 수첩이 아니라 국가 기록으로 확인한다. 아이 정보를 먼저 등록해야 조회가 되는 구조라, 등록이 안 돼 있으면 「아이정보등록」부터 한다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "다음 접종이 언제인지 일정을 본다",
+      "where": "예방접종도우미 「아이 예방접종 일정보기」",
+      "why": "무엇을 언제 맞아야 하는지 아이별 일정으로 보여 준다. 표를 눈으로 대조하는 것보다 빠지는 게 적다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "표준 예방접종 일정표와 견줘 본다",
+      "where": "예방접종도우미 「표준 예방접종 일정표」",
+      "why": "국가예방접종 대상과 시기는 해마다 바뀔 수 있다. 몇 년 전에 본 표를 기억으로 쓰면 틀린다 — 지금 표를 연다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "무료로 맞을 수 있는 병원을 찾아 예약한다",
+      "where": "예방접종도우미 「위탁의료기관 찾기」",
+      "why": "국가예방접종은 지정된 위탁의료기관에서 받는다. 아무 병원이나 되는 게 아니라 미리 확인해야 헛걸음을 안 한다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "빠진 접종을 놓치지 않게 사전알림을 켠다",
+      "where": "예방접종도우미 「필수예방접종 사전알림 안내」",
+      "why": "다음 접종 시기를 미리 알려 주는 안내가 따로 있다. 기억에 기대지 않는 게 이 일의 요령이다",
+      "docs": []
+    },
+    {
+      "when": "한달",
+      "what": "입학을 앞뒀으면 증명서를 미리 뽑아 둔다",
+      "where": "예방접종도우미 「예방접종 증명서」 · 「초·중학교입학생 예방접종확인사업」",
+      "why": "초·중학교 입학생은 예방접종 기록을 확인하는 사업이 따로 있다. 입학 직전에 몰아서 하면 빠진 접종을 채울 시간이 없다",
+      "docs": [
+        "예방접종 증명서"
+      ]
+    }
+  ],
+  "deadline": {
+    "kind": "안내",
+    "text": "접종마다 권장 시기가 정해져 있고, 초·중학교 입학생은 별도의 확인 절차가 있다. 정확한 시기는 아이별 일정 화면에서 본다",
+    "basisRef": "kdca-nip-menu"
+  },
+  "volatile": [
+    {
+      "label": "우리 아이가 다음에 맞을 것과 그 시기",
+      "checkUrl": "https://nip.kdca.go.kr/irhp/mngm/goVcntMngm.do?menuLv=3&menuCd=313"
+    },
+    {
+      "label": "올해 국가예방접종 대상과 표준 일정표",
+      "checkUrl": "https://nip.kdca.go.kr/irhp/infm/goVcntInfo.do?menuLv=1&menuCd=115"
+    },
+    {
+      "label": "우리 동네 위탁의료기관",
+      "checkUrl": "https://nip.kdca.go.kr/irhp/mngm/goVcntMngm.do?menuLv=3&menuCd=331"
+    },
+    {
+      "label": "입학생 예방접종 확인 절차",
+      "checkUrl": "https://nip.kdca.go.kr/irhp/infm/goVcntInfo.do?menuLv=1&menuCd=136"
+    }
+  ],
+  "basis": [
+    {
+      "id": "kdca-nip-menu",
+      "title": "예방접종도우미 — 아이 예방접종 내역조회·일정보기, 표준 예방접종 일정표, 위탁의료기관 찾기, 예방접종 증명서, 초·중학교입학생 예방접종확인사업, 필수예방접종 사전알림 메뉴 확인",
+      "url": "https://nip.kdca.go.kr/irhp/index.html",
+      "publisher": "질병관리청",
+      "article": null,
+      "checkedAt": "2026-08-26",
+      "hash": null
+    },
+    {
+      "id": "kdca-nip-schedule",
+      "title": "표준 예방접종 일정표",
+      "url": "https://nip.kdca.go.kr/irhp/infm/goVcntInfo.do?menuLv=1&menuCd=115",
+      "publisher": "질병관리청 예방접종도우미",
+      "article": null,
+      "checkedAt": "2026-08-26",
+      "hash": null
+    },
+    {
+      "id": "kdca-nip-school",
+      "title": "초·중학교입학생 예방접종확인사업",
+      "url": "https://nip.kdca.go.kr/irhp/infm/goVcntInfo.do?menuLv=1&menuCd=136",
+      "publisher": "질병관리청 예방접종도우미",
+      "article": null,
+      "checkedAt": "2026-08-26",
+      "hash": null
+    }
+  ],
+  "verifiedAt": "2026-08-26",
+  "recheckDays": 120,
+  "status": "live",
+  "oneLine": "수첩 말고 예방접종도우미에서 아이 기록을 조회한다. 일정표는 해마다 바뀐다.",
+  "tags": [
+    "예방접종",
+    "어린이예방접종",
+    "질병관리청",
+    "국가예방접종"
+  ]
+}

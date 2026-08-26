@@ -9,6 +9,11 @@ import { showcase } from "@/lib/showcase";
 import { services } from "@/lib/services-catalog";
 import { TOOLS_HUB_NAME, TOOLS_HUB_HREF } from "@/lib/tools-hub";
 import {
+  CHECKLIST_NAME,
+  CHECKLIST_EMOJI,
+  CHECKLIST_HREF,
+} from "@/lib/checklist";
+import {
   getMagazinePosts,
   getPostsByChannel,
   type Post,
@@ -153,6 +158,14 @@ function MakesSection() {
       href: `/oddsbag/service/${s.slug}`,
       badge: s.status,
     })),
+    {
+      key: "check",
+      emoji: CHECKLIST_EMOJI,
+      title: CHECKLIST_NAME,
+      desc: "운전면허 갱신·자동차 검사·전입신고처럼 놓치면 손해인 것들. 가진 것만 고르면 올해 챙길 것을 한 화면에 모아 드립니다. 로그인도 본인인증도 없습니다.",
+      href: CHECKLIST_HREF,
+      badge: "새로 나옴",
+    },
     {
       key: "tools",
       emoji: "🧰",

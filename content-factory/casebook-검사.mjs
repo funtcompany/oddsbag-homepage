@@ -13,6 +13,16 @@
 //   ⑤ 금액·비율·수수료 칸이 있으면 탈락 — 값은 담지 않는다. 담을 칸이 없어야 틀릴 수가 없다
 //   ⑥ volatile[] 에 값이 붙어 있으면 탈락 (label + checkUrl 만 허용)
 //   ⑦ verifiedAt 이 «미래»면 탈락 — 원안이 실제로 저지른 짓이다(확인일을 이틀 뒤로 적었다)
+//   ⑧ applies.have 에 어휘표(data/casebook-vocab.json)에 없는 이름이 있으면 탈락
+//      — 오타 하나면 「챙길 것」 화면에서 «조용히 사라진다». 아무도 못 알아챈다
+//   ⑨ applies 에 나이 조건(ageFrom/ageTo)이 있는데 ageBasisRef 가 없거나 없는 basis 를
+//      가리키면 탈락 — 나이 조건도 법정 기한과 같다. 근거 옆에서만 산다
+//   ⑩ applies 가 없거나 everyone 도 false 이고 have 도 비면 경고 — 도구에 안 뜬다
+//   ⑪ applies.ageNotes[] (나이대별 주의문) 도 각자 basisRef 를 달아야 한다 —
+//      나이대에서만 뜨는 문장이라 틀려도 아무도 못 본다. 근거 없이는 못 뜬다
+//   ⑫ yearBound(「올해 안에」 묶음에 들어가는 표시) 는 kind·text·basisRef 가 다 있어야 한다 —
+//      «올해 지나면 없어진다» 는 강한 말이다. 근거 없이 붙이면 사람을 헛되이 서두르게 한다.
+//      해가 바뀌면 다시 시작하는 것(건강검진처럼)만 여기 들어간다. 개인별 만료일은 아니다
 //
 // 쓰는 법
 //   node content-factory/casebook-검사.mjs                  data/casebook 전부
@@ -35,6 +45,14 @@ const 한국날짜 = (d = new Date()) =>
   new Date(d.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
 const 금지칸 = ["amount", "rate", "fee", "price", "cost", "금액", "수수료", "과태료"];
+
+// 「가진 것」 어휘표는 화면과 «같은 파일» 을 읽는다. 두 곳에 적으면 반드시 어긋난다.
+const 어휘파일 = path.join(process.cwd(), "data", "casebook-vocab.json");
+const 허용가진것 = new Set(
+  fs.existsSync(어휘파일)
+    ? JSON.parse(fs.readFileSync(어휘파일, "utf-8")).have.map((h) => h.id)
+    : [],
+);
 const 허용상태 = ["unverified", "live", "watch", "linkonly"];
 const 허용시점 = ["3분", "오늘", "이번주", "한달"];
 
@@ -100,12 +118,63 @@ export function 검사하나(c, 파일명 = "") {
     else if (!basisId.has(d.basisRef)) 탈락.push(`deadline.basisRef(${d.basisRef}) 가 없는 basis id 를 가리킨다`);
   }
 
+  // ─ ⑫ yearBound — 「올해 안에」 묶음
+  const yb = c.yearBound;
+  if (yb !== undefined && yb !== null) {
+    const 허용 = ["연말", "연초"];
+    if (!허용.includes(yb.kind)) {
+      탈락.push(`yearBound.kind 는 ${허용.join(" / ")} 중 하나여야 한다 (지금: ${yb.kind})`);
+    }
+    if (!yb.text) 탈락.push("yearBound.text 가 비었다 — 무엇이 해마다 다시 시작하는지 적어야 한다");
+    if (!yb.basisRef) {
+      탈락.push("yearBound 에 basisRef 가 없다 — «올해 지나면 없어진다» 는 근거 옆에서만 산다");
+    } else if (!basisId.has(yb.basisRef)) {
+      탈락.push(`yearBound.basisRef(${yb.basisRef}) 가 없는 basis id 를 가리킨다`);
+    }
+    const 남는칸 = Object.keys(yb).filter((k) => !["kind", "text", "basisRef"].includes(k));
+    if (남는칸.length) 탈락.push(`yearBound 에 다른 칸이 있다: ${남는칸.join(",")}`);
+  }
+
   // ─ ⑥ volatile 은 이름과 링크만
   (Array.isArray(c.volatile) ? c.volatile : []).forEach((v, i) => {
     if (!v.label) 탈락.push(`volatile[${i}].label 이 비었다`);
     const 남는칸 = Object.keys(v).filter((k) => !["label", "checkUrl"].includes(k));
     if (남는칸.length) 탈락.push(`volatile[${i}] 에 label·checkUrl 말고 다른 칸이 있다: ${남는칸.join(",")}`);
   });
+
+  // ─ ⑧⑨⑩ applies — 「챙길 것」 이 이 칸으로 고른다
+  const a = c.applies;
+  if (!a || typeof a !== "object") {
+    경고.push("applies 가 없다 — 「챙길 것」 화면에 아예 안 뜬다");
+  } else {
+    const have = Array.isArray(a.have) ? a.have : [];
+    const 모름 = have.filter((h) => !허용가진것.has(h));
+    if (모름.length)
+      탈락.push(
+        `applies.have 에 어휘표에 없는 이름이 있다: ${모름.join(", ")} ` +
+          `(쓸 수 있는 것 — ${[...허용가진것].join(" / ")})`,
+      );
+    if (!a.everyone && have.length === 0)
+      경고.push("applies 에 everyone 도 have 도 없다 — 아무에게도 안 뜬다");
+    const 나이있음 = a.ageFrom != null || a.ageTo != null;
+    if (나이있음) {
+      if (!a.ageBasisRef)
+        탈락.push("applies 에 나이 조건이 있는데 ageBasisRef 가 없다 — 나이 조건은 근거 옆에서만 산다");
+      else if (!basisId.has(a.ageBasisRef))
+        탈락.push(`applies.ageBasisRef(${a.ageBasisRef}) 가 없는 basis id 를 가리킨다`);
+      if (a.ageFrom != null && a.ageTo != null && Number(a.ageFrom) > Number(a.ageTo))
+        탈락.push(`applies 의 나이 범위가 뒤집혔다 (${a.ageFrom} ~ ${a.ageTo})`);
+    }
+    // ⑪ 나이대별 주의문
+    (Array.isArray(a.ageNotes) ? a.ageNotes : []).forEach((n, i) => {
+      if (!n.text) 탈락.push(`applies.ageNotes[${i}].text 이 비었다`);
+      if (n.from == null && n.to == null)
+        탈락.push(`applies.ageNotes[${i}] 에 나이대(from/to)가 없다 — 그러면 주의문이 아니다`);
+      if (!n.basisRef) 탈락.push(`applies.ageNotes[${i}] 에 basisRef 가 없다 — 근거 없이 뜨는 문장은 못 둔다`);
+      else if (!basisId.has(n.basisRef))
+        탈락.push(`applies.ageNotes[${i}].basisRef(${n.basisRef}) 가 없는 basis id 를 가리킨다`);
+    });
+  }
 
   // ─ status / verifiedAt
   if (!허용상태.includes(c.status)) 탈락.push(`status 가 "${c.status}" — ${허용상태.join("/")} 중 하나여야 한다`);

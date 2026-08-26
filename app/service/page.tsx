@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getPostsByChannel } from "@/lib/posts";
 import { toCardPosts } from "@/lib/cardPost";
-import { boardKeyOf } from "@/lib/boards";
+import { boardKeyOf, boardOf, TOOL_BOARD_KEYS } from "@/lib/boards";
 import {
   TOOLS_HUB_NAME,
   TOOLS_HUB_TAGLINE,
@@ -23,12 +23,16 @@ export const revalidate = 60;
 
 // 오즈백 툴즈 — 웹 도구 모음 랜딩. 도구가 늘어나면 lib/tools-hub.ts 배열만 채우면 된다.
 export default async function ToolsHubPage() {
-  // ★도구가 아직 하나뿐이라 카드 한 장만 놓으면 화면 아래 三분의 二가 텅 빈다.
-  //   들어온 사람이 빈손으로 나간다. 사용법·문제해결 글이 10편이나 있는데
-  //   여기서 이어지는 길이 없었다 → 아래에 붙인다. (안쪽 링크라 검색에도 도움이 된다)
-  const 사용법 = (await getPostsByChannel("oddsbag")).filter(
-    (p) => boardKeyOf(p) === "htmllink",
+  // ★들어온 사람이 도구만 보고 빈손으로 나가지 않게, 도구마다 «관련 글»을 아래에 붙인다.
+  //   안쪽 링크가 생겨 검색에도 도움이 되고, 막힌 사람이 답을 찾아 남는다.
+  //   (2026-08-26 — 전에는 HTML 링크 생성기 글만 나왔다. 도구가 여섯이 되면서 전부로 넓힌다)
+  const 도구글 = (await getPostsByChannel("oddsbag")).filter((p) =>
+    (TOOL_BOARD_KEYS as readonly string[]).includes(boardKeyOf(p)),
   );
+  const 게시판별 = TOOL_BOARD_KEYS.map((key) => ({
+    board: boardOf(key),
+    posts: 도구글.filter((p) => boardKeyOf(p) === key),
+  })).filter((g) => g.board && g.posts.length > 0);
 
   return (
     <>
@@ -88,17 +92,37 @@ export default async function ToolsHubPage() {
           </div>
         </section>
 
-        {사용법.length > 0 && (
+        {게시판별.length > 0 && (
           <section className="border-t border-oddsbag-light-gray bg-oddsbag-light-gray/30">
             <div className="mx-auto max-w-6xl px-4 py-12">
               <h2 className="text-xl font-black text-oddsbag-dark">
                 도구 쓰는 법 · 막힐 때
               </h2>
               <p className="mt-1 text-sm text-oddsbag-gray">
-                처음 쓰실 때 한 번 훑어보시면 헤맬 일이 줄어듭니다
+                처음 쓰실 때 한 번 훑어보시면 헤맬 일이 줄어듭니다 · 모두{" "}
+                {도구글.length}편
               </p>
-              <div className="mt-6">
-                <PostListView posts={toCardPosts(사용법)} />
+              <div className="mt-8 space-y-10">
+                {게시판별.map(({ board, posts }) => (
+                  <div key={board!.key}>
+                    <div className="flex flex-wrap items-baseline gap-3">
+                      <h3 className="text-base font-black text-oddsbag-dark">
+                        {board!.emoji} {board!.label}
+                      </h3>
+                      {board!.href && (
+                        <Link
+                          href={board!.href}
+                          className="text-[13px] font-black text-oddsbag-purple hover:underline"
+                        >
+                          도구 열기 →
+                        </Link>
+                      )}
+                    </div>
+                    <div className="mt-4">
+                      <PostListView posts={toCardPosts(posts)} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </section>

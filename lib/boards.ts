@@ -36,8 +36,59 @@ export const oddsbagBoards: Board[] = [
     label: "HTML 링크 생성기",
     emoji: "🔗",
     href: "/service/html-link",
-    slugHints: ["html-link", "html-upload", "html-preview", "html-file", "html-that"],
-    tagHints: ["오즈백툴즈", "HTML링크", "HTML링크만들기", "HTML공유", "HTML사용법"],
+    slugHints: [
+      "html-link",
+      "html-upload",
+      "html-preview",
+      "html-file",
+      "html-that",
+      "ai-generated-html",
+    ],
+    // ★«오즈백툴즈» 를 여기 넣으면 안 된다 (2026-08-26 실측으로 잡은 버그).
+    //   그 태그는 도구 «전체»에 붙는 허브 태그라, 여기 있으면 사진·글자수 글까지
+    //   전부 이 게시판으로 빨려 든다. 실제로 새 글 8편이 통째로 여기로 왔다.
+    //   게시판 힌트는 «그 도구에만» 붙는 말이어야 한다.
+    tagHints: ["HTML링크", "HTML링크만들기", "HTML공유", "HTML사용법", "HTML실행"],
+  },
+  {
+    key: "ebook",
+    label: "이북 제작기",
+    emoji: "📚",
+    href: "/service/ebook",
+    slugHints: ["ebook", "pdf-to-ebook"],
+    tagHints: ["이북제작", "전자책만들기", "PDF전자책"],
+  },
+  {
+    key: "scrap",
+    label: "스크랩 정리기",
+    emoji: "🗂",
+    href: "/service/scrap",
+    slugHints: ["scrap", "bookmark-cleanup"],
+    tagHints: ["링크정리", "북마크정리", "사진정리"],
+  },
+  {
+    key: "image",
+    label: "사진 줄이기",
+    emoji: "🖼",
+    href: "/service/image",
+    slugHints: ["photo-size", "heic-to-jpg", "image-resize"],
+    tagHints: ["사진용량줄이기", "이미지리사이즈", "사진압축", "HEIC변환"],
+  },
+  {
+    key: "idphoto",
+    label: "증명사진 만들기",
+    emoji: "🪪",
+    href: "/service/idphoto",
+    slugHints: ["passport-photo", "id-photo"],
+    tagHints: ["증명사진", "여권사진규격", "증명사진규격", "증명사진만들기", "반명함사진"],
+  },
+  {
+    key: "count",
+    label: "글자수 세기",
+    emoji: "🔢",
+    href: "/service/count",
+    slugHints: ["char-count", "wonngoji"],
+    tagHints: ["글자수세기", "자기소개서글자수", "원고지매수"],
   },
   {
     key: "starflow",
@@ -87,6 +138,24 @@ export function boardKeyOf(post: CardPost): string {
 
 export const boardOf = (key: string): Board | undefined =>
   oddsbagBoards.find((b) => b.key === key);
+
+/**
+ * 「오즈백 툴즈」 도구들의 게시판 — /service 랜딩이 «도구별 글» 을 묶어 보여줄 때 쓴다.
+ *
+ * ★도구 명부(lib/tools-hub.ts)의 slug 와 «같은 값» 을 쓴다. 도구가 늘면 거기 한 줄,
+ *   여기 한 줄이다. 어긋나면 그 도구 글이 어느 화면에도 안 뜬다.
+ */
+export const TOOL_BOARD_KEYS = [
+  "htmllink",
+  "ebook",
+  "scrap",
+  "image",
+  "idphoto",
+  "count",
+] as const;
+
+export const isToolBoard = (key: string): boolean =>
+  (TOOL_BOARD_KEYS as readonly string[]).includes(key);
 
 /** 실제로 글이 있는 게시판만, 명부 순서대로 (탭 만들 때 쓴다) */
 export function boardsWithPosts(posts: CardPost[]): { board: Board; count: number }[] {

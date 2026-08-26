@@ -1,11 +1,14 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ToolArticles from "@/components/ToolArticles";
 import HtmlLinkClient from "./HtmlLinkClient";
 import type { Metadata } from "next";
 import { hubTools } from "@/lib/tools-hub";
 
 // 이 페이지의 소개 문구는 도구 명부(lib/tools-hub.ts)에서 가져온다 — 두 곳이 어긋나지 않게.
 const tool = hubTools.find((t) => t.slug === "html-link");
+
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: tool?.name ?? "HTML 링크 생성기",
@@ -21,6 +24,7 @@ export default function HtmlLinkPage() {
       <Header />
       <main className="flex-1">
         <HtmlLinkClient />
+        <ToolArticles boardKey="htmllink" />
       </main>
       <Footer />
     </>

@@ -89,6 +89,14 @@
       "hash": null
     }
   ],
+  "applies": {
+    "everyone": true,
+    "have": [],
+    "ageFrom": null,
+    "ageTo": null,
+    "ageBasisRef": null,
+    "ageNotes": []
+  },
   "verifiedAt": "2026-08-21",
   "recheckDays": 120,
   "status": "live",

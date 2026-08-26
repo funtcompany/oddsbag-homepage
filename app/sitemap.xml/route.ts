@@ -1,5 +1,6 @@
 import { getAllPosts } from "@/lib/posts";
 import { hubTools, TOOLS_HUB_HREF } from "@/lib/tools-hub";
+import { CHECKLIST_HREF } from "@/lib/checklist";
 import { categories } from "@/lib/categories";
 import { hubs } from "@/lib/hubs";
 import { postUrl } from "@/lib/channels";
@@ -69,6 +70,7 @@ export async function GET() {
   //    그건 받은 사람만 여는 것이고, 그쪽은 X-Robots-Tag: noindex 로 따로 막아 뒀다.
   const toolRoutes: Entry[] = [
     { path: TOOLS_HUB_HREF, priority: 0.8 },
+    { path: CHECKLIST_HREF, priority: 0.8 },
     ...hubTools.map((t) => ({ path: t.href, priority: 0.7 })),
   ].map(({ path, priority }) => ({
     url: `${BASE}${path}`,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { incrWithTtl } from "@/lib/store";
+import { blocked, needsDnsCheck, privateAddress } from "@/lib/ssrf-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,34 +21,37 @@ const TIMEOUT = 7000;
 const RATE_MAX = 400;
 const RATE_TTL = 60 * 60;
 
-/** 우리 서버가 «가면 안 되는» 곳인가 */
-function blocked(u: URL): string | null {
-  if (u.protocol !== "http:" && u.protocol !== "https:") return "http(s) 주소만 됩니다.";
-  const h = u.hostname.toLowerCase();
-
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) {
-    return "내부 주소는 읽을 수 없습니다.";
-  }
-  // IPv6 은 통째로 막는다 — 사설/링크로컬 판정이 까다롭고, 스크랩 대상에 쓸 일이 없다
-  if (h.includes(":") || h.startsWith("[")) return "내부 주소는 읽을 수 없습니다.";
-
-  // IPv4 리터럴이면 사설·특수 대역을 막는다
-  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const [a, b] = [Number(m[1]), Number(m[2])];
-    if (m.slice(1).some((x) => Number(x) > 255)) return "주소가 올바르지 않습니다.";
-    if (
-      a === 10 || a === 127 || a === 0 ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 169 && b === 254) || // 클라우드 메타데이터(169.254.169.254)가 여기 있다
-      (a === 100 && b >= 64 && b <= 127) ||
-      a >= 224
-    ) {
-      return "내부 주소는 읽을 수 없습니다.";
+/**
+ * 2차 검사 — «이름이 어디를 가리키나» 를 본다.
+ *
+ * ★1차(주소 글자 검사)만 있으면 구멍이 남는다. `internal.example.com` 처럼
+ *   «겉보기엔 멀쩡한 공개 도메인»이 10.0.0.5 나 169.254.169.254 로 해석되도록 만들어 두면
+ *   글자 검사는 전부 통과한다. 실제로 127.0.0.1 로 해석되는 공개 도메인들이 있다.
+ *   그래서 «실제로 물어본 답» 을 한 번 더 본다.
+ *
+ *   완벽하지는 않다 — 물어본 뒤 fetch 가 다시 물으니 그 사이에 답이 바뀔 수 있다(DNS 재바인딩).
+ *   그건 이 층에서 못 막고, 막으려면 직접 소켓을 잡아야 한다. 여기서는 «쉬운 구멍»을 닫는다.
+ *
+ *   ★AAAA 가 있다고 막으면 안 된다 — 구글·네이버 같은 큰 사이트가 전부 걸린다.
+ *     IPv6 «주소 자체»가 안쪽인 것만 막는다(privateAddress 가 가린다).
+ */
+async function blockedByDns(u: URL): Promise<string | null> {
+  if (!needsDnsCheck(u)) return null;
+  try {
+    const { lookup } = await import("dns/promises");
+    const found = await lookup(u.hostname, { all: true });
+    for (const a of found) {
+      if (privateAddress(a.address, a.family)) return "내부 주소는 읽을 수 없습니다.";
     }
+  } catch {
+    return null; // 못 물어봤으면 여기서 막지 않는다 — 어차피 fetch 도 실패한다
   }
   return null;
+}
+
+/** 두 검사를 한 번에 — 처음 주소에도, 옮겨진 주소에도 똑같이 건다 */
+async function gate(u: URL): Promise<string | null> {
+  return blocked(u) ?? (await blockedByDns(u));
 }
 
 /** <head> 에서 제목·설명·사이트이름을 꺼낸다 (파서를 쓰지 않는다 — head 만 보면 되므로) */
@@ -149,7 +153,7 @@ async function peekOne(input: string) {
   } catch {
     return { url: input, error: "주소 모양이 아닙니다." };
   }
-  const why = blocked(url);
+  const why = (await gate(url));
   if (why) return { url: input, error: why };
 
   const ctrl = new AbortController();
@@ -178,7 +182,7 @@ async function peekOne(input: string) {
         const loc = res.headers.get("location");
         if (!loc) return { url: input, error: "주소가 옮겨졌는데 갈 곳이 없습니다." };
         const next = new URL(loc, current);
-        const why2 = blocked(next);
+        const why2 = await gate(next);
         if (why2) return { url: input, error: why2 };
         current = next;
         continue;
@@ -252,11 +256,23 @@ export async function POST(req: Request) {
   }
 
   // 횟수 제한 — 우리 서버가 남의 심부름꾼으로 무한정 쓰이지 않게
+  //
+  // ★2026-08-26 — 이 한 줄이 도구 전체를 죽이고 있었다 (운영에서 500 확인).
+  //   incrWithTtl 은 레디스를 부르고, 레디스는 월 한도가 터지면 «던진다»(RedisUnavailable).
+  //   그런데 이 라우트는 그것 말고는 레디스를 하나도 안 쓴다. 곁다리 하나 때문에
+  //   본체가 통째로 죽은 것이다. → 못 세면 «통과»시킨다.
+  //   (같은 판단을 htmllink 업로드 상한이 이미 하고 있다 — 읽기 실패 ≠ 한도 초과)
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "unknown";
-  const used = await incrWithTtl(`scrap:peek:${ip}`, RATE_TTL);
+  let used = 0;
+  try {
+    used = await incrWithTtl(`scrap:peek:${ip}`, RATE_TTL);
+  } catch (e) {
+    console.warn("[scrap] 횟수 제한을 못 셌다 — 통과시킨다", e);
+    used = 0;
+  }
   if (used > RATE_MAX) {
     return NextResponse.json(
       { error: "잠시 뒤에 다시 시도해 주세요. (한 시간 한도를 넘었습니다)" },

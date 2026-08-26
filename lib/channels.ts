@@ -86,7 +86,7 @@ export const mainNav: NavItem[] = [
     label: "만드는 것들",
     href: "/oddsbag",
     emoji: "🎒",
-    match: ["/oddsbag", "/services", "/apps", "/tools"],
+    match: ["/oddsbag", "/services", "/apps", "/tools", "/check"],
   },
   { label: "뮤직", href: "/music", emoji: "🎵", match: ["/music"] },
   { label: "이야기", href: "/story", emoji: "📖", match: ["/story"] },

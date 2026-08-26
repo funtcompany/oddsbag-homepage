@@ -6,6 +6,12 @@ import { tools, categoryStyles } from "@/lib/tools";
 import { getSiteConfig } from "@/lib/sitecfg";
 import { services as catalog } from "@/lib/services-catalog";
 import { TOOLS_HUB_NAME, TOOLS_HUB_TAGLINE, TOOLS_HUB_HREF } from "@/lib/tools-hub";
+import {
+  CHECKLIST_NAME,
+  CHECKLIST_TAGLINE,
+  CHECKLIST_EMOJI,
+  CHECKLIST_HREF,
+} from "@/lib/checklist";
 import type { Metadata } from "next";
 
 export const revalidate = 60;
@@ -93,6 +99,35 @@ export default async function ServicesPage() {
                 </span>
               </Link>
             ))}
+
+            {/* 챙길 것 — 오즈백이 확인해 둔 것 모음 (2026-08-26 신설) */}
+            <Link
+              href={CHECKLIST_HREF}
+              className="ob-reveal ob-lift group relative flex flex-col overflow-hidden rounded-2xl p-6 text-white"
+              style={{ background: "linear-gradient(125deg, #134e4a, #0f766e)" }}
+            >
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-3 -top-3 select-none text-[110px] leading-none opacity-15"
+              >
+                {CHECKLIST_EMOJI}
+              </span>
+              <span className="relative w-fit rounded-full bg-oddsbag-yellow/25 px-2.5 py-1 text-[11px] font-black text-oddsbag-yellow">
+                새로 나옴
+              </span>
+              <h3 className="relative mt-4 text-[20px] font-black">
+                {CHECKLIST_NAME}
+              </h3>
+              <p
+                className="relative mt-2 max-w-[42ch] text-[14px] leading-relaxed text-white/85"
+                style={{ wordBreak: "keep-all" }}
+              >
+                {CHECKLIST_TAGLINE}
+              </p>
+              <span className="relative mt-5 text-[13.5px] font-black text-oddsbag-yellow">
+                자세히 보기 →
+              </span>
+            </Link>
 
             {/* 오즈백 툴즈 — 웹 도구 모음 (2026-08-19 신설) */}
             <Link

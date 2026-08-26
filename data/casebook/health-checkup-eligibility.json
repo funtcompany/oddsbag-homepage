@@ -61,6 +61,11 @@
     "text": "검진 기간은 매년 1월 1일부터 12월 31일까지다. 확진검사는 다음 해 3월 31일까지 안내된다",
     "basisRef": "nhis-checkup"
   },
+  "yearBound": {
+    "kind": "연말",
+    "text": "검진 기간이 매년 1월 1일부터 12월 31일까지라, 올해 대상인데 안 받으면 그대로 넘어갑니다",
+    "basisRef": "nhis-checkup"
+  },
   "volatile": [
     {
       "label": "내가 올해 대상인지",
@@ -104,6 +109,14 @@
       "hash": null
     }
   ],
+  "applies": {
+    "everyone": true,
+    "have": [],
+    "ageFrom": null,
+    "ageTo": null,
+    "ageBasisRef": null,
+    "ageNotes": []
+  },
   "verifiedAt": "2026-08-21",
   "recheckDays": 120,
   "status": "live",

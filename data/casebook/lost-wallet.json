@@ -80,6 +80,14 @@
       "hash": null
     }
   ],
+  "applies": {
+    "everyone": true,
+    "have": [],
+    "ageFrom": null,
+    "ageTo": null,
+    "ageBasisRef": null,
+    "ageNotes": []
+  },
   "verifiedAt": null,
   "recheckDays": 120,
   "status": "unverified"

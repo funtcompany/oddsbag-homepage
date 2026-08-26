@@ -104,6 +104,16 @@
       "hash": null
     }
   ],
+  "applies": {
+    "everyone": false,
+    "have": [
+      "여권"
+    ],
+    "ageFrom": null,
+    "ageTo": null,
+    "ageBasisRef": null,
+    "ageNotes": []
+  },
   "verifiedAt": "2026-08-21",
   "recheckDays": 90,
   "status": "live",

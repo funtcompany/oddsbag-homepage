@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { mainNav } from "@/lib/channels";
 import { categories } from "@/lib/categories";
 import { services } from "@/lib/services-catalog";
+import {
+  CHECKLIST_NAME,
+  CHECKLIST_EMOJI,
+  CHECKLIST_HREF,
+} from "@/lib/checklist";
 
 /**
  * 상단 메인 메뉴 — 홈 / 만드는 것들 / 뮤직 / 이야기 / 매거진   ···   문의
@@ -28,7 +33,14 @@ export default function MainNav() {
   const inMagazine = ["/magazine", "/category", "/guide"].some((m) =>
     path.startsWith(m),
   );
-  const inMade = ["/oddsbag", "/services", "/service", "/apps", "/tools"].some(
+  const inMade = [
+    "/oddsbag",
+    "/services",
+    "/service",
+    "/apps",
+    "/tools",
+    CHECKLIST_HREF,
+  ].some(
     (m) => path.startsWith(m),
   );
   const activeCat = path.startsWith("/category/") ? path.split("/")[2] : null;
@@ -138,6 +150,12 @@ export default function MainNav() {
                 {s.emoji} {s.tab}
               </Link>
             ))}
+            <Link
+              href={CHECKLIST_HREF}
+              className={subTab(path.startsWith(CHECKLIST_HREF))}
+            >
+              {CHECKLIST_EMOJI} {CHECKLIST_NAME}
+            </Link>
             <Link
               href="/service"
               className={subTab(

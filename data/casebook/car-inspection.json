@@ -1,0 +1,127 @@
+{
+  "id": "car-inspection",
+  "situation": "내 차 정기검사를 언제까지 받아야 하는지 모르겠다",
+  "title": "자동차 정기검사 언제까지인지 확인하는 법 — 표를 보고 짐작하면 틀립니다",
+  "summary": "차종과 차령에 따라 유효기간이 갈리고, 검사기간도 만료일 앞뒤로 정해져 있습니다. 내 차 만료일을 조회하는 곳, 부적합이 났을 때 재검사 기한, 기간을 넘겼을 때 무엇이 걸리는지 정리했습니다.",
+  "who": "내 이름으로 등록된 자동차가 있는 사람. 배출가스 정밀검사 지역이면 정기검사가 아니라 «종합검사» 로 이름이 달라진다",
+  "weekdayHint": [
+    "수",
+    "토"
+  ],
+  "applies": {
+    "everyone": false,
+    "have": [
+      "자동차"
+    ],
+    "ageFrom": null,
+    "ageTo": null,
+    "ageBasisRef": null,
+    "ageNotes": []
+  },
+  "steps": [
+    {
+      "when": "3분",
+      "what": "내 차의 검사 유효기간 만료일을 조회한다",
+      "where": "한국교통안전공단 사이버검사소 「자동차 검사일 조회」",
+      "why": "차종·사업용 여부·차령에 따라 유효기간이 다르다. 비사업용 승용자동차는 2년(신조차의 최초 유효기간은 5년)으로 안내되지만, 승합·화물·특수는 규모와 차령에 따라 1년이나 6개월로 갈린다. 표를 읽어 짐작하지 말고 내 차 것을 조회한다",
+      "docs": []
+    },
+    {
+      "when": "오늘",
+      "what": "검사기간이 언제부터 언제까지인지 조회 화면에서 확인한다",
+      "where": "사이버검사소 · 공단 안내(1577-0990)",
+      "why": "★공단 안내문에 적힌 검사기간 표현이 「검사유효기간만료일 전 90일, 31일까지」로 읽히게 돼 있어 그대로 옮기면 틀리기 쉽다. 오즈백은 이 값을 담지 않는다 — 조회 화면과 공단 안내로 확인한다",
+      "docs": []
+    },
+    {
+      "when": "이번주",
+      "what": "검사소를 골라 예약한다",
+      "where": "사이버검사소 「자동차 검사 예약」 · 전국 자동차검사소",
+      "why": "공단 검사소와 지정정비사업자(민간 검사소) 어느 쪽에서도 받을 수 있다. 예약 없이 갔다가 대기가 길어지는 일을 줄인다",
+      "docs": [
+        "자동차등록증",
+        "신분증"
+      ]
+    },
+    {
+      "when": "이번주",
+      "what": "부적합이 나오면 재검사 기한을 바로 확인한다",
+      "where": "검사를 받은 검사소",
+      "why": "부적합 판정 자동차의 재검사기간은 「검사기간 만료 후 10일 이내」로 안내된다. 검사기간 전이나 후에 신청한 경우와 최고속도제한장치·배출가스 허용기준 위배로 부적합이 난 경우는 「부적합 판정을 받은 날부터 10일 이내」다. 이 10일을 셀 때 토·일요일과 공휴일·대체공휴일·근로자의 날은 빼고 센다",
+      "docs": []
+    },
+    {
+      "when": "한달",
+      "what": "기간을 넘겼으면 미루지 말고 바로 받는다",
+      "where": "가까운 자동차검사소",
+      "why": "검사 유효기간 안에 정기검사·종합검사를 받지 않으면 자동차관리법에 따라 과태료 처분을 받는다. 늦을수록 액수가 올라가는 구조라 미룰 이유가 없다. 정확한 액수는 담지 않는다 — 아래 확인 링크에서 본다",
+      "docs": []
+    }
+  ],
+  "deadline": {
+    "kind": "법정",
+    "text": "「자동차관리법」 제43조에 따른 검사다. 유효기간이 법으로 정해져 있고, 그 기간 안에 받지 않으면 과태료 처분 대상이 된다. 내 차의 만료일과 검사기간은 조회 화면에서 확인한다",
+    "basisRef": "kotsa-inspect-intro"
+  },
+  "volatile": [
+    {
+      "label": "내 차의 검사 유효기간 만료일",
+      "checkUrl": "https://www.cyberts.kr/is/pvi/pvi/readIsPviPrsecValidityInqireView.do"
+    },
+    {
+      "label": "검사기간(만료일 앞뒤로 며칠까지인지)",
+      "checkUrl": "https://main.kotsa.or.kr/portal/contents.do?menuCode=01010101"
+    },
+    {
+      "label": "기간을 넘겼을 때 과태료 기준",
+      "checkUrl": "https://main.kotsa.or.kr/portal/contents.do?menuCode=01010101"
+    },
+    {
+      "label": "내 차가 정기검사 대상인지 종합검사 대상인지",
+      "checkUrl": "https://main.kotsa.or.kr/portal/contents.do?menuCode=01010200"
+    },
+    {
+      "label": "검사 수수료",
+      "checkUrl": "https://main.kotsa.or.kr/portal/contents.do?menuCode=01010101"
+    }
+  ],
+  "basis": [
+    {
+      "id": "kotsa-inspect-intro",
+      "title": "자동차검사란 — 법적근거·검사종류·과태료 및 행정처분",
+      "url": "https://main.kotsa.or.kr/portal/contents.do?menuCode=01010101",
+      "publisher": "한국교통안전공단(TS)",
+      "article": "자동차관리법 제43조·제43조의2, 대기환경보전법 제62조·제63조, 소음·진동관리법 제37조",
+      "checkedAt": "2026-08-26",
+      "hash": null
+    },
+    {
+      "id": "kotsa-inspect-regular",
+      "title": "정기검사 — 검사대상·검사기준·부적합 판정 자동차의 재검사기간·정기검사 유효기간 표",
+      "url": "https://main.kotsa.or.kr/portal/contents.do?menuCode=01010200",
+      "publisher": "한국교통안전공단(TS)",
+      "article": "자동차관리법 제43조, 자동차관리법 시행규칙 제80조 제2항",
+      "checkedAt": "2026-08-26",
+      "hash": null
+    },
+    {
+      "id": "cyberts-validity",
+      "title": "자동차 검사일 조회",
+      "url": "https://www.cyberts.kr/is/pvi/pvi/readIsPviPrsecValidityInqireView.do",
+      "publisher": "한국교통안전공단 사이버검사소",
+      "article": null,
+      "checkedAt": "2026-08-26",
+      "hash": null
+    }
+  ],
+  "verifiedAt": "2026-08-26",
+  "recheckDays": 180,
+  "status": "live",
+  "oneLine": "표를 보고 짐작하지 말고 사이버검사소에서 내 차 만료일을 조회한다.",
+  "tags": [
+    "자동차검사",
+    "정기검사",
+    "자동차관리법",
+    "한국교통안전공단"
+  ]
+}
