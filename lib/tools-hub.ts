@@ -135,6 +135,15 @@ export const hubTools: HubTool[] = [
     status: "새로 나옴",
   },
   {
+    slug: "date",
+    category: "doc",
+    name: "날짜 계산기",
+    emoji: "📅",
+    desc: "만 나이·디데이·「30일 뒤는 언제」를 한 곳에서. 「10일 이내」가 토·일·공휴일을 뺀 열흘인 곳이 많아서, 영업일도 같이 셉니다.",
+    href: "/service/date",
+    status: "새로 나옴",
+  },
+  {
     slug: "scrap",
     category: "organize",
     name: "스크랩 정리기",

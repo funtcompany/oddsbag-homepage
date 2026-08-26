@@ -16,7 +16,10 @@ registerHooks({
           if (fs.existsSync(p + 끝)) { p += 끝; break; }
         }
       }
-      return { url: pathToFileURL(p).href, shortCircuit: true };
+      // ★JSON 은 node 가 «type: json» 을 달아 주지 않으면 거절한다.
+      //   다음(Next)은 그냥 되는데 node 만 까다롭다 — 여기서 대신 달아 준다.
+      const attrs = p.endsWith(".json") ? { type: "json" } : undefined;
+      return { url: pathToFileURL(p).href, shortCircuit: true, importAttributes: attrs };
     }
     return next(spec, ctx);
   },

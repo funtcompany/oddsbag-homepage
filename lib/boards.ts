@@ -91,6 +91,14 @@ export const oddsbagBoards: Board[] = [
     tagHints: ["글자수세기", "자기소개서글자수", "원고지매수"],
   },
   {
+    key: "date",
+    label: "날짜 계산기",
+    emoji: "📅",
+    href: "/service/date",
+    slugHints: ["man-age", "dday", "business-days", "date-calc"],
+    tagHints: ["만나이계산", "디데이", "영업일계산", "날짜계산기", "만나이통일법"],
+  },
+  {
     key: "starflow",
     label: "별의 결",
     emoji: "🌙",
@@ -152,6 +160,7 @@ export const TOOL_BOARD_KEYS = [
   "image",
   "idphoto",
   "count",
+  "date",
 ] as const;
 
 export const isToolBoard = (key: string): boolean =>
