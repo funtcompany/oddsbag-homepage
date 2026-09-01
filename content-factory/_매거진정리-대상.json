@@ -1,0 +1,878 @@
+{
+  "만든때": "2026-08-25",
+  "기준일": "2026-08-24",
+  "설명": "기준일까지 나간 매거진 채널 글만 대상. 오즈백 채널(도구 설명서)·뮤직·기준일 이후 새 글은 제외.",
+  "게시판으로": [
+    {
+      "slug": "society-mrke86ebg5m4",
+      "title": "AI 성착취물, 사이트 하나 막는다고 안 끝나는 이유",
+      "category": "사회",
+      "date": "2026-07-14",
+      "글자수": 1333,
+      "근거": [
+        "https://www.newspim.com/news/view/20260714001122"
+      ]
+    },
+    {
+      "slug": "sports-mri6vxbqcbai",
+      "title": "김주형, 33개월 만에 다시 쓴 우승 스토리",
+      "category": "스포츠",
+      "date": "2026-07-12",
+      "글자수": 595,
+      "근거": [
+        "http://www.hansbiz.co.kr/news/articleView.html?idxno=849823"
+      ]
+    },
+    {
+      "slug": "culture-msen00q83k9c",
+      "title": "수창청춘맨숀 '공공의 감각' 전시, 시민이 진짜 주인공이 된 이유",
+      "category": "문화·연예",
+      "date": "2026-08-04",
+      "글자수": 803,
+      "근거": [
+        "https://www.idaegu.co.kr/news/articleView.html?idxno=555768"
+      ]
+    },
+    {
+      "slug": "economy-mriq6file2lg",
+      "title": "지방공항發 항공사, 6개월 만에 100만명을 더 태웠다",
+      "category": "경제",
+      "date": "2026-07-13",
+      "글자수": 700,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/014/0005547319?sid=101"
+      ]
+    },
+    {
+      "slug": "sports-ms2eiw143u1k",
+      "title": "2027 경남도민체전, 4군 공동 개최 대형 축제",
+      "category": "스포츠",
+      "date": "2026-07-26",
+      "글자수": 727,
+      "근거": [
+        "https://www.gnnews.co.kr/news/articleView.html?idxno=641801"
+      ]
+    },
+    {
+      "slug": "society-mrjgzzaq2s32",
+      "title": "60년 동안 '서류상 없는 사람'이었던 그가 마침내 받은 것",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 909,
+      "근거": [
+        "https://www.ekn.kr/web/view.php?key=20260714027412142"
+      ]
+    },
+    {
+      "slug": "culture-msk8gw8qh206",
+      "title": "스트레이 키즈 디스 앤드 댓 컴백, 빌보드 9연속 1위 도전과 기록들",
+      "category": "문화·연예",
+      "date": "2026-08-08",
+      "글자수": 978,
+      "근거": [
+        "https://m.entertain.naver.com/home/article/469/0000946917"
+      ]
+    },
+    {
+      "slug": "sports-mry7hsn64b1a",
+      "title": "LPGA 스코틀랜드 여자오픈 1R, 김효주와 이와이 아키에 동반 대결",
+      "category": "스포츠",
+      "date": "2026-07-24",
+      "글자수": 547,
+      "근거": [
+        "https://golfhankook.hankooki.com/news/articleView.html?idxno=20021240"
+      ]
+    },
+    {
+      "slug": "economy-mrl0ogp16298",
+      "title": "내년 최저임금 1만700원, 3.7% 올랐다",
+      "category": "경제",
+      "date": "2026-07-14",
+      "글자수": 926,
+      "근거": [
+        "https://www.hidomin.com/news/articleView.html?idxno=713324"
+      ]
+    },
+    {
+      "slug": "society-mrknudtg2ya4",
+      "title": "혼자 사는 시대, 고립을 대하는 법을 배우다",
+      "category": "사회",
+      "date": "2026-07-14",
+      "글자수": 1102,
+      "근거": [
+        "https://www.gukjenews.com/news/articleView.html?idxno=3636031"
+      ]
+    },
+    {
+      "slug": "culture-mrhx61m6ar5e",
+      "title": "태화강 바람 맞으며 본 여름밤 전통공연",
+      "category": "문화·연예",
+      "date": "2026-07-12",
+      "글자수": 723,
+      "근거": [
+        "https://www.ulsanpress.net/news/articleView.html?idxno=578914"
+      ]
+    },
+    {
+      "slug": "economy-mrlri8it70ng",
+      "title": "독일서 열리는 재활기기 올림픽, 한국 기업도 출격한다",
+      "category": "경제",
+      "date": "2026-07-15",
+      "글자수": 1122,
+      "근거": [
+        "http://www.doctorstimes.com/news/articleView.html?idxno=239059"
+      ]
+    },
+    {
+      "slug": "society-mrisao788yyk",
+      "title": "이사철마다 반려동물이 위태로운 이유",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 926,
+      "근거": [
+        "https://dhnews.co.kr/news/view/1065590703707369"
+      ]
+    },
+    {
+      "slug": "economy-mrwvhx2h8zm0",
+      "title": "차트만 보던 코인 투자? 이젠 데이터 읽을 시간",
+      "category": "경제",
+      "date": "2026-07-23",
+      "글자수": 893,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/374/0000523251?sid=101"
+      ]
+    },
+    {
+      "slug": "society-mrijr4xhf0cc",
+      "title": "수능보다 어려운 시험이 있다? '기후수능' 등장",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 908,
+      "근거": [
+        "https://www.ngonews.kr/news/articleView.html?idxno=232762"
+      ]
+    },
+    {
+      "slug": "society-mriq5o11bsgc",
+      "title": "금융사들이 청년에게 진심인 이유",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 923,
+      "근거": [
+        "http://www.bizwnews.com/news/articleView.html?idxno=140496"
+      ]
+    },
+    {
+      "slug": "society-mrjgyqbca0zs",
+      "title": "결혼하면 936만원? 화성시가 준비한 카드",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 1046,
+      "근거": [
+        "https://www.ekn.kr/web/view.php?key=20260714029552134"
+      ]
+    },
+    {
+      "slug": "trend-mru9qo62e3ie",
+      "title": "올가을 유니클로가 제안하는 ‘도심 속 균형감’",
+      "category": "트렌드",
+      "date": "2026-07-21",
+      "글자수": 1101,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/018/0006333968?sid=101"
+      ]
+    },
+    {
+      "slug": "society-mria3aexhnp4",
+      "title": "동네약국 vs 창고형약국, 법은 언제쯤",
+      "category": "사회",
+      "date": "2026-07-12",
+      "글자수": 635,
+      "근거": [
+        "https://www.kpanews.co.kr/news/articleView.html?idxno=538394"
+      ]
+    },
+    {
+      "slug": "economy-mrhzp4ogd07k",
+      "title": "유류할증료 뚝 떨어지자, 해외여행 예약이 움직였다",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 826,
+      "근거": [
+        "https://www.ajunews.com/view/20260710151738443"
+      ]
+    },
+    {
+      "slug": "tech-ms09jfjuhmue",
+      "title": "삼성SDS와 앤트로픽 AI 동맹, 7만 명 실전 경험으로 승부 던졌다",
+      "category": "IT·테크",
+      "date": "2026-07-25",
+      "글자수": 933,
+      "근거": [
+        "https://www.econovill.com/news/articleView.html?idxno=746147"
+      ]
+    },
+    {
+      "slug": "tech-mrlwus4pckw8",
+      "title": "내 전기요금이 오른 이유, AI일 수도 있다",
+      "category": "IT·테크",
+      "date": "2026-07-15",
+      "글자수": 1184,
+      "근거": [
+        "https://www.thelec.kr/news/articleView.html?idxno=59636"
+      ]
+    },
+    {
+      "slug": "trend-mrxwrky451kk",
+      "title": "숏폼드라마 '처가에서 미움받는 남편은 회장님' DramaBox 3관왕 달성",
+      "category": "트렌드",
+      "date": "2026-07-23",
+      "글자수": 729,
+      "근거": [
+        "https://www.gukjenews.com/news/articleView.html?idxno=3643396"
+      ]
+    },
+    {
+      "slug": "economy-mri2oc22an9y",
+      "title": "이사 충실의무 확대 1년, 이사회는 어떻게 달라졌을까",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 890,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/005/0001860521?sid=101"
+      ]
+    },
+    {
+      "slug": "economy-mrwyjg3wjv78",
+      "title": "말레이시아로 날아간 K-건기식, 아시아 시장 문 두드린다",
+      "category": "경제",
+      "date": "2026-07-23",
+      "글자수": 676,
+      "근거": [
+        "https://www.newstnt.com/news/articleView.html?idxno=711364"
+      ]
+    },
+    {
+      "slug": "society-mridanhci90g",
+      "title": "공공기관도 '브랜드 순위'가 있다? KISA, 7월 1위 등극",
+      "category": "사회",
+      "date": "2026-07-12",
+      "글자수": 897,
+      "근거": [
+        "https://www.pinpointnews.co.kr/news/articleView.html?idxno=467740"
+      ]
+    },
+    {
+      "slug": "society-mrxijjy5jras",
+      "title": "울산신문 창간 20주년, 2028 국제정원박람회 앞둔 울산과 언론의 역할",
+      "category": "사회",
+      "date": "2026-07-23",
+      "글자수": 1064,
+      "근거": [
+        "https://www.ulsanpress.net/news/articleView.html?idxno=579682"
+      ]
+    },
+    {
+      "slug": "sports-mslnx0zeguna",
+      "title": "클럽 브뤼헤 이한범 데뷔전 MOM, 관중 연호 이끌어낸 결정적 이유",
+      "category": "스포츠",
+      "date": "2026-08-09",
+      "글자수": 1133,
+      "근거": [
+        "https://m.sports.naver.com/general/article/076/0004434271"
+      ]
+    },
+    {
+      "slug": "culture-mrln6lcqin2e",
+      "title": "‘김부장’ 보다가 14년 전 영화를 켰다",
+      "category": "문화·연예",
+      "date": "2026-07-15",
+      "글자수": 1029,
+      "근거": [
+        "https://m.entertain.naver.com/home/article/396/0000749713"
+      ]
+    },
+    {
+      "slug": "economy-mrhx9npufv4e",
+      "title": "실험용 원숭이 한 마리, 4400만원 시대",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 967,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/018/0006328694?sid=101"
+      ]
+    },
+    {
+      "slug": "economy-mric814ld58c",
+      "title": "금융지주 회장님들, 이번 달 성적표는?",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 812,
+      "근거": [
+        "https://www.pinpointnews.co.kr/news/articleView.html?idxno=467733"
+      ]
+    },
+    {
+      "slug": "economy-mrjy4zfnhl2k",
+      "title": "중고차 브랜드, 결국 엔카가 또 1등 했다",
+      "category": "경제",
+      "date": "2026-07-14",
+      "글자수": 1034,
+      "근거": [
+        "https://www.fntoday.co.kr/news/articleView.html?idxno=388028"
+      ]
+    },
+    {
+      "slug": "economy-mrwp6o8y9yxq",
+      "title": "유럽증시, 방산과 에너지주 강세에 따라 상승",
+      "category": "경제",
+      "date": "2026-07-22",
+      "글자수": 506,
+      "근거": [
+        "http://www.econonews.co.kr/news/articleView.html?idxno=441633"
+      ]
+    },
+    {
+      "slug": "society-mrj7ck2t4yq4",
+      "title": "부천시, 공약 89개 실천계획 점검 나섰다",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 638,
+      "근거": [
+        "https://www.gukjenews.com/news/articleView.html?idxno=3634789"
+      ]
+    },
+    {
+      "slug": "society-mrkgcr2hbip4",
+      "title": "대학원인데 회사원? KIST스쿨이라는 독특한 시스템",
+      "category": "사회",
+      "date": "2026-07-14",
+      "글자수": 1221,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/014/0005548191?sid=105"
+      ]
+    },
+    {
+      "slug": "society-mrk4ktcv4v1s",
+      "title": "택배기사 심장, AI가 대신 들여다봤다",
+      "category": "사회",
+      "date": "2026-07-14",
+      "글자수": 669,
+      "근거": [
+        "https://www.pointe.co.kr/news/articleView.html?idxno=81760"
+      ]
+    },
+    {
+      "slug": "culture-mrxigy997ts4",
+      "title": "영화 호프 후기, 나홍진 신작 스릴러 연출과 호불호 포인트 정리",
+      "category": "문화·연예",
+      "date": "2026-07-23",
+      "글자수": 1017,
+      "근거": [
+        "https://www.idaegu.co.kr/news/articleView.html?idxno=554767"
+      ]
+    },
+    {
+      "slug": "economy-mri0vhqv8qbc",
+      "title": "조선소 떠난 자리, 워터파크가 채웠다",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 882,
+      "근거": [
+        "http://www.jeonmin.co.kr/news/articleView.html?idxno=443207"
+      ]
+    },
+    {
+      "slug": "economy-mrluoq8kcnfw",
+      "title": "전남광주 통합, 이제는 밥상까지 하나로",
+      "category": "경제",
+      "date": "2026-07-15",
+      "글자수": 1002,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/079/0004168881?sid=102"
+      ]
+    },
+    {
+      "slug": "economy-mrhzfj3yew2",
+      "title": "K-푸드 수출, 관세보다 무서운 건 따로 있다",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 845,
+      "근거": [
+        "http://www.youngnong.co.kr/news/articleView.html?idxno=60689"
+      ]
+    },
+    {
+      "slug": "sports-mry3zwe2cejq",
+      "title": "LG 오지환, 잘 맞은 타구 잡혀 병살타... 손가락 통증으로 교체",
+      "category": "스포츠",
+      "date": "2026-07-23",
+      "글자수": 717,
+      "근거": [
+        "https://m.sports.naver.com/kbaseball/article/109/0005577088"
+      ]
+    },
+    {
+      "slug": "sports-mryrx71cbicg",
+      "title": "K리그 트립데이, 축구 원정 응원과 지역 여행을 한 번에 즐기는 법",
+      "category": "스포츠",
+      "date": "2026-07-24",
+      "글자수": 1012,
+      "근거": [
+        "https://www.newscj.com/news/articleView.html?idxno=3419698"
+      ]
+    },
+    {
+      "slug": "sports-mri2kuy4alck",
+      "title": "유해란, 13년 만의 메이저 2연속 우승 드라마",
+      "category": "스포츠",
+      "date": "2026-07-12",
+      "글자수": 884,
+      "근거": [
+        "https://www.ajunews.com/view/20260713021819752"
+      ]
+    },
+    {
+      "slug": "trend-mri1j8z1db7o",
+      "title": "검은색만 남기니 더 강해 보이는 이유, GV80 쿠페 블랙",
+      "category": "트렌드",
+      "date": "2026-07-12",
+      "글자수": 1414,
+      "근거": [
+        "https://www.wolyo.co.kr/news/articleView.html?idxno=314941"
+      ]
+    },
+    {
+      "slug": "trend-msn0is7h51no",
+      "title": "남원 드론 AI 콘텐츠 제작 교육, 시민이 직접 만드는 지역 관광 영상",
+      "category": "트렌드",
+      "date": "2026-08-10",
+      "글자수": 1042,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/031/0001048581?sid=102"
+      ]
+    },
+    {
+      "slug": "economy-mrjy5w7s5jzc",
+      "title": "은행 브랜드평판, 하나은행이 두 달째 1위 지킨 이유",
+      "category": "경제",
+      "date": "2026-07-14",
+      "글자수": 1278,
+      "근거": [
+        "https://www.fntoday.co.kr/news/articleView.html?idxno=388026"
+      ]
+    },
+    {
+      "slug": "society-mrio1gh286d6",
+      "title": "딥페이크, 이제 교실에서도 배운다",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 646,
+      "근거": [
+        "http://www.breaknews.com/1221152"
+      ]
+    },
+    {
+      "slug": "society-mrl8830xb5wg",
+      "title": "서울대병원, 교육부 산하 공공기관 브랜드평판 1위 차지",
+      "category": "사회",
+      "date": "2026-07-14",
+      "글자수": 831,
+      "근거": [
+        "https://www.pinpointnews.co.kr/news/articleView.html?idxno=468434"
+      ]
+    },
+    {
+      "slug": "tech-mrikv1d0hs0s",
+      "title": "노벨상 수상자 3명이 서울에 온다, 그것도 공짜로",
+      "category": "IT·테크",
+      "date": "2026-07-13",
+      "글자수": 1003,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/003/0014062633?sid=105"
+      ]
+    },
+    {
+      "slug": "economy-mryx6x82jg32",
+      "title": "반도체 성과급이 가져온 동탄 집값 상승과 직장 내 성과급 격차",
+      "category": "경제",
+      "date": "2026-07-24",
+      "글자수": 1271,
+      "근거": [
+        "https://www.wikitree.co.kr/articles/1148252"
+      ]
+    },
+    {
+      "slug": "society-mrlchyac21kc",
+      "title": "더위와 외로움 사이, 동네가 채운 한 그릇의 온기",
+      "category": "사회",
+      "date": "2026-07-15",
+      "글자수": 990,
+      "근거": [
+        "https://www.ibabynews.com/news/articleView.html?idxno=152891"
+      ]
+    },
+    {
+      "slug": "trend-mryle3i41tj8",
+      "title": "비만치료제 살 빠지면 나타난다는 '마운자로 가슴'의 진실",
+      "category": "트렌드",
+      "date": "2026-07-24",
+      "글자수": 903,
+      "근거": [
+        "http://www.whosaeng.com/172367"
+      ]
+    },
+    {
+      "slug": "society-mrwv3sbv4nac",
+      "title": "현대차그룹, 브라질에서 환경·의료·문화 분야 사회공헌 활동 확대",
+      "category": "사회",
+      "date": "2026-07-23",
+      "글자수": 475,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/079/0004171210?sid=101"
+      ]
+    },
+    {
+      "slug": "sports-mrulihgjcv8s",
+      "title": "충남 도의회, 체육과 건강 앱이 한데 모이다",
+      "category": "스포츠",
+      "date": "2026-07-21",
+      "글자수": 556,
+      "근거": [
+        "https://www.gukjenews.com/news/articleView.html?idxno=3642273"
+      ]
+    },
+    {
+      "slug": "society-mrjco7ln4cus",
+      "title": "사우디-후티, 다시 불붙은 홍해 화약고",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 1335,
+      "근거": [
+        "https://www.newspim.com/news/view/20260713001180"
+      ]
+    },
+    {
+      "slug": "tech-mry37azzjjs0",
+      "title": "네이버 뉴스 댓글과 추천 기능, 알고 쓰면 유용한 이용 규칙",
+      "category": "IT·테크",
+      "date": "2026-07-23",
+      "글자수": 460,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/003/0014085284?sid=102"
+      ]
+    },
+    {
+      "slug": "economy-mrkr26qjiaes",
+      "title": "성장률은 3%로 뛰는데, 일자리는 왜 그대로일까",
+      "category": "경제",
+      "date": "2026-07-14",
+      "글자수": 1003,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/020/0003733904?sid=110"
+      ]
+    },
+    {
+      "slug": "society-mrj8ev4672fu",
+      "title": "출산율 1.57명 회사, 회장님이 상 받은 이유",
+      "category": "사회",
+      "date": "2026-07-13",
+      "글자수": 1002,
+      "근거": [
+        "https://www.biztribune.co.kr/news/articleView.html?idxno=355894"
+      ]
+    },
+    {
+      "slug": "society-mrku8vjei3ee",
+      "title": "유럽 인구, 2029년부터 줄어든다",
+      "category": "사회",
+      "date": "2026-07-14",
+      "글자수": 852,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/001/0016194769?sid=104"
+      ]
+    },
+    {
+      "slug": "tech-mryoo19d8d74",
+      "title": "화성시민대학 3학기 수강생 모집, 신청 대상과 수강 혜택 정리",
+      "category": "IT·테크",
+      "date": "2026-07-24",
+      "글자수": 617,
+      "근거": [
+        "https://www.kmaeil.com/news/articleView.html?idxno=646574"
+      ]
+    },
+    {
+      "slug": "culture-mriwmjiyclqe",
+      "title": "해체 후 155km, 아이돌이 걸어서 도착한 곳",
+      "category": "문화·연예",
+      "date": "2026-07-13",
+      "글자수": 1243,
+      "근거": [
+        "https://m.entertain.naver.com/home/article/311/0002033430"
+      ]
+    },
+    {
+      "slug": "economy-mrhaiior2hys",
+      "title": "공장만 있던 남동산단, 이제는 청년이 찾아온다",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 667,
+      "근거": [
+        "http://www.metroseoul.co.kr/article/20260711500021"
+      ]
+    },
+    {
+      "slug": "economy-mru9lax377go",
+      "title": "돈 끌어오는 공무원들의 비밀 과외",
+      "category": "경제",
+      "date": "2026-07-21",
+      "글자수": 1131,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/081/0003663039?sid=100"
+      ]
+    },
+    {
+      "slug": "economy-mrjpl64x46ao",
+      "title": "제약사들의 ESG 보고서, 알고 보니 R&D 자랑 대회였다",
+      "category": "경제",
+      "date": "2026-07-13",
+      "글자수": 1360,
+      "근거": [
+        "https://www.monews.co.kr/news/articleView.html?idxno=412506"
+      ]
+    },
+    {
+      "slug": "society-mria4js69dfe",
+      "title": "약사들은 왜 이렇게 불안할까",
+      "category": "사회",
+      "date": "2026-07-12",
+      "글자수": 691,
+      "근거": [
+        "https://www.kpanews.co.kr/news/articleView.html?idxno=538353"
+      ]
+    },
+    {
+      "slug": "economy-mrhxamphi2ik",
+      "title": "세금 더 걷혔는데, 빚은 왜 계속 늘어날까",
+      "category": "경제",
+      "date": "2026-07-12",
+      "글자수": 1011,
+      "근거": [
+        "https://n.news.naver.com/mnews/article/021/0002804134?sid=101"
+      ]
+    },
+    {
+      "slug": "economy-mrlpbuji5tmq",
+      "title": "폐업, 그다음이 있어야 한다",
+      "category": "경제",
+      "date": "2026-07-15",
+      "글자수": 1251,
+      "근거": [
+        "https://www.ibabynews.com/news/articleView.html?idxno=152933"
+      ]
+    },
+    {
+      "slug": "culture-mri1md4sfero",
+      "title": "태화루 앞, 600명이 모여 만든 하룻밤 풍류",
+      "category": "문화·연예",
+      "date": "2026-07-12",
+      "글자수": 972,
+      "근거": [
+        "https://www.ksilbo.co.kr/news/articleView.html?idxno=1061889"
+      ]
+    },
+    {
+      "slug": "economy-mrliw9gmd83e",
+      "title": "돈 굴리는 회사들의 인기투표, 1등은 역시나",
+      "category": "경제",
+      "date": "2026-07-15",
+      "글자수": 889,
+      "근거": [
+        "https://www.energy-news.co.kr/news/articleView.html?idxno=226824"
+      ]
+    },
+    {
+      "slug": "tech-mrkq01x9do38",
+      "title": "드론이 찾고 로봇이 고친다, 골프장부터 시작된 실험",
+      "category": "IT·테크",
+      "date": "2026-07-14",
+      "글자수": 987,
+      "근거": [
+        "https://www.venturesquare.net/1098553/"
+      ]
+    },
+    {
+      "slug": "tech-msi5gvd3i2mg",
+      "title": "맥과 아이폰 연동 안 될 때 해결하는 5가지 방법",
+      "category": "IT·테크",
+      "date": "2026-08-06",
+      "글자수": 2671,
+      "근거": [
+        "https://support.apple.com/ko-kr/guide/mac-help/welcome/mac"
+      ]
+    },
+    {
+      "slug": "trend-mrye7h2ei7cq",
+      "title": "비만치료제 열풍, 과열 경쟁 주의보라",
+      "category": "트렌드",
+      "date": "2026-07-24",
+      "글자수": 506,
+      "근거": [
+        "https://www.ebn.co.kr/news/articleView.html?idxno=1717652"
+      ]
+    },
+    {
+      "slug": "sports-mrxtp6k9kc8",
+      "title": "이태석 분데스리가 함부르크 이적설, 손흥민 친정팀 관심 배경은",
+      "category": "스포츠",
+      "date": "2026-07-23",
+      "글자수": 947,
+      "근거": [
+        "https://m.sports.naver.com/wfootball/article/411/0000084828"
+      ]
+    },
+    {
+      "slug": "society-mri6vamteo9o",
+      "title": "340개 지역신문이 한자리에, 그날의 이야기",
+      "category": "사회",
+      "date": "2026-07-12",
+      "글자수": 1385,
+      "근거": [
+        "https://www.tournews21.com/news/articleView.html?idxno=138440"
+      ]
+    },
+    {
+      "slug": "trend-ms8zzvgccaro",
+      "title": "서순라길부터 청계천까지, 종로 핫플 속 숨은 역사 코스 5",
+      "category": "트렌드",
+      "date": "2026-07-31",
+      "글자수": 1560,
+      "근거": [
+        "https://www.goodnews1.com/news/articleView.html?idxno=462538"
+      ]
+    },
+    {
+      "slug": "economy-mrjpk1frap6w",
+      "title": "현대글로비스, 항공화물운송 브랜드평판 1위 지켰지만... 업계 전반 '흔들'",
+      "category": "경제",
+      "date": "2026-07-13",
+      "글자수": 1139,
+      "근거": [
+        "https://www.enetnews.co.kr/news/articleView.html?idxno=52339"
+      ]
+    },
+    {
+      "slug": "economy-mrl749ht3eu8",
+      "title": "아모레퍼시픽, 7월 화장품 브랜드평판 1위",
+      "category": "경제",
+      "date": "2026-07-14",
+      "글자수": 862,
+      "근거": [
+        "https://www.pinpointnews.co.kr/news/articleView.html?idxno=468428"
+      ]
+    }
+  ],
+  "숨김": [
+    {
+      "slug": "tech-mso742q9l5wg",
+      "title": "AI가 알려준 링크 가짜인지 확인하는 법 5가지",
+      "category": "IT·테크",
+      "date": "2026-08-11",
+      "글자수": 1587,
+      "근거": [
+        "https://oddsbag.co.kr"
+      ],
+      "이유": "우리 홈을 근거로"
+    },
+    {
+      "slug": "tips-mspey98rf5j8",
+      "title": "우산 오래 쓰는 법 5가지, 녹과 곰팡이 막는 관리 팁",
+      "category": "꿀팁",
+      "date": "2026-08-12",
+      "글자수": 1680,
+      "근거": [
+        "https://oddsbag.co.kr"
+      ],
+      "이유": "우리 홈을 근거로"
+    },
+    {
+      "slug": "tips-msl4myocfd2s",
+      "title": "엑셀 오류 표시 해결하는 법 5가지 원인 정리",
+      "category": "꿀팁",
+      "date": "2026-08-09",
+      "글자수": 1707,
+      "근거": [
+        "https://support.microsoft.com/ko-kr/excel"
+      ],
+      "이유": "지원센터 첫 화면"
+    },
+    {
+      "slug": "tips-msixblp6k2es",
+      "title": "윈도우 부팅 속도 느릴 때 해결하는 방법 5가지",
+      "category": "꿀팁",
+      "date": "2026-08-07",
+      "글자수": 1592,
+      "근거": [
+        "https://support.microsoft.com/ko-kr/windows"
+      ],
+      "이유": "지원센터 첫 화면"
+    },
+    {
+      "slug": "tips-msjp85wlwwc",
+      "title": "브라우저 오류 해결하는 방법 5가지 정리",
+      "category": "꿀팁",
+      "date": "2026-08-08",
+      "글자수": 2125,
+      "근거": [
+        "https://support.google.com/chrome"
+      ],
+      "이유": "지원센터 첫 화면"
+    },
+    {
+      "slug": "tips-msfzsc392458",
+      "title": "윈도우 알림 끄기 및 방해 금지 설정 방법 5가지",
+      "category": "꿀팁",
+      "date": "2026-08-05",
+      "글자수": 1769,
+      "근거": [
+        "https://support.microsoft.com/ko-kr/windows"
+      ],
+      "이유": "지원센터 첫 화면"
+    },
+    {
+      "slug": "tips-msfztjfjjhbk",
+      "title": "윈도우 업데이트 오류 멈춤 해결 방법 5가지 점검",
+      "category": "꿀팁",
+      "date": "2026-08-05",
+      "글자수": 1641,
+      "근거": [
+        "https://support.microsoft.com/ko-kr/windows"
+      ],
+      "이유": "지원센터 첫 화면"
+    },
+    {
+      "slug": "tips-msfzqvm3bb0k",
+      "title": "윈도우 화면 캡처 단축키 및 저장 방법 5가지",
+      "category": "꿀팁",
+      "date": "2026-08-05",
+      "글자수": 1778,
+      "근거": [
+        "https://support.microsoft.com/ko-kr/windows"
+      ],
+      "이유": "지원센터 첫 화면"
+    },
+    {
+      "slug": "tips-msizh5pm8yk6",
+      "title": "아이폰 백업 안 될 때 확인해야 할 5가지 점검 리스트",
+      "category": "꿀팁",
+      "date": "2026-08-07",
+      "글자수": 1600,
+      "근거": [
+        "https://support.apple.com/ko-kr/HT203977"
+      ],
+      "이유": "지원센터 첫 화면"
+    }
+  ]
+}

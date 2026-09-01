@@ -108,6 +108,30 @@ async function 검수함읽기() {
 //   가리키던 글 43편」이 나왔다. 그 글들이 검수함에도 28편 있었다.
 const 우리홈 = /(^|\/\/)(www\.)?oddsbag\.co\.kr/i;
 
+// ★2026-09-01 추가 — 「근거 자리에 특정 문서가 아닌 것」.
+//   8/25 전수에서 발행글 9편이 이 모양이었다 (우리 홈 2편 · 지원센터 첫 화면 7편).
+//   그런데 옛 판정은 «우리 홈» 만 봤다. 그래서 9/1 검침에서 «안전» 으로 통과한 8편이
+//   전부 support.google.com/chrome 류였다 — 내리기로 한 것과 똑같은 글을 다시 꺼낼 뻔했다.
+const 도움말도메인 = /(^|\.)(support|help|docs|answers)\./i;
+
+// 경로 조각 하나라도 «문서를 특정하는 모양» 이면 통과로 본다 —
+//   숫자가 들어 있거나(/answer/95464 · HT201441) · 15자 이상이거나 · 하이픈 2개 이상(긴 슬러그)
+const 문서조각 = (조각) =>
+  /\d/.test(조각) || 조각.length >= 15 || (조각.match(/-/g) || []).length >= 2;
+
+function 첫화면인가(u) {
+  let url;
+  try {
+    url = new URL(u);
+  } catch {
+    return false; // 주소로 읽히지도 않는 것은 여기서 따지지 않는다 (다른 규칙이 잡는다)
+  }
+  const 조각 = url.pathname.split("/").filter(Boolean);
+  if (조각.length === 0 && !url.search) return true; // 도메인만 적어 놓은 것 — 어느 도메인이든
+  if (!도움말도메인.test(url.hostname)) return false; // 뉴스 등은 주소 모양이 제각각이라 안 본다
+  return !조각.some(문서조각); // 지원센터인데 문서를 특정하지 못했다
+}
+
 function 판정(p) {
   const 이유 = [];
   const 위험도 = String(p.fakeRisk || p.risk || "").toLowerCase();
@@ -123,6 +147,8 @@ function 판정(p) {
   const 바깥출처 = 출처.filter((s) => s?.url && !우리홈.test(s.url));
   if (출처.length > 0 && 바깥출처.length === 0)
     이유.push("출처가 전부 oddsbag.co.kr — 8/20 「거짓 출처」 건과 같은 모양");
+  else if (바깥출처.length > 0 && 바깥출처.every((s) => 첫화면인가(s.url)))
+    이유.push("근거가 «특정 문서» 가 아니다 (지원센터·첫 화면) — 8/25 지적 9편과 같은 모양");
 
   if (!p.title || !p.body) 이유.push("제목이나 본문이 비었다");
   if (!p.slug) 이유.push("slug 가 없다");

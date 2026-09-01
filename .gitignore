@@ -66,3 +66,4 @@ private/
 
 # 세션 도구 설정 — 레포에 넣지 않는다
 .claude/
+content-factory/_검수표.html
