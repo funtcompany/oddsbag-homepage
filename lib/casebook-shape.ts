@@ -25,6 +25,9 @@ export const 그림글자: Record<string, string> = {
   "child-vaccination": "💉",
   "pension-record": "🧓",
   "resident-card": "🆔",
+  "vat-return": "🧾",
+  "income-tax-return": "🧮",
+  "year-end-settlement": "📑",
 };
 
 export interface RawStep {
